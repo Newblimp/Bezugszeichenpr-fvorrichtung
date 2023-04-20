@@ -56,22 +56,16 @@ void MainWindow::scanText(wxCommandEvent &event) {
 
   wxString text = m_textBox->GetValue();
   wxRegEx regex("(\\b\\w+) (\\d+\\b)");
-
   m_merkmale.clear();
 
   if (regex.IsValid()) {
-
     // Loop over the search string, finding matches
     while (regex.Matches(text)) {
-
       size_t start, len;
       // Get the next match and add it to the collection
       regex.GetMatch(&start, &len, 0);
 
-      wxString bezugszeichen = regex.GetMatch(text, 2);
-      if (!inSet(m_merkmale[bezugszeichen], regex.GetMatch(text, 1))) {
-        m_merkmale[bezugszeichen].emplace(regex.GetMatch(text, 1));
-      }
+      m_merkmale[regex.GetMatch(text, 2)].emplace(regex.GetMatch(text, 1));
 
       // Update the search string to exclude the current match
       text = text.Mid(start + len);
