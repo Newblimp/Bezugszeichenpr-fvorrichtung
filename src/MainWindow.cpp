@@ -80,8 +80,6 @@ void MainWindow::scanText(wxCommandEvent &event) {
 
   printList();
   m_treeList->SetSortColumn(0);
-
-  normalizeText();
 }
 
 void MainWindow::printList() {

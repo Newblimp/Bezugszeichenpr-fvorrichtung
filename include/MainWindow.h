@@ -16,8 +16,6 @@ private:
 
   void printList();
 
-  void normalizeText();
-
   std::map<wxString, std::set<wxString>> m_merkmale;
   std::shared_ptr<wxButton> m_scanButton;
   std::shared_ptr<wxTextCtrl> m_textBox;
