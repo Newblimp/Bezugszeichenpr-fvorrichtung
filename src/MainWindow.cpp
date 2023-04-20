@@ -55,7 +55,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
 void MainWindow::scanText(wxCommandEvent &event) {
 
   wxString text = m_textBox->GetValue();
-  wxRegEx regex("(\\b\\w+) (\\d+\\b)");
+  wxRegEx regex("(\\b\\p{L}+) (\\d+\\b)");
   m_merkmale.clear();
 
   if (regex.IsValid()) {
@@ -77,16 +77,18 @@ void MainWindow::scanText(wxCommandEvent &event) {
 }
 
 void MainWindow::printList() {
-
   // Empty the list
   m_treeList->DeleteAllItems();
-  // m_listBox->DeleteAllItems();
-  // int row{0};
-  wxTreeListItem item;
 
+  // Used to refer to the line we add afterwards
+  wxTreeListItem item;
+  // Iterate over every saved item and insert it
   for (const auto &[bezugszeichen, merkmale] : m_merkmale) {
+    // At highest level, add all merkmale together
     item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen);
     m_treeList->SetItemText(item, 1, merkmaleToString(merkmale));
+
+    // Then add them all seperately on a lower level
     for (const auto &merkmal : merkmale) {
       auto row = m_treeList->AppendItem(item, "");
       m_treeList->SetItemText(row, 1, merkmal);
