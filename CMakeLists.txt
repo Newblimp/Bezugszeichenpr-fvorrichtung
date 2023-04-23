@@ -8,10 +8,10 @@ set(wxBUILD_SHARED OFF)
 
 
 add_subdirectory(libs/wxWidgets)
-include_directories(include)
+include_directories(include img)
 
 # Add executable target
-add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp)
+add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
 
 # Link against wxWidgets libraries
 target_link_libraries(zeichen wx::net wx::core wx::base)
