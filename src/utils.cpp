@@ -6,11 +6,14 @@
 
 wxString merkmaleToString(const std::set<wxString> &bezugszeichen) {
   wxString listing;
-  if (!areAllWordsSame(bezugszeichen)) {
-    listing = "!!";
-  }
-  for (const auto &element : bezugszeichen) {
-    listing.append(element + "; ");
+  if (bezugszeichen.size() > 1) {
+    for (const auto &element : bezugszeichen) {
+      listing.append(element + "; ");
+    }
+  } else {
+    for (const auto &element : bezugszeichen) {
+      listing.append(element);
+    }
   }
   return listing;
 }
@@ -21,7 +24,6 @@ bool areAllWordsSame(const std::set<wxString> &set) {
   ++it;
   for (; it != set.end(); ++it) {
     if (!areSameWord(*it, first)) {
-      std::cout << "Different words are: " << *it << first << std::endl;
       return false;
     }
   }
@@ -37,19 +39,14 @@ bool areSameWord(const wxString &word1, const wxString &word2) {
     return true;
   }*/
 
-  std::string string1 = word1.ToStdString();
-  std::string string2 = word2.ToStdString();
-
-  std::cout << word1 << word2 << std::endl;
-  std::cout << string1 << string2 << std::endl;
+  std::wstring string1 = word1.ToStdWstring();
+  std::wstring string2 = word2.ToStdWstring();
 
   normalizeString(string1);
   normalizeString(string2);
 
   // If the lenghts are more than 2 apart, we don't need to check further
   if (std::abs((int)string1.length() - (int)string2.length()) > 2) {
-    std::cout << string1 << ": " << string1.length() << "; " << string2
-              << string2.length() << std::endl;
     return false;
   }
 
@@ -57,8 +54,6 @@ bool areSameWord(const wxString &word1, const wxString &word2) {
   // plural
   for (int i = 0; i < std::min(string1.length(), string2.length()); ++i) {
     if (string1[i] != string2[i]) {
-      std::cout << "These chars are different: " << string1[i] << " "
-                << string2[i] << std::endl;
       return false;
     }
   }
@@ -76,30 +71,19 @@ bool inSet(const std::set<wxString> &set, const wxString &string) {
   return false;
 }
 
-void normalizeString(std::string &input) {
+void normalizeString(std::wstring &input) {
   std::locale loc;
 
   // Convert all letters to lowercase
-  for (char &c : input) {
+  // Remote diacritics
+  for (auto &c : input) {
     c = std::tolower(c, loc);
-  }
 
-  // Replace diacritics with ASCII equivalents
-  for (std::size_t i = 0; i < input.size(); ++i) {
-    if (input[i] == '\xc3') {
-      switch (input[i + 1]) {
-      case '\x84': // Ä
-        input.replace(i, 2, "A");
-        break;
-      case '\x96': // Ö
-        input.replace(i, 2, "O");
-        break;
-      case '\x9c': // Ü
-        input.replace(i, 2, "U");
-        break;
-      default:
-        break;
-      }
-    }
+    if ((c == L'Ä') || (c == L'ä')) {
+      c = L'a';
+    } else if ((c == L'Ö') || (c == L'ö')) {
+      c = L'o';
+    } else if ((c == L'Ü') || (c == L'ü'))
+      c = L'u';
   }
 }

@@ -16,10 +16,14 @@ private:
 
   void printList();
 
+  void loadIcons();
+
+  void makeBold(const std::set<wxString> &strings);
+
   std::map<wxString, std::set<wxString>> m_merkmale;
   std::shared_ptr<wxButton> m_scanButton;
   std::shared_ptr<wxTextCtrl> m_textBox;
-  // std::shared_ptr<wxListCtrl> m_listBox;
+  std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
   BZComparator m_BZComparator;
 };
