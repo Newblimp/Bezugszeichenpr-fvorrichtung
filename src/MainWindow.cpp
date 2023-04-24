@@ -70,7 +70,6 @@ void MainWindow::scanText(wxCommandEvent &event) {
     }
   }
 
-  m_textBox->SetStyle(0, text.length(), m_textBox->GetDefaultStyle());
   printList();
   m_treeList->SetSortColumn(0);
 }
