@@ -11,7 +11,10 @@ add_subdirectory(libs/wxWidgets)
 include_directories(include img)
 
 # Add executable target
-add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
-
+if(WIN32)
+  add_executable(zeichen WIN32 main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
+else()
+  add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
+endif()
 # Link against wxWidgets libraries
 target_link_libraries(zeichen wx::net wx::core wx::base)
