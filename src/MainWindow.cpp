@@ -15,18 +15,18 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   // Create a panel to hold our controls
   wxPanel *panel = new wxPanel(this, wxID_ANY);
 
-  // Create a vertical box sizer to keep the text, list, and buttons
-  wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-  panel->SetSizer(mainSizer);
-
   // Create a horizontal box sizer to arrange the controls
   wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
-  mainSizer->Add(viewSizer, 1, wxEXPAND, 10);
+  panel->SetSizer(viewSizer);
+
+  // Create a vertical box sizer to keep the text, list, and buttons
+  wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
 
   // Add a text box to the sizer
   m_textBox = std::make_shared<wxTextCtrl>(
       panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
+  viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
   // Add a dataView to the sizer
   m_treeList = std::make_shared<wxTreeListCtrl>(
@@ -34,18 +34,22 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   m_treeList->AppendColumn("BZeichen");
   m_treeList->AppendColumn("Merkmal");
   m_treeList->SetItemComparator(&m_BZComparator);
-  viewSizer->Add(m_treeList.get(), 1, wxEXPAND | wxALL, 10);
+  outputSizer->Add(m_treeList.get(), 2, wxEXPAND | wxALL, 10);
+
+  m_listBox = std::make_shared<wxListCtrl>(panel, wxID_ANY, wxDefaultPosition,
+                                           wxDefaultSize);
+  outputSizer->Add(m_listBox.get(), 1, wxEXPAND | wxALL, 10);
 
   // Add two buttons to a buttonSizer
-  m_scanButton = std::make_shared<wxButton>(panel, wxID_ANY, "Scan");
-  wxBoxSizer *buttonSizer = new wxBoxSizer(wxHORIZONTAL);
-  buttonSizer->Add(m_scanButton.get(), 0, wxCENTRE, 10);
-  mainSizer->Add(buttonSizer, 0, wxEXPAND | wxALL, 10);
+  // m_scanButton = std::make_shared<wxButton>(panel, wxID_ANY, "Scan");
+  // wxBoxSizer *buttonSizer = new wxBoxSizer(wxHORIZONTAL);
+  // buttonSizer->Add(m_scanButton.get(), 0, wxCENTRE, 10);
+  // mainSizer->Add(buttonSizer, 0, wxEXPAND | wxALL, 10);
 
   loadIcons();
   m_treeList->SetImageList(m_imageList.get());
 
-  m_scanButton->Bind(wxEVT_BUTTON, &MainWindow::scanText, this);
+  // m_scanButton->Bind(wxEVT_BUTTON, &MainWindow::scanText, this);
 
   m_textBox->Bind(wxEVT_TEXT, &MainWindow::scanText, this);
 }
@@ -87,7 +91,7 @@ void MainWindow::printList() {
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 0,
                                     0);
     } else {
-      makeBold(merkmale);
+      // makeBold(merkmale);
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 1,
                                     1);
     }
@@ -112,8 +116,9 @@ void MainWindow::loadIcons() {
 
 void MainWindow::makeBold(const std::set<wxString> &strings) {
   wxTextAttr style;
-  style.SetFontWeight(wxFONTWEIGHT_BOLD);
-  style.SetTextColour(*wxRED);
+  // style.SetFontWeight(wxFONTWEIGHT_BOLD);
+  // style.SetTextColour(*wxRED);
+  style.SetBackgroundColour(*wxYELLOW);
   // Get the current text in the wxTestCtrl
   wxString currentText;
 
@@ -131,6 +136,7 @@ void MainWindow::makeBold(const std::set<wxString> &strings) {
 
       currentText = currentText.Mid(pos + string.length());
       offset += pos + string.length();
+
       // Find the position of the string in the text
       pos = currentText.Find(string);
     }
