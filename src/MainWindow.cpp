@@ -23,8 +23,9 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
 
   // Add a text box to the sizer
-  m_textBox = std::make_shared<wxTextCtrl>(
-      panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
+  m_textBox =
+      std::make_shared<wxTextCtrl>(panel, wxID_ANY, "", wxDefaultPosition,
+                                   wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
@@ -37,7 +38,9 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   outputSizer->Add(m_treeList.get(), 2, wxEXPAND | wxALL, 10);
 
   m_listBox = std::make_shared<wxListCtrl>(panel, wxID_ANY, wxDefaultPosition,
-                                           wxDefaultSize);
+                                           wxDefaultSize, wxLC_REPORT);
+  m_listBox->AppendColumn("Double Check", wxLIST_FORMAT_LEFT, 133);
+  m_listBox->AppendColumn("Reason", wxLIST_FORMAT_LEFT, 300);
   outputSizer->Add(m_listBox.get(), 1, wxEXPAND | wxALL, 10);
 
   // Add two buttons to a buttonSizer
@@ -81,6 +84,12 @@ void MainWindow::scanText(wxCommandEvent &event) {
 void MainWindow::printList() {
   // Empty the list
   m_treeList->DeleteAllItems();
+  m_listBox->DeleteAllItems();
+
+  wxTextAttr neutralStyle;
+  neutralStyle.SetBackgroundColour(
+      wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+  m_textBox->SetStyle(0, m_textBox->GetValue().length(), neutralStyle);
 
   // Used to refer to the line we add afterwards
   wxTreeListItem item;
@@ -91,9 +100,14 @@ void MainWindow::printList() {
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 0,
                                     0);
     } else {
-      // makeBold(merkmale);
+      markWordsNumConflict(merkmale);
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 1,
                                     1);
+      // Add the items to the "Double Check"-list
+      for (const auto &merkmal : merkmale) {
+        m_listBox->InsertItem(0, merkmal);
+        m_listBox->SetItem(0, 1, "multiple words for the same number");
+      }
     }
     m_treeList->SetItemText(item, 1, merkmaleToString(merkmale));
 
@@ -102,6 +116,9 @@ void MainWindow::printList() {
       auto row = m_treeList->AppendItem(item, "");
       m_treeList->SetItemText(row, 1, merkmal);
     }
+
+    // Add BZ without a number to the suggestion list
+    findUnnumberedWords(merkmale);
   }
 }
 
@@ -114,12 +131,9 @@ void MainWindow::loadIcons() {
   m_imageList->Add(warning);
 }
 
-void MainWindow::makeBold(const std::set<wxString> &strings) {
+void MainWindow::markWordsNumConflict(const std::set<wxString> &strings) {
   wxTextAttr style;
-  // style.SetFontWeight(wxFONTWEIGHT_BOLD);
-  // style.SetTextColour(*wxRED);
   style.SetBackgroundColour(*wxYELLOW);
-  // Get the current text in the wxTestCtrl
   wxString currentText;
 
   int pos, offset{0};
@@ -139,6 +153,36 @@ void MainWindow::makeBold(const std::set<wxString> &strings) {
 
       // Find the position of the string in the text
       pos = currentText.Find(string);
+    }
+  }
+}
+
+void MainWindow::findUnnumberedWords(const std::set<wxString> &bezugszeichen) {
+  wxTextAttr style;
+  style.SetBackgroundColour(*wxYELLOW);
+
+  wxString currentText;
+
+  int pos, offset{0};
+  for (const auto &bz : bezugszeichen) {
+    // Set up text and indices
+    currentText = m_textBox->GetValue();
+    pos = currentText.Find(bz);
+    offset = 0;
+
+    // Loop the indices over the text
+    while (pos != wxNOT_FOUND) {
+      if ((!wxIsdigit(currentText[pos + bz.length() + 1])) ||
+          (currentText.length() <= (pos + bz.length() + 1))) {
+        m_listBox->InsertItem(0, bz);
+        m_listBox->SetItem(0, 1, "unnumbered");
+        m_textBox->SetStyle(pos + offset, pos + bz.length() + offset, style);
+      }
+      currentText = currentText.Mid(pos + bz.length());
+      offset += pos + bz.length();
+
+      // Find the position of the string in the text
+      pos = currentText.Find(bz);
     }
   }
 }

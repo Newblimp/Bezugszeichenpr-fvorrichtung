@@ -19,7 +19,9 @@ private:
 
   void loadIcons();
 
-  void makeBold(const std::set<wxString> &strings);
+  void markWordsNumConflict(const std::set<wxString> &strings);
+
+  void findUnnumberedWords(const std::set<wxString> &bezugszeichen);
 
   std::map<wxString, std::set<wxString>> m_merkmale;
   // std::shared_ptr<wxButton> m_scanButton;
