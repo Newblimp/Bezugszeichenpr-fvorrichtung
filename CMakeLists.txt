@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Release)
 set(wxBUILD_SHARED OFF)
+add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_MOTIF=1)
 
 add_subdirectory(libs/wxWidgets)
 include_directories(include img)
@@ -18,4 +19,3 @@ endif()
 # Link against wxWidgets libraries
 target_link_libraries(zeichen wx::net wx::core wx::base)
 
-add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_GUI=1; -DwxUSE_RICHEDIT=1; -DwxUSE_RICHTEXT_XML_HANDLER=1)
