@@ -18,5 +18,5 @@ else()
   add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
 endif()
 # Link against wxWidgets libraries
-target_link_libraries(zeichen wx::net wx::core wx::base)
+target_link_libraries(zeichen wx::core wx::base)
 
