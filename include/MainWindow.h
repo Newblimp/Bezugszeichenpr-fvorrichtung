@@ -7,7 +7,6 @@
 #include <set>
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
-#include <wx/stc/stc.h>
 #include <wx/wx.h>
 
 class MainWindow : public wxFrame {
