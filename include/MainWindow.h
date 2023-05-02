@@ -1,13 +1,14 @@
 #pragma once
-#include <wx/richtext/richtextctrl.h>
 #include "BZComparator.h"
 #include "wx/regex.h"
-#include "wx/textctrl.h"
+// #include "wx/textctrl.h"
 #include "wx/treelist.h"
 #include <map>
+#include <memory>
 #include <set>
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
+#include <wx/richtext/richtextctrl.h>
 #include <wx/wx.h>
 
 class MainWindow : public wxFrame {

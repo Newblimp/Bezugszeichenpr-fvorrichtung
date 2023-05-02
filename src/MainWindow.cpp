@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <chrono>
 #include <locale>
-#include <memory>
 #include <string>
 #include <wx/bitmap.h>
 #include <wx/regex.h>
+#include <wx/richtext/richtextctrl.h>
 
 MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   // Create a panel to hold our controls
@@ -24,9 +24,10 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
 
   // Add a text box to the sizer
-  m_textBox =
-      std::make_shared<wxRichTextCtrl>(panel, wxID_ANY, "", wxDefaultPosition,
-                                   wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
+  m_textBox = std::make_shared<wxRichTextCtrl>(panel);
+  // m_textBox = std::make_shared<wxRichTextCtrl>(
+  // panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxRE_MULTILINE);
+  // wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
