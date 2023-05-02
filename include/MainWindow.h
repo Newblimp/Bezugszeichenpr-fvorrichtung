@@ -1,4 +1,5 @@
 #pragma once
+#include <wx/richtext/richtextctrl.h>
 #include "BZComparator.h"
 #include "wx/regex.h"
 #include "wx/textctrl.h"
@@ -34,7 +35,7 @@ private:
   std::map<std::wstring, std::set<wxString>> m_merkmale_to_bz;
   std::set<wxString> m_all_merkmale;
   // std::shared_ptr<wxButton> m_scanButton;
-  std::shared_ptr<wxTextCtrl> m_textBox;
+  std::shared_ptr<wxRichTextCtrl> m_textBox;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxListCtrl> m_listBox;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
