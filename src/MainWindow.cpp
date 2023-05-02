@@ -67,6 +67,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
 void MainWindow::scanText(wxCommandEvent &event) {
   auto start = std::chrono::high_resolution_clock::now();
 
+  Freeze();
   m_fullText = m_textBox->GetValue();
   // wxString text = m_textBox->GetValue();
   wxString text = m_fullText;
@@ -104,6 +105,7 @@ void MainWindow::scanText(wxCommandEvent &event) {
 
   auto end = std::chrono::high_resolution_clock::now();
 
+  Thaw();
   auto setup_diff =
       std::chrono::duration_cast<std::chrono::milliseconds>(setup_time - start);
 
