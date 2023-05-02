@@ -25,7 +25,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
 
   // Add a text box to the sizer
   m_textBox =
-      std::make_shared<wxTextCtrl>(panel, wxID_ANY, "", wxDefaultPosition,
+      std::make_shared<wxRichTextCtrl>(panel, wxID_ANY, "", wxDefaultPosition,
                                    wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
