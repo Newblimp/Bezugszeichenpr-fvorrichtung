@@ -17,3 +17,5 @@ else()
 endif()
 # Link against wxWidgets libraries
 target_link_libraries(zeichen wx::net wx::core wx::base)
+
+add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_GUI=1; -DwxUSE_RICHEDIT=1; -DwxUSE_RICHTEXT_XML_HANDLER=1)
