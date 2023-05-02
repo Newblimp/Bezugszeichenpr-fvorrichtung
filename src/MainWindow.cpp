@@ -56,15 +56,20 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   // m_scanButton->Bind(wxEVT_BUTTON, &MainWindow::scanText, this);
 
   m_textBox->Bind(wxEVT_TEXT, &MainWindow::scanText, this);
+
+  m_neutral_style.SetBackgroundColour(
+      wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+  m_yellow_style.SetBackgroundColour(*wxYELLOW);
 }
 
 void MainWindow::scanText(wxCommandEvent &event) {
   auto start = std::chrono::high_resolution_clock::now();
 
-  wxString fulltext = m_textBox->GetValue();
+  m_fullText = m_textBox->GetValue();
   // wxString text = m_textBox->GetValue();
-  wxString &text = fulltext;
+  wxString text = m_fullText;
   m_merkmale.clear();
+  m_all_merkmale.clear();
 
   auto setup_time = std::chrono::high_resolution_clock::now();
 
@@ -121,10 +126,7 @@ void MainWindow::printList() {
   m_treeList->DeleteAllItems();
   m_listBox->DeleteAllItems();
 
-  wxTextAttr neutralStyle;
-  neutralStyle.SetBackgroundColour(
-      wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-  m_textBox->SetStyle(0, m_textBox->GetValue().length(), neutralStyle);
+  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
 
   // Used to refer to the line we add afterwards
   wxTreeListItem item;
@@ -197,38 +199,50 @@ void MainWindow::markWordsNumConflict(const std::set<wxString> &strings) {
 }
 
 void MainWindow::findUnnumberedWords() {
-  wxTextAttr style;
-  style.SetBackgroundColour(*wxYELLOW);
 
-  wxString currentText;
+  wxString currentText = m_fullText;
 
-  int pos, offset{0};
+  int offset{0};
+  size_t pos{0};
   bool found_first_unnumbered_word{false};
 
-  for (const auto &bz : m_all_merkmale) {
-    // Set up text and indices
-    currentText = m_textBox->GetValue();
-    pos = currentText.Find(bz);
-    offset = 0;
-    found_first_unnumbered_word = false;
+  size_t set_size = m_all_merkmale.size();
+  if (set_size > 0) {
+    wxString regexString{"((?i)\\b"};
+    auto set_iter = m_all_merkmale.begin();
 
-    int loop_counter{0};
-    // Loop the indices over the text
-    while (pos != wxNOT_FOUND) {
-      if ((!wxIsdigit(currentText[pos + bz.length() + 1])) ||
-          (currentText.length() <= (pos + bz.length() + 1))) {
-        if (!found_first_unnumbered_word) {
-          m_listBox->InsertItem(0, bz);
-          m_listBox->SetItem(0, 1, "unnumbered");
-          found_first_unnumbered_word = true;
-        }
-        m_textBox->SetStyle(pos + offset, pos + bz.length() + offset, style);
+    for (int i = 0; i < (m_all_merkmale.size() - 1); ++i) {
+      regexString.Append(*set_iter + "|");
+      ++set_iter;
+    }
+    regexString.Append(*set_iter);
+    regexString.Append(")\\b(?!\\s\\(?\\d)");
+
+    wxRegEx unnumbered_regex{regexString};
+
+    std::set<wxString> unnumbered_strings;
+
+    if (unnumbered_regex.IsValid()) {
+      size_t len;
+
+      // Loop over the search string, finding matches
+      while (unnumbered_regex.Matches(currentText)) {
+        // Get the next match and add it to the collection
+        unnumbered_regex.GetMatch(&pos, &len, 1);
+
+        m_textBox->SetStyle(pos + offset, pos + offset + len, m_yellow_style);
+        // Update the search string to exclude the current match
+        offset += pos + len;
+
+        unnumbered_strings.emplace(currentText.SubString(pos, pos + len - 1));
+
+        currentText = currentText.Mid(pos + len);
       }
-      currentText = currentText.Mid(pos + bz.length());
-      offset += pos + bz.length();
+    }
 
-      // Find the position of the string in the text
-      pos = currentText.Find(bz);
+    for (const auto &string : unnumbered_strings) {
+      m_listBox->InsertItem(0, string);
+      m_listBox->SetItem(0, 1, "unnumbered");
     }
   }
 }

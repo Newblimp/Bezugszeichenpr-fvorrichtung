@@ -26,7 +26,10 @@ private:
 
   void checkIfWordMultipleNumbers();
 
-  const wxRegEx m_regex{"(\\b\\p{L}+) (\\d+\\b)"};
+  const wxRegEx m_regex{"(\\b\\p{L}+)\\s\\(?(\\d+[a-zA-Z']*)"};
+  wxString m_fullText;
+  wxTextAttr m_neutral_style;
+  wxTextAttr m_yellow_style;
   std::map<wxString, std::set<wxString>> m_merkmale;
   std::map<std::wstring, std::set<wxString>> m_merkmale_to_bz;
   std::set<wxString> m_all_merkmale;
