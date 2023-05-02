@@ -1,5 +1,6 @@
 #pragma once
 #include "BZComparator.h"
+#include "wx/regex.h"
 #include "wx/textctrl.h"
 #include "wx/treelist.h"
 #include <map>
@@ -21,9 +22,14 @@ private:
 
   void markWordsNumConflict(const std::set<wxString> &strings);
 
-  void findUnnumberedWords(const std::set<wxString> &bezugszeichen);
+  void findUnnumberedWords();
 
+  void checkIfWordMultipleNumbers();
+
+  const wxRegEx m_regex{"(\\b\\p{L}+) (\\d+\\b)"};
   std::map<wxString, std::set<wxString>> m_merkmale;
+  std::map<std::wstring, std::set<wxString>> m_merkmale_to_bz;
+  std::set<wxString> m_all_merkmale;
   // std::shared_ptr<wxButton> m_scanButton;
   std::shared_ptr<wxTextCtrl> m_textBox;
   std::shared_ptr<wxImageList> m_imageList;

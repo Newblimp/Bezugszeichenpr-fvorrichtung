@@ -57,8 +57,6 @@ bool areSameWord(const wxString &word1, const wxString &word2) {
       return false;
     }
   }
-  // TODO: Make sure to normalize the strings (lowercase + ÄÖÜ) before, make
-  // own function case should not matter
   return true;
 }
 
@@ -75,7 +73,7 @@ void normalizeString(std::wstring &input) {
   std::locale loc;
 
   // Convert all letters to lowercase
-  // Remote diacritics
+  // Remove diacritics
   for (auto &c : input) {
     c = std::tolower(c, loc);
 
