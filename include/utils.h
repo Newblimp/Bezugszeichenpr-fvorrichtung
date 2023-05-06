@@ -1,12 +1,14 @@
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <wx/string.h>
 
-wxString merkmaleToString(const std::set<wxString> &bezugszeichen);
+wxString merkmaleToString(const std::unordered_set<std::wstring> &stems,
+                          const std::unordered_set<std::wstring> &stem_origins);
 
-bool areAllWordsSame(const std::set<wxString> &set);
+void emplaceAllMerkmale(
+    const std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
+        &merkmale,
+    std::unordered_set<std::wstring> &merkVector);
 
-bool areSameWord(const wxString &word1, const wxString &word2);
-
-bool inSet(const std::set<wxString> &set, const wxString &string);
-
-void normalizeString(std::wstring &input);
+void appendVectorForRegex(const std::unordered_set<std::wstring> &strings,
+                          std::wstring &regexString);
