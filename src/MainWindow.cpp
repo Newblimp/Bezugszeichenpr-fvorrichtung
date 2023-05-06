@@ -4,9 +4,11 @@
 #include "utils.h"
 #include "wx/event.h"
 #include "wx/gdicmn.h"
+#include "wx/timer.h"
 #include <algorithm>
 #include <chrono>
 #include <locale>
+#include <regex>
 #include <string>
 #include <wx/bitmap.h>
 #include <wx/regex.h>
@@ -46,125 +48,91 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   m_listBox->AppendColumn("Reason", wxLIST_FORMAT_LEFT, 300);
   outputSizer->Add(m_listBox.get(), 1, wxEXPAND | wxALL, 10);
 
-  // Add two buttons to a buttonSizer
-  // m_scanButton = std::make_shared<wxButton>(panel, wxID_ANY, "Scan");
-  // wxBoxSizer *buttonSizer = new wxBoxSizer(wxHORIZONTAL);
-  // buttonSizer->Add(m_scanButton.get(), 0, wxCENTRE, 10);
-  // mainSizer->Add(buttonSizer, 0, wxEXPAND | wxALL, 10);
-
   loadIcons();
   m_treeList->SetImageList(m_imageList.get());
 
-  // m_scanButton->Bind(wxEVT_BUTTON, &MainWindow::scanText, this);
-
-  m_textBox->Bind(wxEVT_TEXT, &MainWindow::scanText, this);
+  m_textBox->Bind(wxEVT_TEXT, &MainWindow::debounceFunc, this);
 
   m_neutral_style.SetBackgroundColour(
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
   m_yellow_style.SetBackgroundColour(*wxYELLOW);
-}
 
-void MainWindow::scanText(wxCommandEvent &event) {
-  auto start = std::chrono::high_resolution_clock::now();
-
-  Freeze();
-  m_fullText = m_textBox->GetValue();
-  // wxString text = m_textBox->GetValue();
-  wxString text = m_fullText;
-  m_merkmale.clear();
-  m_all_merkmale.clear();
-
-  auto setup_time = std::chrono::high_resolution_clock::now();
-
-  if (m_regex.IsValid()) {
-    size_t start, len;
-    // Loop over the search string, finding matches
-    while (m_regex.Matches(text)) {
-      // Get the next match and add it to the collection
-      m_regex.GetMatch(&start, &len, 0);
-
-      wxString merkmal{m_regex.GetMatch(text, 1)};
-      wxString bezugszeichen{m_regex.GetMatch(text, 2)};
-
-      m_merkmale[bezugszeichen].emplace(merkmal);
-      m_all_merkmale.emplace(merkmal);
-
-      // Update the search string to exclude the current match
-      text = text.Mid(start + len);
-    }
-  }
-
-  auto regex_time = std::chrono::high_resolution_clock::now();
-
-  printList();
-  auto printlist_time = std::chrono::high_resolution_clock::now();
+  m_debounce_timer.Bind(wxEVT_TIMER, &MainWindow::scanText, this);
 
   m_treeList->SetSortColumn(0);
-  checkIfWordMultipleNumbers();
-  auto multi_check_time = std::chrono::high_resolution_clock::now();
-
-  auto end = std::chrono::high_resolution_clock::now();
-
-  Thaw();
-  auto setup_diff =
-      std::chrono::duration_cast<std::chrono::milliseconds>(setup_time - start);
-
-  auto regex_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-      regex_time - setup_time);
-
-  auto print_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-      printlist_time - regex_time);
-
-  auto multicheck_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-      multi_check_time - printlist_time);
-
-  std::cout << "The setup took " << setup_diff.count() << std::endl;
-  std::cout << "The regex took " << regex_diff.count() << std::endl;
-  std::cout << "The printlist took " << print_diff.count() << std::endl;
-  std::cout << "The multicheck loop took " << multicheck_diff.count()
-            << std::endl;
 }
 
-void MainWindow::printList() {
-  // Empty the list
-  m_treeList->DeleteAllItems();
-  m_listBox->DeleteAllItems();
+void MainWindow::debounceFunc(wxCommandEvent &event) {
+  m_debounce_timer.StartOnce(333);
+}
 
-  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
+void MainWindow::scanText(wxTimerEvent &event) {
+  auto start = std::chrono::high_resolution_clock::now();
+  setupAndClear();
 
+  std::wsregex_iterator regex_begin(m_fullText.begin(), m_fullText.end(),
+                                    m_regex);
+  std::wsregex_iterator regex_end;
+
+  std::wstring merkmal;
+  while (regex_begin != regex_end) {
+    std::wsmatch match = *regex_begin;
+    merkmal = (*regex_begin)[1];
+    stemWord(merkmal);
+    m_graph[(*regex_begin)[2]].emplace(merkmal);
+    m_merkmale_to_bz[merkmal].emplace((*regex_begin)[2]);
+    m_full_words[(*regex_begin)[2].str()].emplace((*regex_begin)[1].str());
+    m_text_positions[(*regex_begin)[2].str()].emplace_back(
+        (*regex_begin).position());
+    m_text_positions[(*regex_begin)[2].str()].emplace_back(
+        (*regex_begin).length());
+    ++regex_begin;
+  }
+
+  fillListTree();
+  findUnnumberedWords();
+  auto end = std::chrono::high_resolution_clock::now();
+  auto diff =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+  std::cout << "One loop took " << diff.count() << std::endl;
+}
+
+void MainWindow::fillListTree() {
   // Used to refer to the line we add afterwards
   wxTreeListItem item;
   // Iterate over every saved item and insert it
-  for (const auto &[bezugszeichen, merkmale] : m_merkmale) {
-    // At highest level, add all merkmale together
-    if (areAllWordsSame(merkmale)) {
+  for (const auto &[bezugszeichen, merkmale] : m_graph) {
+    if (isUniquelyAssigned(bezugszeichen)) {
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 0,
                                     0);
     } else {
-      markWordsNumConflict(merkmale);
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bezugszeichen, 1,
                                     1);
-      // Add the items to the "Double Check"-list
-      m_listBox->InsertItem(0, bezugszeichen);
-      m_listBox->SetItem(0, 1, "different words for the same number");
+      for (int i = 0; i < m_text_positions[bezugszeichen].size(); ++i) {
+        m_textBox->SetStyle(m_text_positions[bezugszeichen][i],
+                            m_text_positions[bezugszeichen][i + 1] +
+                                m_text_positions[bezugszeichen][i],
+                            m_yellow_style);
+        ++i;
+      }
     }
-    m_treeList->SetItemText(item, 1, merkmaleToString(merkmale));
+    m_treeList->SetItemText(
+        item, 1, merkmaleToString(merkmale, m_full_words[bezugszeichen]));
+  }
+}
 
-    // Then add them all seperately on a lower level
-    for (const auto &merkmal : merkmale) {
-      auto row = m_treeList->AppendItem(item, "");
-      m_treeList->SetItemText(row, 1, merkmal);
+bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
+  if (m_graph.at(bz).size() != 1) {
+    return false;
+  } else {
+    for (const auto &word : m_graph.at(bz)) {
+      if (m_merkmale_to_bz.at(word).size() != 1) {
+        return false;
+      }
     }
   }
-  // Add BZ without a number to the suggestion list
-  auto start = std::chrono::high_resolution_clock::now();
-  findUnnumberedWords();
-  auto end = std::chrono::high_resolution_clock::now();
-
-  auto diff =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "The findUnnumberedWords() method took " << diff.count()
-            << std::endl;
+  return true;
 }
 
 void MainWindow::loadIcons() {
@@ -176,94 +144,48 @@ void MainWindow::loadIcons() {
   m_imageList->Add(warning);
 }
 
-void MainWindow::markWordsNumConflict(const std::set<wxString> &strings) {
-  wxTextAttr style;
-  style.SetBackgroundColour(*wxYELLOW);
-  wxString currentText;
-
-  int pos, offset{0};
-  for (const auto &string : strings) {
-    // Set up text and indices
-    currentText = m_textBox->GetValue();
-    pos = currentText.Find(string);
-    offset = 0;
-
-    // Loop the indices over the text
-    while (pos != wxNOT_FOUND) {
-      // Apply the red and bold style to the selected text
-      m_textBox->SetStyle(pos + offset, pos + string.length() + offset, style);
-
-      currentText = currentText.Mid(pos + string.length());
-      offset += pos + string.length();
-
-      // Find the position of the string in the text
-      pos = currentText.Find(string);
-    }
-  }
-}
-
 void MainWindow::findUnnumberedWords() {
-
-  wxString currentText = m_fullText;
-
-  int offset{0};
-  size_t pos{0};
-  bool found_first_unnumbered_word{false};
-
+  // Load every word into a container to later find the unnumbered ones
+  emplaceAllMerkmale(m_full_words, m_all_merkmale);
   size_t set_size = m_all_merkmale.size();
   if (set_size > 0) {
-    wxString regexString{"((?i)\\b"};
-    auto set_iter = m_all_merkmale.begin();
+    std::wstring regexString{L"\\b("};
+    appendVectorForRegex(m_all_merkmale, regexString);
+    regexString.append(L")\\b(?![[:s:]][[:digit:]])");
+    std::cout << regexString << std::endl;
 
-    for (int i = 0; i < (m_all_merkmale.size() - 1); ++i) {
-      regexString.Append(*set_iter + "|");
-      ++set_iter;
-    }
-    regexString.Append(*set_iter);
-    regexString.Append(")\\b(?!\\s\\(?\\d)");
+    std::wregex unnumbered_regex{regexString,
+                                 std::regex_constants::ECMAScript |
+                                     std::regex_constants::optimize |
+                                     std::regex_constants::icase};
 
-    wxRegEx unnumbered_regex{regexString};
+    std::wsregex_iterator regex_begin(m_fullText.begin(), m_fullText.end(),
+                                      unnumbered_regex);
+    std::wsregex_iterator regex_end;
 
-    std::set<wxString> unnumbered_strings;
-
-    if (unnumbered_regex.IsValid()) {
-      size_t len;
-
-      // Loop over the search string, finding matches
-      while (unnumbered_regex.Matches(currentText)) {
-        // Get the next match and add it to the collection
-        unnumbered_regex.GetMatch(&pos, &len, 1);
-
-        m_textBox->SetStyle(pos + offset, pos + offset + len, m_yellow_style);
-        // Update the search string to exclude the current match
-        offset += pos + len;
-
-        unnumbered_strings.emplace(currentText.SubString(pos, pos + len - 1));
-
-        currentText = currentText.Mid(pos + len);
-      }
-    }
-
-    for (const auto &string : unnumbered_strings) {
-      m_listBox->InsertItem(0, string);
+    while (regex_begin != regex_end) {
+      m_textBox->SetStyle(regex_begin->position(),
+                          regex_begin->position() + regex_begin->length(),
+                          m_yellow_style);
+      m_listBox->InsertItem(0, regex_begin->str());
       m_listBox->SetItem(0, 1, "unnumbered");
+      ++regex_begin;
     }
   }
 }
 
-void MainWindow::checkIfWordMultipleNumbers() {
-  if (m_merkmale.size() < 2) {
-    return;
-  }
-  auto iterator = m_merkmale.begin();
-  auto first_word = *iterator->second.begin();
-  ++iterator;
+void MainWindow::setupAndClear() {
+  m_fullText = m_textBox->GetValue();
 
-  for (; iterator != m_merkmale.end(); ++iterator) {
-    if (areSameWord(first_word, *iterator->second.begin())) {
-      m_listBox->InsertItem(0, first_word);
-      m_listBox->SetItem(0, 1, "word assigned to multiple numbers");
-    }
-    first_word = *iterator->second.begin();
-  }
+  m_full_words.clear();
+  m_graph.clear();
+  m_all_merkmale.clear();
+  m_merkmale_to_bz.clear();
+  m_text_positions.clear();
+  m_treeList->DeleteAllItems();
+  m_listBox->DeleteAllItems();
+
+  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
 }
+
+void MainWindow::stemWord(std::wstring &word) { m_germanStemmer(word); }

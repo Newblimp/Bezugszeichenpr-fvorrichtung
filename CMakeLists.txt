@@ -18,10 +18,10 @@ include_directories(include img)
 # Add executable target
 if(WIN32)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1; -DwxUSE_GLCANVAS=1)
-  add_executable(zeichen WIN32 main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
+  add_executable(zeichen WIN32 main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm src/stem_collector.cpp)
 else()
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GLCANVAS=1)
-  add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm)
+  add_executable(zeichen main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
 # Link against wxWidgets libraries
 target_link_libraries(zeichen wx::core wx::base)
