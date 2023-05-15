@@ -67,7 +67,6 @@ void MainWindow::debounceFunc(wxCommandEvent &event) {
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
-  auto start = std::chrono::high_resolution_clock::now();
   setupAndClear();
 
   std::wsregex_iterator regex_begin(m_fullText.begin(), m_fullText.end(),
@@ -91,11 +90,6 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
   fillListTree();
   findUnnumberedWords();
-  auto end = std::chrono::high_resolution_clock::now();
-  auto diff =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-  std::cout << "One loop took " << diff.count() << std::endl;
 }
 
 void MainWindow::fillListTree() {
@@ -152,8 +146,6 @@ void MainWindow::findUnnumberedWords() {
     std::wstring regexString{L"\\b("};
     appendVectorForRegex(m_all_merkmale, regexString);
     regexString.append(L")\\b(?![[:s:]][[:digit:]])");
-    std::cout << regexString << std::endl;
-
     std::wregex unnumbered_regex{regexString,
                                  std::regex_constants::ECMAScript |
                                      std::regex_constants::optimize |
