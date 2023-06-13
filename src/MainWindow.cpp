@@ -281,6 +281,13 @@ void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
   if (m_noNumberPos.size()) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
+    // m_textBox->ShowPosition(m_noNumberPos[m_wrongNumberSelected]);
+    std::cout << m_textBox->GetScrollPos(wxVERTICAL) << std::endl;
+    long x, y;
+    m_textBox->PositionToXY(m_noNumberPos[m_noNumberSelected], &x, &y);
+    std::cout << y << std::endl << std::endl;
+    // m_textBox->SetScrollPos(wxVERTICAL, y);
+    m_textBox->SetPosition(wxPoint(x, y));
   }
 }
 
@@ -292,6 +299,7 @@ void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
   if (m_noNumberPos.size()) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
+    m_textBox->ShowPosition(m_noNumberPos[m_wrongNumberSelected]);
   }
 }
 
@@ -304,6 +312,7 @@ void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
   if (m_wrongNumberPos.size()) {
     m_textBox->SetSelection(m_wrongNumberPos[m_wrongNumberSelected],
                             m_wrongNumberPos[m_wrongNumberSelected + 1]);
+    m_textBox->ShowPosition(m_wrongNumberPos[m_wrongNumberSelected]);
   }
 }
 
@@ -316,6 +325,7 @@ void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
   if (m_wrongNumberPos.size()) {
     m_textBox->SetSelection(m_wrongNumberPos[m_wrongNumberSelected],
                             m_wrongNumberPos[m_wrongNumberSelected + 1]);
+    m_textBox->ShowPosition(m_wrongNumberPos[m_wrongNumberSelected]);
   }
 }
 
@@ -328,6 +338,7 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
   if (m_splitNumberPos.size()) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
+    m_textBox->ShowPosition(m_splitNumberPos[m_wrongNumberSelected]);
   }
 }
 
@@ -340,5 +351,6 @@ void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
   if (m_splitNumberPos.size()) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
+    m_textBox->ShowPosition(m_splitNumberPos[m_wrongNumberSelected]);
   }
 }
