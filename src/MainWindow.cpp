@@ -119,7 +119,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
 }
 
 void MainWindow::debounceFunc(wxCommandEvent &event) {
-  m_debounce_timer.Start(333, true);
+  m_debounce_timer.Start(500, true);
   std::cout << "Timer (Re)started" << std::endl;
 }
 
@@ -189,8 +189,8 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
     for (int i = 0; i < positions.size(); ++i) {
       m_wrongNumberPos.emplace_back(positions[i]);
       m_wrongNumberPos.emplace_back(positions[i + 1] + positions[i]);
-      m_textBox->SetStyle(positions[i],positions[i + 1] +positions[i],
-                            m_yellow_style);
+      m_textBox->SetStyle(positions[i], positions[i + 1] + positions[i],
+                          m_yellow_style);
       ++i;
     }
     return false;
@@ -203,8 +203,8 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
                       positions[i]) == m_splitNumberPos.end()) {
           m_splitNumberPos.emplace_back(positions[i]);
           m_splitNumberPos.emplace_back(positions[i + 1] + positions[i]);
-                  m_textBox->SetStyle(positions[i],positions[i + 1] +positions[i],
-                            m_yellow_style);
+          m_textBox->SetStyle(positions[i], positions[i + 1] + positions[i],
+                              m_yellow_style);
         }
         ++i;
       }
@@ -244,8 +244,9 @@ void MainWindow::findUnnumberedWords() {
       m_noNumberPos.emplace_back(regex_begin->position());
       m_noNumberPos.emplace_back(regex_begin->position() +
                                  regex_begin->length());
-      m_textBox->SetStyle(regex_begin->position(),regex_begin->position() + regex_begin->length(),
-                            m_yellow_style);
+      m_textBox->SetStyle(regex_begin->position(),
+                          regex_begin->position() + regex_begin->length(),
+                          m_yellow_style);
       ++regex_begin;
     }
   }
@@ -267,10 +268,11 @@ void MainWindow::setupAndClear() {
   m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
 }
 
-void MainWindow::stemWord(std::wstring &word) { 
+void MainWindow::stemWord(std::wstring &word) {
   word[0] = std::tolower(word[0]);
   std::cout << word << std::endl;
-  m_germanStemmer(word); }
+  m_germanStemmer(word);
+}
 
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
   m_noNumberSelected += 2;
