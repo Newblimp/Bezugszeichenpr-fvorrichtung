@@ -283,11 +283,10 @@ void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
                             m_noNumberPos[m_noNumberSelected + 1]);
     // m_textBox->ShowPosition(m_noNumberPos[m_wrongNumberSelected]);
     std::cout << m_textBox->GetScrollPos(wxVERTICAL) << std::endl;
-    long x, y;
-    m_textBox->PositionToXY(m_noNumberPos[m_noNumberSelected], &x, &y);
-    std::cout << y << std::endl << std::endl;
+    std::cout << m_textBox->GetInsertionPoint() << std::endl;
+    std::cout << m_textBox->GetScrollRange(wxVERTICAL) << std::endl
+              << std::endl;
     // m_textBox->SetScrollPos(wxVERTICAL, y);
-    m_textBox->SetPosition(wxPoint(x, y));
   }
 }
 
