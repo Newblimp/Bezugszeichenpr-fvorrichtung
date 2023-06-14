@@ -281,12 +281,13 @@ void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
   if (m_noNumberPos.size()) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
-    // m_textBox->ShowPosition(m_noNumberPos[m_wrongNumberSelected]);
+    m_textBox->ShowPosition(m_noNumberPos[m_noNumberSelected]);
+    /*
     std::cout << m_textBox->GetScrollPos(wxVERTICAL) << std::endl;
     std::cout << m_textBox->GetInsertionPoint() << std::endl;
     std::cout << m_textBox->GetScrollRange(wxVERTICAL) << std::endl
               << std::endl;
-    // m_textBox->SetScrollPos(wxVERTICAL, y);
+    */// m_textBox->SetScrollPos(wxVERTICAL, y);
   }
 }
 
@@ -298,7 +299,7 @@ void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
   if (m_noNumberPos.size()) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
-    m_textBox->ShowPosition(m_noNumberPos[m_wrongNumberSelected]);
+    m_textBox->ShowPosition(m_noNumberPos[m_noNumberSelected]);
   }
 }
 
@@ -337,7 +338,7 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
   if (m_splitNumberPos.size()) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPos[m_wrongNumberSelected]);
+    m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
   }
 }
 
@@ -350,6 +351,6 @@ void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
   if (m_splitNumberPos.size()) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPos[m_wrongNumberSelected]);
+    m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
   }
 }
