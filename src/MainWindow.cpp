@@ -36,7 +36,6 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
       // m_textBox = std::make_shared<wxRichTextCtrl>(
       panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize,
       wxRE_MULTILINE | wxTE_RICH2 | wxTE_NOHIDESEL);
-  // wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
@@ -49,21 +48,25 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   outputSizer->Add(m_treeList.get(), 2, wxEXPAND | wxALL, 10);
 
   // Add the Buttons to cycle through errors
-  m_ButtonBackwardNoNumber = std::make_shared<wxButton>(panel, wxID_ANY, "<");
-  m_ButtonForwardNoNumber = std::make_shared<wxButton>(panel, wxID_ANY, ">");
-  m_ButtonBackwardWrongNumber =
-      std::make_shared<wxButton>(panel, wxID_ANY, "<");
-  m_ButtonForwardWrongNumber = std::make_shared<wxButton>(panel, wxID_ANY, ">");
-  m_ButtonBackwardSplitNumber =
-      std::make_shared<wxButton>(panel, wxID_ANY, "<");
-  m_ButtonForwardSplitNumber = std::make_shared<wxButton>(panel, wxID_ANY, ">");
+  m_ButtonBackwardNoNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, "<", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+  m_ButtonForwardNoNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, ">", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+  m_ButtonBackwardWrongNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, "<", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+  m_ButtonForwardWrongNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, ">", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+  m_ButtonBackwardSplitNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, "<", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+  m_ButtonForwardSplitNumber = std::make_shared<wxButton>(
+      panel, wxID_ANY, ">", wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
 
   // Position the buttons in the sizers
   noNumberSizer->Add(m_ButtonBackwardNoNumber.get());
   noNumberSizer->Add(m_ButtonForwardNoNumber.get());
   auto noNumberDescription =
       new wxStaticText(panel, wxID_ANY, "\t|\tUnnumbered Words");
-  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0");
+  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0");
   noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT, 10);
   noNumberSizer->Add(noNumberDescription, 0, wxLEFT, 0);
 
@@ -71,7 +74,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   wrongNumberSizer->Add(m_ButtonForwardWrongNumber.get());
   auto wrongNumberDescription =
       new wxStaticText(panel, wxID_ANY, "\t|\tMultiple Words per Number");
-  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0");
+  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0");
   wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT, 10);
   wrongNumberSizer->Add(wrongNumberDescription, 0, wxLEFT, 0);
 
@@ -79,7 +82,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   splitNumberSizer->Add(m_ButtonForwardSplitNumber.get());
   auto splitNumberDescription =
       new wxStaticText(panel, wxID_ANY, "\t|\tMultiple Numbers per Word");
-  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0");
+  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0");
   splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT, 10);
   splitNumberSizer->Add(splitNumberDescription, 0, wxLEFT, 0);
 
@@ -88,14 +91,6 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   numberSizer->Add(splitNumberSizer);
 
   outputSizer->Add(numberSizer, 0, wxALL, 10);
-
-  /*
-  m_listBox = std::make_shared<wxListCtrl>(panel, wxID_ANY, wxDefaultPosition,
-                                           wxDefaultSize, wxLC_REPORT);
-  m_listBox->AppendColumn("Double Check", wxLIST_FORMAT_LEFT, 133);
-  m_listBox->AppendColumn("Reason", wxLIST_FORMAT_LEFT, 300);
-  outputSizer->Add(m_listBox.get(), 1, wxEXPAND | wxALL, 10);
-  */
 
   loadIcons();
   m_treeList->SetImageList(m_imageList.get());
@@ -155,9 +150,11 @@ void MainWindow::scanText(wxTimerEvent &event) {
   fillListTree();
   findUnnumberedWords();
 
-  m_noNumberLabel->SetLabel(std::to_wstring(m_noNumberPos.size() / 2));
-  m_wrongNumberLabel->SetLabel(std::to_wstring(m_wrongNumberPos.size() / 2));
-  m_splitNumberLabel->SetLabel(std::to_wstring(m_splitNumberPos.size() / 2));
+  m_noNumberLabel->SetLabel("0/" + std::to_wstring(m_noNumberPos.size() / 2));
+  m_wrongNumberLabel->SetLabel("0/" +
+                               std::to_wstring(m_wrongNumberPos.size() / 2));
+  m_splitNumberLabel->SetLabel("0/" +
+                               std::to_wstring(m_splitNumberPos.size() / 2));
 }
 
 void MainWindow::fillListTree() {
@@ -199,13 +196,16 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
   for (const auto &word : m_graph.at(bz)) {
     if (m_merkmale_to_bz.at(word).size() != 1) {
       auto positions = m_StemToPosition[word];
+      std::cout << word << std::endl;
       for (int i = 0; i < positions.size(); ++i) {
+        std::cout << "index unfiltered" << i << std::endl;
         if (std::find(m_splitNumberPos.begin(), m_splitNumberPos.end(),
                       positions[i]) == m_splitNumberPos.end()) {
+          std::cout << "index filtered" << i << std::endl;
           m_splitNumberPos.emplace_back(positions[i]);
           m_splitNumberPos.emplace_back(positions[i + 1] + positions[i]);
-          ++i;
         }
+        ++i;
       }
       return false;
     }
@@ -240,14 +240,9 @@ void MainWindow::findUnnumberedWords() {
     std::wsregex_iterator regex_end;
 
     while (regex_begin != regex_end) {
-      // m_textBox->SetStyle(regex_begin->position(),
-      // regex_begin->position() + regex_begin->length(),
-      // m_yellow_style);
       m_noNumberPos.emplace_back(regex_begin->position());
       m_noNumberPos.emplace_back(regex_begin->position() +
                                  regex_begin->length());
-      // m_listBox->InsertItem(0, regex_begin->str());
-      // m_listBox->SetItem(0, 1, "unnumbered");
       ++regex_begin;
     }
   }
@@ -263,7 +258,6 @@ void MainWindow::setupAndClear() {
   m_BzToPosition.clear();
   m_StemToPosition.clear();
   m_treeList->DeleteAllItems();
-  // m_listBox->DeleteAllItems();
   m_noNumberPos.clear();
   m_wrongNumberPos.clear();
   m_splitNumberPos.clear();
@@ -282,12 +276,11 @@ void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
     m_textBox->ShowPosition(m_noNumberPos[m_noNumberSelected]);
-    /*
-    std::cout << m_textBox->GetScrollPos(wxVERTICAL) << std::endl;
-    std::cout << m_textBox->GetInsertionPoint() << std::endl;
-    std::cout << m_textBox->GetScrollRange(wxVERTICAL) << std::endl
-              << std::endl;
-    */// m_textBox->SetScrollPos(wxVERTICAL, y);
+  }
+
+  if (m_noNumberPos.size()) {
+    m_noNumberLabel->SetLabel(std::to_wstring(m_noNumberSelected / 2 + 1) +
+                              "/" + std::to_wstring(m_noNumberPos.size() / 2));
   }
 }
 
@@ -300,6 +293,11 @@ void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_noNumberPos[m_noNumberSelected],
                             m_noNumberPos[m_noNumberSelected + 1]);
     m_textBox->ShowPosition(m_noNumberPos[m_noNumberSelected]);
+  }
+
+  if (m_noNumberPos.size()) {
+    m_noNumberLabel->SetLabel(std::to_wstring(m_noNumberSelected / 2 + 1) +
+                              "/" + std::to_wstring(m_noNumberPos.size() / 2));
   }
 }
 
@@ -314,6 +312,12 @@ void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
                             m_wrongNumberPos[m_wrongNumberSelected + 1]);
     m_textBox->ShowPosition(m_wrongNumberPos[m_wrongNumberSelected]);
   }
+
+  if (m_wrongNumberPos.size()) {
+    m_wrongNumberLabel->SetLabel(
+        std::to_wstring(m_wrongNumberSelected / 2 + 1) + "/" +
+        std::to_wstring(m_wrongNumberPos.size() / 2));
+  }
 }
 
 void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
@@ -327,6 +331,12 @@ void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
                             m_wrongNumberPos[m_wrongNumberSelected + 1]);
     m_textBox->ShowPosition(m_wrongNumberPos[m_wrongNumberSelected]);
   }
+
+  if (m_wrongNumberPos.size()) {
+    m_wrongNumberLabel->SetLabel(
+        std::to_wstring(m_wrongNumberSelected / 2 + 1) + "/" +
+        std::to_wstring(m_wrongNumberPos.size() / 2));
+  }
 }
 
 void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
@@ -339,6 +349,17 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
     m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
+    std::cout << m_splitNumberPos[m_splitNumberSelected] << " | "
+              << m_splitNumberPos[m_splitNumberSelected + 1] << std::endl;
+    std::cout << m_splitNumberSelected << " | " << m_splitNumberSelected + 1
+              << std::endl
+              << std::endl;
+  }
+
+  if (m_splitNumberPos.size()) {
+    m_splitNumberLabel->SetLabel(
+        std::to_wstring(m_splitNumberSelected / 2 + 1) + "/" +
+        std::to_wstring(m_splitNumberPos.size() / 2));
   }
 }
 
@@ -352,5 +373,16 @@ void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
     m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
+    std::cout << m_splitNumberPos[m_splitNumberSelected] << " | "
+              << m_splitNumberPos[m_splitNumberSelected + 1] << std::endl;
+    std::cout << m_splitNumberSelected << " | " << m_splitNumberSelected + 1
+              << std::endl
+              << std::endl;
+  }
+
+  if (m_splitNumberPos.size()) {
+    m_splitNumberLabel->SetLabel(
+        std::to_wstring(m_splitNumberSelected / 2 + 1) + "/" +
+        std::to_wstring(m_splitNumberPos.size() / 2));
   }
 }
