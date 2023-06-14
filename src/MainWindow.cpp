@@ -259,8 +259,7 @@ void MainWindow::setupAndClear() {
   m_noNumberPos.clear();
   m_wrongNumberPos.clear();
   m_splitNumberPos.clear();
-
-  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
+  // m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
 }
 
 void MainWindow::stemWord(std::wstring &word) { m_germanStemmer(word); }
