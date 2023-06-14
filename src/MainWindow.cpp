@@ -120,10 +120,12 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
 }
 
 void MainWindow::debounceFunc(wxCommandEvent &event) {
-  m_debounce_timer.StartOnce(333);
+  m_debounce_timer.Start(333, true);
+  std::cout << "Timer (Re)started" << std::endl;
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
+  std::cout << "Scan begun" << std::endl;
   setupAndClear();
 
   std::wsregex_iterator regex_begin(m_fullText.begin(), m_fullText.end(),
@@ -149,7 +151,6 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
   fillListTree();
   findUnnumberedWords();
-
   m_noNumberLabel->SetLabel("0/" + std::to_wstring(m_noNumberPos.size() / 2));
   m_wrongNumberLabel->SetLabel("0/" +
                                std::to_wstring(m_wrongNumberPos.size() / 2));
@@ -196,12 +197,9 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
   for (const auto &word : m_graph.at(bz)) {
     if (m_merkmale_to_bz.at(word).size() != 1) {
       auto positions = m_StemToPosition[word];
-      std::cout << word << std::endl;
       for (int i = 0; i < positions.size(); ++i) {
-        std::cout << "index unfiltered" << i << std::endl;
         if (std::find(m_splitNumberPos.begin(), m_splitNumberPos.end(),
                       positions[i]) == m_splitNumberPos.end()) {
-          std::cout << "index filtered" << i << std::endl;
           m_splitNumberPos.emplace_back(positions[i]);
           m_splitNumberPos.emplace_back(positions[i + 1] + positions[i]);
         }
@@ -349,11 +347,6 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
     m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
-    std::cout << m_splitNumberPos[m_splitNumberSelected] << " | "
-              << m_splitNumberPos[m_splitNumberSelected + 1] << std::endl;
-    std::cout << m_splitNumberSelected << " | " << m_splitNumberSelected + 1
-              << std::endl
-              << std::endl;
   }
 
   if (m_splitNumberPos.size()) {
@@ -373,11 +366,6 @@ void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
     m_textBox->SetSelection(m_splitNumberPos[m_splitNumberSelected],
                             m_splitNumberPos[m_splitNumberSelected + 1]);
     m_textBox->ShowPosition(m_splitNumberPos[m_splitNumberSelected]);
-    std::cout << m_splitNumberPos[m_splitNumberSelected] << " | "
-              << m_splitNumberPos[m_splitNumberSelected + 1] << std::endl;
-    std::cout << m_splitNumberSelected << " | " << m_splitNumberSelected + 1
-              << std::endl
-              << std::endl;
   }
 
   if (m_splitNumberPos.size()) {
