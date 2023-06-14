@@ -184,23 +184,27 @@ void MainWindow::fillListTree() {
 }
 
 bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
-  if (m_graph.at(bz).size() != 1) {
+  if (m_graph.at(bz).size() > 1) {
     auto positions = m_BzToPosition[bz];
     for (int i = 0; i < positions.size(); ++i) {
       m_wrongNumberPos.emplace_back(positions[i]);
       m_wrongNumberPos.emplace_back(positions[i + 1] + positions[i]);
+      m_textBox->SetStyle(positions[i],positions[i + 1] +positions[i],
+                            m_yellow_style);
       ++i;
     }
     return false;
   }
   for (const auto &word : m_graph.at(bz)) {
-    if (m_merkmale_to_bz.at(word).size() != 1) {
+    if (m_merkmale_to_bz.at(word).size() > 1) {
       auto positions = m_StemToPosition[word];
       for (int i = 0; i < positions.size(); ++i) {
         if (std::find(m_splitNumberPos.begin(), m_splitNumberPos.end(),
                       positions[i]) == m_splitNumberPos.end()) {
           m_splitNumberPos.emplace_back(positions[i]);
           m_splitNumberPos.emplace_back(positions[i + 1] + positions[i]);
+                  m_textBox->SetStyle(positions[i],positions[i + 1] +positions[i],
+                            m_yellow_style);
         }
         ++i;
       }
@@ -240,6 +244,8 @@ void MainWindow::findUnnumberedWords() {
       m_noNumberPos.emplace_back(regex_begin->position());
       m_noNumberPos.emplace_back(regex_begin->position() +
                                  regex_begin->length());
+      m_textBox->SetStyle(regex_begin->position(),regex_begin->position() + regex_begin->length(),
+                            m_yellow_style);
       ++regex_begin;
     }
   }
@@ -258,10 +264,13 @@ void MainWindow::setupAndClear() {
   m_noNumberPos.clear();
   m_wrongNumberPos.clear();
   m_splitNumberPos.clear();
-  // m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
+  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutral_style);
 }
 
-void MainWindow::stemWord(std::wstring &word) { m_germanStemmer(word); }
+void MainWindow::stemWord(std::wstring &word) { 
+  word[0] = std::tolower(word[0]);
+  std::cout << word << std::endl;
+  m_germanStemmer(word); }
 
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
   m_noNumberSelected += 2;
