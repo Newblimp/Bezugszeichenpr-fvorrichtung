@@ -1,6 +1,7 @@
 #pragma once
 #include "BZComparator.h"
 #include "german_stem.h"
+#include "wx/richtext/richtextctrl.h"
 #include "wx/textctrl.h"
 #include "wx/timer.h"
 #include "wx/treelist.h"
@@ -74,7 +75,7 @@ private:
   std::unordered_map<std::wstring, std::vector<size_t>> m_BzToPosition;
   std::unordered_map<std::wstring, std::vector<size_t>> m_StemToPosition;
 
-  std::shared_ptr<wxTextCtrl> m_textBox;
+  std::shared_ptr<wxRichTextCtrl> m_textBox;
   std::shared_ptr<wxImageList> m_imageList;
   // std::shared_ptr<wxListCtrl> m_listBox;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
