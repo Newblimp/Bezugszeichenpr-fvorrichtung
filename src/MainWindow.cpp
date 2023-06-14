@@ -35,7 +35,7 @@ MainWindow::MainWindow() : wxFrame(nullptr, wxID_ANY, "My App") {
   m_textBox = std::make_shared<wxTextCtrl>(
       // m_textBox = std::make_shared<wxRichTextCtrl>(
       panel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize,
-      wxRE_MULTILINE | wxTE_RICH2);
+      wxRE_MULTILINE | wxTE_RICH2 | wxTE_NOHIDESEL);
   // wxDefaultSize, wxTE_MULTILINE | wxTE_RICH);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
