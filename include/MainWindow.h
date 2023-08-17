@@ -1,20 +1,19 @@
 #pragma once
 #include "BZComparator.h"
 #include "german_stem.h"
+#include "utils.h"
+#include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
 #include "wx/textctrl.h"
 #include "wx/timer.h"
 #include "wx/treelist.h"
+#include <map>
 #include <regex>
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
 #include <wx/wx.h>
-#include <map>
-#include "utils.h"
-#include "wx/notebook.h"
 
-class MainWindow : public wxFrame
-{
+class MainWindow : public wxFrame {
 public:
   MainWindow();
 
@@ -49,17 +48,18 @@ private:
   wxTextAttr m_yellow_style;
   wxTimer m_debounce_timer;
 
-  std::map<std::wstring, std::unordered_set<std::wstring>, CustomComparator> m_graph;
+  std::map<std::wstring, std::unordered_set<std::wstring>, CustomComparator>
+      m_graph;
 
   std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
       m_merkmale_to_bz;
   std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
       m_full_words;
-  wxNotebook* m_notebookList;
+  wxNotebook *m_notebookList;
   std::unordered_set<std::wstring> m_all_merkmale;
   std::unordered_map<std::wstring, std::vector<size_t>> m_BzToPosition;
   std::unordered_map<std::wstring, std::vector<size_t>> m_StemToPosition;
-  std::shared_ptr<wxRichTextCtrl> m_textBox;
+  wxRichTextCtrl *m_textBox;
   std::shared_ptr<wxRichTextCtrl> m_bzList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
