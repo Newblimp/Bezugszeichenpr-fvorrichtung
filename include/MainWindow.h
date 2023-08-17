@@ -11,6 +11,7 @@
 #include <wx/wx.h>
 #include <map>
 #include "utils.h"
+#include "wx/notebook.h"
 
 class MainWindow : public wxFrame
 {
@@ -54,7 +55,7 @@ private:
       m_merkmale_to_bz;
   std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
       m_full_words;
-  std::unordered_map<std::wstring, std::unordered_set<std::wstring>> m_merkmalToFullWords;
+  wxNotebook* m_notebookList;
   std::unordered_set<std::wstring> m_all_merkmale;
   std::unordered_map<std::wstring, std::vector<size_t>> m_BzToPosition;
   std::unordered_map<std::wstring, std::vector<size_t>> m_StemToPosition;
