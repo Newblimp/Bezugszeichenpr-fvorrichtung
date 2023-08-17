@@ -339,20 +339,25 @@ void MainWindow::setupUi()
   wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
 
+  m_notebookList = new wxNotebook(panel, wxID_ANY);
+
   // Add a text box to the sizer
   m_textBox = std::make_shared<wxRichTextCtrl>(panel);
-  m_bzList = std::make_shared<wxRichTextCtrl>(panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(250, -1));
-  viewSizer->Add(m_bzList.get(), 0, wxEXPAND | wxALL, 10);
+  m_bzList = std::make_shared<wxRichTextCtrl>(m_notebookList, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(250, -1));
+  //viewSizer->Add(m_bzList.get(), 0, wxEXPAND | wxALL, 10);
   viewSizer->Add(m_textBox.get(), 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
 
   // Add a dataView to the sizer
   m_treeList = std::make_shared<wxTreeListCtrl>(
-      panel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+      m_notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
   m_treeList->AppendColumn("BZeichen");
   m_treeList->AppendColumn("Merkmal");
   // m_treeList->SetItemComparator(&m_BZComparator);
-  outputSizer->Add(m_treeList.get(), 2, wxEXPAND | wxALL, 10);
+  outputSizer->Add(m_notebookList, 2, wxEXPAND | wxALL, 10);
+  m_notebookList->AddPage(m_treeList.get(), "List");
+  m_notebookList->AddPage(m_bzList.get(), "Text Edit");
+  // outputSizer->Add(m_treeList.get(), 2, wxEXPAND | wxALL, 10);
 
   // Add the Buttons to cycle through errors
   m_ButtonBackwardNoNumber = std::make_shared<wxButton>(
