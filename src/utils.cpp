@@ -1,42 +1,64 @@
 #include "utils.h"
-#include "wx/unichar.h"
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <locale>
+#include <sstream>
 
-wxString merkmaleToString(const std::unordered_set<std::wstring> &stems,
-                          const std::unordered_set<std::wstring> &stem_origins)
+wxString stemsToDisplayString(
+    const std::unordered_set<StemVector, StemVectorHash>& stems,
+    const std::unordered_set<std::wstring>& originalWords)
 {
-  wxString listing;
-  for (const auto &origin : stem_origins)
-  {
-    listing.append(origin + ";");
-  }
-  return listing;
+    wxString listing;
+    
+    // Display the original (unstemmed) words for readability
+    for (const auto& word : originalWords) {
+        listing.append(word + L"; ");
+    }
+    
+    // Remove trailing "; " if present
+    if (listing.length() >= 2) {
+        listing.RemoveLast(2);
+    }
+    
+    return listing;
 }
 
-void emplaceAllMerkmale(
-    const std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-        &stem_list,
-    std::unordered_set<std::wstring> &all_merkmale)
+std::wstring stemVectorToString(const StemVector& stems)
 {
-  for (const auto &[stem, origins] : stem_list)
-  {
-    all_merkmale.insert(origins.begin(), origins.end());
-  }
+    if (stems.empty()) {
+        return L"";
+    }
+    
+    std::wstring result;
+    for (size_t i = 0; i < stems.size(); ++i) {
+        result += stems[i];
+        if (i < stems.size() - 1) {
+            result += L" ";
+        }
+    }
+    return result;
 }
 
-void appendVectorForRegex(const std::unordered_set<std::wstring> &strings,
-                          std::wstring &regexString)
+void collectAllStems(
+    const std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
+    std::unordered_set<StemVector, StemVectorHash>& allStems)
 {
-  auto set_iter = strings.begin();
-  const size_t limit{strings.size() - 1};
+    for (const auto& [stem, bzSet] : stemToBz) {
+        allStems.insert(stem);
+    }
+}
 
-  for (size_t i = 0; i < limit; ++i)
-  {
-    regexString.append(*set_iter + "|");
-    ++set_iter;
-  }
-  regexString.append(*set_iter);
+void appendAlternationPattern(
+    const std::unordered_set<std::wstring>& strings,
+    std::wstring& regexString)
+{
+    if (strings.empty()) {
+        return;
+    }
+    
+    auto iter = strings.begin();
+    const size_t count = strings.size();
+    
+    for (size_t i = 0; i < count - 1; ++i) {
+        regexString.append(*iter + L"|");
+        ++iter;
+    }
+    regexString.append(*iter);
 }

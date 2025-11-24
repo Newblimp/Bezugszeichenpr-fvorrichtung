@@ -8,6 +8,7 @@
 #include "wx/timer.h"
 #include "wx/treelist.h"
 #include <map>
+#include <memory>
 #include <regex>
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
@@ -15,69 +16,141 @@
 
 class MainWindow : public wxFrame {
 public:
-  MainWindow();
+    MainWindow();
 
 private:
-  void setupUi();
-  void setupBindings();
-  void scanText(wxTimerEvent &event);
-  void fillListTree();
-  void loadIcons();
-  bool isUniquelyAssigned(const std::wstring &bz);
-  void findUnnumberedWords();
-  void findWrongNumberWords();
-  void findSplitNumberWords();
-  void setupAndClear();
-  void stemWord(std::wstring &word);
-  void debounceFunc(wxCommandEvent &event);
-  void selectNextNoNumber(wxCommandEvent &event);
-  void selectPreviousNoNumber(wxCommandEvent &event);
-  void selectNextWrongNumber(wxCommandEvent &event);
-  void selectPreviousWrongNumber(wxCommandEvent &event);
-  void selectNextSplitNumber(wxCommandEvent &event);
-  void selectPreviousSplitNumber(wxCommandEvent &event);
-  void fillBzList();
+    // Setup methods
+    void setupUi();
+    void setupBindings();
+    void loadIcons();
 
-  std::wregex m_regex{
-      L"(\\b[[:alpha:]äöü]+\\b)[[:s:]](\\b[[:digit:]]+[a-zA-Z']*\\b)",
-      std::regex_constants::ECMAScript | std::regex_constants::optimize |
-          std::regex_constants::icase};
-  stemming::german_stem<> m_germanStemmer;
-  std::wstring m_fullText;
-  wxTextAttr m_neutral_style;
-  wxTextAttr m_yellow_style;
-  wxTimer m_debounce_timer;
+    // Core scanning logic
+    void scanText(wxTimerEvent& event);
+    void debounceFunc(wxCommandEvent& event);
+    void setupAndClear();
 
-  std::map<std::wstring, std::unordered_set<std::wstring>, CustomComparator>
-      m_graph;
+    // Term processing
+    void stemWord(std::wstring& word);
+    StemVector createStemVector(const std::wstring& word);
+    StemVector createMultiWordStemVector(const std::wstring& firstWord, const std::wstring& secondWord);
+    bool isMultiWordBase(const std::wstring& word);
 
-  std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-      m_merkmale_to_bz;
-  std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-      m_full_words;
-  wxNotebook *m_notebookList;
-  std::unordered_set<std::wstring> m_all_merkmale;
-  std::unordered_map<std::wstring, std::vector<size_t>> m_BzToPosition;
-  std::unordered_map<std::wstring, std::vector<size_t>> m_StemToPosition;
-  wxRichTextCtrl *m_textBox;
-  std::shared_ptr<wxRichTextCtrl> m_bzList;
-  std::shared_ptr<wxImageList> m_imageList;
-  std::shared_ptr<wxTreeListCtrl> m_treeList;
-  std::shared_ptr<wxButton> m_ButtonForwardNoNumber;
-  std::shared_ptr<wxButton> m_ButtonBackwardNoNumber;
-  std::shared_ptr<wxButton> m_ButtonForwardWrongNumber;
-  std::shared_ptr<wxButton> m_ButtonBackwardWrongNumber;
-  std::shared_ptr<wxButton> m_ButtonForwardSplitNumber;
-  std::shared_ptr<wxButton> m_ButtonBackwardSplitNumber;
-  BZComparator m_BZComparator;
+    // Display methods
+    void fillListTree();
+    void fillBzList();
+    bool isUniquelyAssigned(const std::wstring& bz);
 
-  std::vector<int> m_noNumberPos;
-  int m_noNumberSelected{-2};
-  std::shared_ptr<wxStaticText> m_noNumberLabel;
-  std::vector<int> m_wrongNumberPos;
-  int m_wrongNumberSelected{-2};
-  std::shared_ptr<wxStaticText> m_wrongNumberLabel;
-  std::vector<int> m_splitNumberPos;
-  int m_splitNumberSelected{-2};
-  std::shared_ptr<wxStaticText> m_splitNumberLabel;
+    // Error detection
+    void findUnnumberedWords();
+    void checkArticleUsage();
+    void highlightConflicts();
+
+    // Navigation methods
+    void selectNextNoNumber(wxCommandEvent& event);
+    void selectPreviousNoNumber(wxCommandEvent& event);
+    void selectNextWrongNumber(wxCommandEvent& event);
+    void selectPreviousWrongNumber(wxCommandEvent& event);
+    void selectNextSplitNumber(wxCommandEvent& event);
+    void selectPreviousSplitNumber(wxCommandEvent& event);
+    void selectNextWrongArticle(wxCommandEvent& event);
+    void selectPreviousWrongArticle(wxCommandEvent& event);
+
+    // Context menu handling
+    void onTreeListContextMenu(wxTreeListEvent& event);
+    void toggleMultiWordTerm(const std::wstring& baseStem);
+
+    // Regex patterns
+    // Single word + number: captures (word)(number)
+    std::wregex m_singleWordRegex{
+        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
+        std::regex_constants::ECMAScript | std::regex_constants::optimize |
+            std::regex_constants::icase};
+
+    // Two words + number: captures (word1)(word2)(number)
+    std::wregex m_twoWordRegex{
+        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
+        std::regex_constants::ECMAScript | std::regex_constants::optimize |
+            std::regex_constants::icase};
+
+    // Single word (for finding unnumbered references)
+    std::wregex m_wordRegex{
+        L"\\b[[:alpha:]äöüÄÖÜß]+\\b",
+        std::regex_constants::ECMAScript | std::regex_constants::optimize |
+            std::regex_constants::icase};
+
+    stemming::german_stem<> m_germanStemmer;
+    std::wstring m_fullText;
+
+    // Text styles
+    wxTextAttr m_neutralStyle;
+    wxTextAttr m_warningStyle;
+    wxTextAttr m_articleWarningStyle;
+
+    // Debounce timer for text changes
+    wxTimer m_debounceTimer;
+
+    // Main data structure: BZ -> set of StemVectors
+    // Example: "10" -> {{"lager"}, {"zweit", "lager"}}
+    std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>
+        m_bzToStems;
+
+    // Reverse mapping: StemVector -> set of BZs
+    // Example: {"zweit", "lager"} -> {"12"}
+    std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>
+        m_stemToBz;
+
+    // Original (unstemmed) words for display
+    // BZ -> set of original word strings
+    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
+        m_bzToOriginalWords;
+
+    // Position tracking for highlighting and navigation
+    // BZ -> list of (start, length) pairs
+    std::unordered_map<std::wstring, std::vector<size_t>> m_bzToPositions;
+    
+    // StemVector -> list of (start, length) pairs
+    std::unordered_map<StemVector, std::vector<size_t>, StemVectorHash> m_stemToPositions;
+
+    // Set of base word STEMS that should trigger multi-word matching
+    // Example: if "lager" is in this set, "erstes Lager 10" becomes {"erst", "lager"}
+    std::unordered_set<std::wstring> m_multiWordBaseStems;
+
+    // All unique stems encountered
+    std::unordered_set<StemVector, StemVectorHash> m_allStems;
+
+    // UI components
+    wxNotebook* m_notebookList;
+    wxRichTextCtrl* m_textBox;
+    std::shared_ptr<wxRichTextCtrl> m_bzList;
+    std::shared_ptr<wxImageList> m_imageList;
+    std::shared_ptr<wxTreeListCtrl> m_treeList;
+    
+    // Navigation buttons
+    std::shared_ptr<wxButton> m_buttonForwardNoNumber;
+    std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
+    std::shared_ptr<wxButton> m_buttonForwardWrongNumber;
+    std::shared_ptr<wxButton> m_buttonBackwardWrongNumber;
+    std::shared_ptr<wxButton> m_buttonForwardSplitNumber;
+    std::shared_ptr<wxButton> m_buttonBackwardSplitNumber;
+    std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
+    std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
+
+    BZComparator m_BZComparator;
+
+    // Error position lists: stores alternating (start, end) positions
+    std::vector<int> m_noNumberPositions;
+    int m_noNumberSelected{-2};
+    std::shared_ptr<wxStaticText> m_noNumberLabel;
+
+    std::vector<int> m_wrongNumberPositions;
+    int m_wrongNumberSelected{-2};
+    std::shared_ptr<wxStaticText> m_wrongNumberLabel;
+
+    std::vector<int> m_splitNumberPositions;
+    int m_splitNumberSelected{-2};
+    std::shared_ptr<wxStaticText> m_splitNumberLabel;
+
+    std::vector<int> m_wrongArticlePositions;
+    int m_wrongArticleSelected{-2};
+    std::shared_ptr<wxStaticText> m_wrongArticleLabel;
 };
