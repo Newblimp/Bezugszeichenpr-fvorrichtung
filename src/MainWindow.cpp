@@ -12,7 +12,7 @@
 #include <wx/bitmap.h>
 
 MainWindow::MainWindow()
-    : wxFrame(nullptr, wxID_ANY, "Bezugszeichenprüfvorrichtung",
+    : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
               wxDefaultPosition, wxSize(1200, 800))
 {
     setupUi();
@@ -283,6 +283,14 @@ bool MainWindow::isUniquelyAssigned(const std::wstring& bz)
 
 void MainWindow::loadIcons()
 {
+    //wxIcon icon;
+    //icon.CopyFromBitmap(wxBitmap("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+    //SetIcon(icon);
+    SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
+    SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+    //SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+
+    //rest of the code
     m_imageList = std::make_shared<wxImageList>(16, 16, false, 0);
     wxBitmap check(check_16_xpm);
     wxBitmap warning(warning_16_xpm);
@@ -626,12 +634,12 @@ void MainWindow::setupUi()
     // Tree list for displaying BZ-term mappings
     m_treeList = std::make_shared<wxTreeListCtrl>(
         m_notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-    m_treeList->AppendColumn("BZeichen");
-    m_treeList->AppendColumn("Merkmal");
+    m_treeList->AppendColumn("reference sign");
+    m_treeList->AppendColumn("feature");
 
     outputSizer->Add(m_notebookList, 2, wxEXPAND | wxALL, 10);
-    m_notebookList->AddPage(m_treeList.get(), "List");
-    m_notebookList->AddPage(m_bzList.get(), "Text Edit");
+    m_notebookList->AddPage(m_treeList.get(), "overview");
+    m_notebookList->AddPage(m_bzList.get(), "reference signs [text]");
 
     // Navigation buttons for unnumbered references
     m_buttonBackwardNoNumber = std::make_shared<wxButton>(
@@ -661,7 +669,7 @@ void MainWindow::setupUi()
     noNumberSizer->Add(m_buttonBackwardNoNumber.get());
     noNumberSizer->Add(m_buttonForwardNoNumber.get());
     auto noNumberDescription = new wxStaticText(
-        panel, wxID_ANY, "Unnumbered", wxDefaultPosition,
+        panel, wxID_ANY, "unnumbered", wxDefaultPosition,
         wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
     m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
     noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT, 10);
@@ -671,7 +679,7 @@ void MainWindow::setupUi()
     wrongNumberSizer->Add(m_buttonBackwardWrongNumber.get());
     wrongNumberSizer->Add(m_buttonForwardWrongNumber.get());
     auto wrongNumberDescription = new wxStaticText(
-        panel, wxID_ANY, "Multiple Words per Number", wxDefaultPosition,
+        panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
         wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
     m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
     wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT, 10);
@@ -681,7 +689,7 @@ void MainWindow::setupUi()
     splitNumberSizer->Add(m_buttonBackwardSplitNumber.get());
     splitNumberSizer->Add(m_buttonForwardSplitNumber.get());
     auto splitNumberDescription = new wxStaticText(
-        panel, wxID_ANY, "Multiple Numbers per Word", wxDefaultPosition,
+        panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
         wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
     m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
     splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT, 10);
@@ -691,7 +699,7 @@ void MainWindow::setupUi()
     wrongArticleSizer->Add(m_buttonBackwardWrongArticle.get());
     wrongArticleSizer->Add(m_buttonForwardWrongArticle.get());
     auto wrongArticleDescription = new wxStaticText(
-        panel, wxID_ANY, "Wrong Article", wxDefaultPosition,
+        panel, wxID_ANY, "inconsistent article", wxDefaultPosition,
         wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
     m_wrongArticleLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
     wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT, 10);
