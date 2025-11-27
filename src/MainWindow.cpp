@@ -639,7 +639,7 @@ void MainWindow::setupUi()
 
     outputSizer->Add(m_notebookList, 2, wxEXPAND | wxALL, 10);
     m_notebookList->AddPage(m_treeList.get(), "overview");
-    m_notebookList->AddPage(m_bzList.get(), "reference signs [text]");
+    m_notebookList->AddPage(m_bzList.get(), "reference sign list");
 
     // Navigation buttons for unnumbered references
     m_buttonBackwardNoNumber = std::make_shared<wxButton>(
