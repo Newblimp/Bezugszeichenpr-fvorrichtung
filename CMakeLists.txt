@@ -14,6 +14,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
 
 add_subdirectory(libs/wxWidgets)
 include_directories(include img)
+add_compile_options(-Wno-write-strings)
 
 # Add executable target
 if(WIN32)
@@ -24,10 +25,10 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GLCANVAS=1)
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/BZComparator.cpp src/utils.cpp img/check_16.xpm src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
 # Link against wxWidgets libraries
 target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext)

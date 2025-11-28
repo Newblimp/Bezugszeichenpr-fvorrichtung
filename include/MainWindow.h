@@ -1,5 +1,4 @@
 #pragma once
-#include "BZComparator.h"
 #include "german_stem.h"
 #include "utils.h"
 #include "wx/notebook.h"
@@ -57,6 +56,7 @@ private:
 
     // Context menu handling
     void onTreeListContextMenu(wxTreeListEvent& event);
+    void onTreeListItemActivated(wxTreeListEvent &event);
     void toggleMultiWordTerm(const std::wstring& baseStem);
 
     // Regex patterns
@@ -106,10 +106,13 @@ private:
 
     // Position tracking for highlighting and navigation
     // BZ -> list of (start, length) pairs
-    std::unordered_map<std::wstring, std::vector<size_t>> m_bzToPositions;
+    std::unordered_map<std::wstring, std::vector<std::pair<size_t,size_t>>> m_bzToPositions;
     
     // StemVector -> list of (start, length) pairs
-    std::unordered_map<StemVector, std::vector<size_t>, StemVectorHash> m_stemToPositions;
+    std::unordered_map<StemVector, std::vector<std::pair<size_t,size_t>>, StemVectorHash> m_stemToPositions;
+
+    //keeping track of the position of the cursor when browsing occurences
+    std::unordered_map<std::wstring, int> m_bzCurrentOccurrence;
 
     // Set of base word STEMS that should trigger multi-word matching
     // Example: if "lager" is in this set, "erstes Lager 10" becomes {"erst", "lager"}
@@ -134,8 +137,6 @@ private:
     std::shared_ptr<wxButton> m_buttonBackwardSplitNumber;
     std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
     std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
-
-    BZComparator m_BZComparator;
 
     // Error position lists: stores alternating (start, end) positions
     std::vector<int> m_noNumberPositions;
