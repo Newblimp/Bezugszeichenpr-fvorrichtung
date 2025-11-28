@@ -15,6 +15,11 @@ MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY, wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
               wxDefaultPosition, wxSize(1200, 800))
 {
+    #ifdef _WIN32 
+        SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
+            SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+    #endif//SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+    
     setupUi();
     loadIcons();
     setupBindings();
@@ -156,10 +161,8 @@ void MainWindow::scanText(wxTimerEvent& event)
                     m_bzToOriginalWords[bz].insert(originalPhrase);
 
                     // Track positions
-                    m_bzToPositions[bz].push_back(pos);
-                    m_bzToPositions[bz].push_back(len);
-                    m_stemToPositions[stemVec].push_back(pos);
-                    m_stemToPositions[stemVec].push_back(len);
+                    m_bzToPositions[bz].push_back({pos,len});
+                    m_stemToPositions[stemVec].push_back({pos,len});
                 }
             }
             ++iter;
@@ -191,10 +194,8 @@ void MainWindow::scanText(wxTimerEvent& event)
                 m_bzToOriginalWords[bz].insert(word);
 
                 // Track positions
-                m_bzToPositions[bz].push_back(pos);
-                m_bzToPositions[bz].push_back(len);
-                m_stemToPositions[stemVec].push_back(pos);
-                m_stemToPositions[stemVec].push_back(len);
+                m_bzToPositions[bz].push_back({pos,len});
+                m_stemToPositions[stemVec].push_back({pos,len});
             }
             ++iter;
         }
@@ -246,9 +247,10 @@ bool MainWindow::isUniquelyAssigned(const std::wstring& bz)
     if (stems.size() > 1) {
         // Highlight all occurrences of this BZ
         const auto& positions = m_bzToPositions[bz];
-        for (size_t i = 0; i < positions.size(); i += 2) {
-            size_t start = positions[i];
-            size_t len = positions[i + 1];
+        //for (size_t i = 0; i < positions.size(); i += 2) {
+        for (const auto i : positions) {
+            size_t start = i.first;
+            size_t len = i.second;
             m_wrongNumberPositions.push_back(start);
             m_wrongNumberPositions.push_back(start + len);
             m_textBox->SetStyle(start, start + len, m_warningStyle);
@@ -261,9 +263,10 @@ bool MainWindow::isUniquelyAssigned(const std::wstring& bz)
         if (m_stemToBz.at(stem).size() > 1) {
             // This stem maps to multiple BZs - highlight occurrences
             const auto& positions = m_stemToPositions[stem];
-            for (size_t i = 0; i < positions.size(); i += 2) {
-                size_t start = positions[i];
-                size_t len = positions[i + 1];
+            //for (size_t i = 0; i < positions.size(); i += 2) {
+            for (const auto i: positions) {
+                size_t start = i.first;
+                size_t len = i.second;
 
                 // Avoid duplicates in the split number list
                 if (std::find(m_splitNumberPositions.begin(), 
@@ -286,10 +289,7 @@ void MainWindow::loadIcons()
     //wxIcon icon;
     //icon.CopyFromBitmap(wxBitmap("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
     //SetIcon(icon);
-    SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
-    SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
-    //SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
-
+ 
     //rest of the code
     m_imageList = std::make_shared<wxImageList>(16, 16, false, 0);
     wxBitmap check(check_16_xpm);
@@ -305,8 +305,8 @@ void MainWindow::findUnnumberedWords()
     // Collect start positions of all valid references
     std::unordered_set<size_t> validStarts;
     for (const auto& [stem, positions] : m_stemToPositions) {
-        for (size_t i = 0; i < positions.size(); i += 2) {
-            validStarts.insert(positions[i]);
+        for (const auto [start, len] : positions) {
+            validStarts.insert(start);
         }
     }
 
@@ -314,37 +314,45 @@ void MainWindow::findUnnumberedWords()
     {
         // Pattern: [word1] [word2] NOT followed by a number
         std::wregex twoWordNoNumber{
-            L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
+            L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
             std::regex_constants::ECMAScript | std::regex_constants::optimize |
                 std::regex_constants::icase};
 
         std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(), twoWordNoNumber);
         std::wsregex_iterator end;
-
+        
+        if (iter == end) return; // No matches at all
+    
+        // Store the previous match manually
+        std::wsmatch prev = *iter;
+        ++iter;
         while (iter != end) {
-            size_t pos = iter->position();
+            size_t pos1 = prev.position();
+            size_t pos2 = iter->position();
 
             // Skip if already part of a valid reference
-            if (validStarts.count(pos)) {
+            if (validStarts.count(pos1)) {
+                prev = *iter;
                 ++iter;
                 continue;
             }
 
-            std::wstring word1 = (*iter)[1].str();
-            std::wstring word2 = (*iter)[2].str();
+            std::wstring word1 = prev.str();
+            std::wstring word2 = iter->str();
+            stemWord(word2);
 
             // Only flag if this is a known multi-word combination
             if (isMultiWordBase(word2)) {
                 StemVector stemVec = createMultiWordStemVector(word1, word2);
 
                 if (m_stemToBz.count(stemVec)) {
-                    size_t len = iter->length();
-                    m_noNumberPositions.push_back(pos);
-                    m_noNumberPositions.push_back(pos + len);
-                    m_textBox->SetStyle(pos, pos + len, m_warningStyle);
+                    size_t len2 = iter->length();
+                    m_noNumberPositions.push_back(pos1);
+                    m_noNumberPositions.push_back(pos2 + len2);
+                    m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
                 }
             }
-
+            prev = *iter;
             ++iter;
         }
     }
@@ -383,7 +391,9 @@ void MainWindow::checkArticleUsage()
 {
     // We need to check each stem's occurrences in order of position
     // First occurrence should have indefinite article, subsequent should have definite
-    
+    // To avoid unnecessary errors, we only highlight the word if the first article IS definite 
+    // or the followings are indefinite
+
     // Build a map of stem -> sorted positions (by position in text)
     struct OccurrenceInfo {
         size_t position;
@@ -394,8 +404,8 @@ void MainWindow::checkArticleUsage()
     std::vector<OccurrenceInfo> allOccurrences;
     
     for (const auto& [stem, positions] : m_stemToPositions) {
-        for (size_t i = 0; i < positions.size(); i += 2) {
-            allOccurrences.push_back({positions[i], positions[i + 1], stem});
+        for (const auto [start, len] : positions) {
+            allOccurrences.push_back({start, len, stem});
         }
     }
     
@@ -422,8 +432,8 @@ void MainWindow::checkArticleUsage()
         size_t articleEnd = precedingPos + precedingWord.length();
         
         if (isFirstOccurrence) {
-            // First occurrence: should have indefinite article
-            if (!isIndefiniteArticle(precedingWord)) {
+            // First occurrence: should not be definite article
+            if (isDefiniteArticle(precedingWord)) {
                 m_wrongArticlePositions.push_back(precedingPos);
                 m_wrongArticlePositions.push_back(articleEnd);
                 m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
@@ -431,7 +441,7 @@ void MainWindow::checkArticleUsage()
             seenStems.insert(occ.stem);
         } else {
             // Subsequent occurrence: should have definite article
-            if (!isDefiniteArticle(precedingWord)) {
+            if (isIndefiniteArticle(precedingWord)) {
                 m_wrongArticlePositions.push_back(precedingPos);
                 m_wrongArticlePositions.push_back(articleEnd);
                 m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
@@ -458,6 +468,7 @@ void MainWindow::setupAndClear()
     m_wrongNumberPositions.clear();
     m_splitNumberPositions.clear();
     m_wrongArticlePositions.clear();
+    m_bzCurrentOccurrence.clear();
 
     // Reset text highlighting
     m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
@@ -626,7 +637,7 @@ void MainWindow::setupUi()
     // Main text editor
     m_textBox = new wxRichTextCtrl(panel);
     m_bzList = std::make_shared<wxRichTextCtrl>(
-        m_notebookList, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(250, -1));
+        m_notebookList, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(350, -1));
 
     viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
     viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
@@ -733,6 +744,7 @@ void MainWindow::setupBindings()
     m_buttonForwardWrongArticle->Bind(wxEVT_BUTTON, &MainWindow::selectNextWrongArticle, this);
 
     m_treeList->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU, &MainWindow::onTreeListContextMenu, this);
+    m_treeList->Bind(wxEVT_TREELIST_ITEM_ACTIVATED,&MainWindow::onTreeListItemActivated, this);
 }
 
 void MainWindow::fillBzList()
@@ -743,9 +755,9 @@ void MainWindow::fillBzList()
     while (treeItem.IsOk()) {
         std::wstring bz = m_treeList->GetItemText(treeItem, 0).ToStdWstring();
         
-        if (m_bzToPositions.count(bz) && m_bzToPositions[bz].size() >= 2) {
-            size_t start = m_bzToPositions[bz][0];
-            size_t len = m_bzToPositions[bz][1];
+        if (m_bzToPositions.count(bz) && m_bzToPositions[bz].size() >= 1) {
+            size_t start = m_bzToPositions[bz][0].first;
+            size_t len = m_bzToPositions[bz][0].second;
             
             // Extract the term without the BZ number
             size_t termLen = len > bz.size() + 1 ? len - bz.size() - 1 : 0;
@@ -803,4 +815,38 @@ void MainWindow::toggleMultiWordTerm(const std::wstring& baseStem)
 
     // Trigger rescan
     m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
+  wxTreeListItem item = event.GetItem();
+  if (!item.IsOk()) {
+    return;
+  }
+
+  wxString bzText = m_treeList->GetItemText(item, 0);
+  std::wstring bz = bzText.ToStdWstring();
+
+  // Check if this BZ has any positions
+  if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
+    // Get current occurrence index for this BZ (or initialize to 0)
+    if (!m_bzCurrentOccurrence.count(bz)) {
+      m_bzCurrentOccurrence[bz] = 0;
+    }
+    
+    int& currentIdx = m_bzCurrentOccurrence[bz];
+    const auto& positions = m_bzToPositions[bz];
+    
+    // Get the current occurrence
+    size_t start = positions[currentIdx].first;
+    size_t len = positions[currentIdx].second;
+    //const auto& [start, length] = positions[currentIdx];
+    
+    // Select and show the text
+    m_textBox->SetSelection(start, start + len);
+    m_textBox->ShowPosition(start);
+    m_textBox->SetFocus();
+    
+    // Move to next occurrence for next double-click
+    currentIdx = (currentIdx + 1) % positions.size();
+  }
 }
