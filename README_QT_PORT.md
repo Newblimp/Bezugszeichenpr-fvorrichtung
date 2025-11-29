@@ -41,32 +41,23 @@ make
 
 ### Windows
 
-1. Download and install Qt from https://www.qt.io/download
+This project uses MSVC with Qt 6.10.1 (MSVC 2022 64-bit).
 
-**Important:** The compiler you use must match your Qt installation:
-- If you have MinGW Qt (e.g., `C:\Qt\6.10.1\mingw_64`), use MinGW compiler
-- If you have MSVC Qt (e.g., `C:\Qt\6.10.1\msvc2019_64`), use MSVC compiler
-
-**Option A: Using MinGW (recommended for this project)**
+**Build with Visual Studio:**
 ```bash
 mkdir build
 cd build
-cmake .. -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:\Qt\6.10.1\mingw_64"
-cmake --build .
+cmake .. -G "Visual Studio 17 2022" -A x64
+cmake --build . --config Release
 ```
 
-**Option B: Using Visual Studio/MSVC**
-First, install the MSVC version of Qt from the Qt installer, then:
+Or open the generated solution file in Visual Studio:
 ```bash
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -DCMAKE_PREFIX_PATH="C:\Qt\6.10.1\msvc2019_64"
-cmake --build .
+cmake .. -G "Visual Studio 17 2022" -A x64
+start Bezugszeichenvorrichtung.sln
 ```
 
-**Troubleshooting:**
-- If you get `cannot open file 'mingw32.lib'` error, you're using MSVC with MinGW Qt - switch to MinGW compiler or install MSVC Qt
-- If you get C++17 compiler errors, ensure `/Zc:__cplusplus` flag is enabled (already configured in CMakeLists.txt for MSVC)
+**Note:** The Qt path is pre-configured in CMakeLists.txt as `C:\Qt\6.10.1\msvc2022_64`. If your Qt installation is in a different location, update the `CMAKE_PREFIX_PATH` in CMakeLists.txt.
 
 ## Changes from wxWidgets
 
