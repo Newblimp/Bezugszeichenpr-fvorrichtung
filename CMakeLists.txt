@@ -15,8 +15,10 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 endif()
 
-# Enable dead code elimination
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+# Enable dead code elimination (GCC/Clang only)
+if(NOT MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+endif()
 
 # Disable unused wxWidgets features to reduce binary size
 # Only enable what we actually use: core, base, richtext (which requires HTML)
@@ -31,6 +33,7 @@ set(wxUSE_STC OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_WEBKIT OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_WEBKIT2 OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_IE OFF CACHE BOOL "" FORCE)
+set(wxUSE_XML OFF CACHE BOOL "" FORCE)
 # Note: wxUSE_HTML must stay enabled - wxRichTextCtrl depends on it
 # But we can disable the help controllers
 set(wxUSE_HELP OFF CACHE BOOL "" FORCE)
