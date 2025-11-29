@@ -52,6 +52,7 @@ private:
     void onTreeListContextMenu(wxTreeListEvent& event);
     void onTreeListItemActivated(wxTreeListEvent &event);
     void toggleMultiWordTerm(const std::wstring& baseStem);
+    void clearError(const std::wstring& bz);
 
     // Regex patterns
     // Single word + number: captures (word)(number)
@@ -118,6 +119,9 @@ private:
     // Set of base word STEMS that should trigger multi-word matching
     // Example: if "lager" is in this set, "erstes Lager 10" becomes {"erst", "lager"}
     std::unordered_set<std::wstring> m_multiWordBaseStems;
+
+    // Set of BZ numbers whose errors have been cleared/ignored by user
+    std::unordered_set<std::wstring> m_clearedErrors;
 
     // All unique stems encountered
     std::unordered_set<StemVector, StemVectorHash> m_allStems;
