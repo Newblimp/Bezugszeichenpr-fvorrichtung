@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "ErrorNavigator.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
 #include "utils.h"
@@ -9,7 +10,6 @@
 #include <locale>
 #include <regex>
 #include <string>
-#include <unordered_set>
 #include <wx/bitmap.h>
 
 MainWindow::MainWindow()
@@ -19,7 +19,7 @@ MainWindow::MainWindow()
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
-#endif // SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+#endif // SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE"));
 
   setupUi();
   loadIcons();
@@ -29,96 +29,6 @@ MainWindow::MainWindow()
 void MainWindow::debounceFunc(wxCommandEvent &event) {
   m_debounceTimer.Start(500, true);
 }
-
-void MainWindow::stemWord(std::wstring &word) {
-  if (word.empty())
-    return;
-  word[0] = std::tolower(word[0]);
-  m_germanStemmer(word);
-}
-
-StemVector MainWindow::createStemVector(const std::wstring &word) {
-  std::wstring stem = word;
-  stemWord(stem);
-  return {stem};
-}
-
-StemVector
-MainWindow::createMultiWordStemVector(const std::wstring &firstWord,
-                                      const std::wstring &secondWord) {
-  std::wstring stem1 = firstWord;
-  std::wstring stem2 = secondWord;
-  stemWord(stem1);
-  stemWord(stem2);
-  return {stem1, stem2};
-}
-
-bool MainWindow::isMultiWordBase(const std::wstring &word) {
-  std::wstring stem = word;
-  stemWord(stem);
-  return m_multiWordBaseStems.count(stem) > 0;
-}
-
-namespace {
-// Static sets for fast article lookup (O(1) instead of O(n) string comparisons)
-static const std::unordered_set<std::wstring> indefiniteArticles = {
-  L"ein", L"eine", L"eines", L"einen", L"einer", L"einem"
-};
-
-static const std::unordered_set<std::wstring> definiteArticles = {
-  L"der", L"die", L"das", L"den", L"dem", L"des"
-};
-
-// Check if a word is an indefinite article (ein, eine, eines, einen, einer,
-// einem)
-bool isIndefiniteArticle(const std::wstring &word) {
-  std::wstring lower = word;
-  for (auto &c : lower) {
-    c = std::tolower(c);
-  }
-  return indefiniteArticles.count(lower) > 0;
-}
-
-// Check if a word is a definite article (der, die, das, den, dem, des)
-bool isDefiniteArticle(const std::wstring &word) {
-  std::wstring lower = word;
-  for (auto &c : lower) {
-    c = std::tolower(c);
-  }
-  return definiteArticles.count(lower) > 0;
-}
-
-// Find the word immediately preceding a given position in the text
-// Returns the word and its start position, or empty string if none found
-std::pair<std::wstring, size_t> findPrecedingWord(const std::wstring &text,
-                                                  size_t pos) {
-  if (pos == 0) {
-    return {L"", 0};
-  }
-
-  // Skip whitespace backwards
-  size_t end = pos;
-  while (end > 0 && std::iswspace(text[end - 1])) {
-    --end;
-  }
-
-  if (end == 0) {
-    return {L"", 0};
-  }
-
-  // Find the start of the word
-  size_t start = end;
-  while (start > 0 && std::iswalpha(text[start - 1])) {
-    --start;
-  }
-
-  if (start == end) {
-    return {L"", 0};
-  }
-
-  return {text.substr(start, end - start), start};
-}
-} // namespace
 
 void MainWindow::scanText(wxTimerEvent &event) {
   setupAndClear();
@@ -153,12 +63,12 @@ void MainWindow::scanText(wxTimerEvent &event) {
       std::wstring bz = (*iter)[3].str();
 
       // Check if word2's stem is marked for multi-word matching
-      if (isMultiWordBase(word2)) {
+      if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
         if (!overlapsExisting(pos, endPos)) {
           matchedRanges.emplace_back(pos, endPos);
 
           // Create stem vector with both words stemmed separately
-          StemVector stemVec = createMultiWordStemVector(word1, word2);
+          StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
           std::wstring originalPhrase = word1 + L" " + word2;
 
           // Store mappings
@@ -194,7 +104,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
         std::wstring bz = (*iter)[2].str();
 
         // Create single-element stem vector
-        StemVector stemVec = createStemVector(word);
+        StemVector stemVec = m_textAnalyzer.createStemVector(word);
 
         // Store mappings
         m_bzToStems[bz].insert(stemVec);
@@ -340,11 +250,11 @@ void MainWindow::findUnnumberedWords() {
 
       std::wstring word1 = prev.str();
       std::wstring word2 = iter->str();
-      stemWord(word2);
+      m_textAnalyzer.stemWord(word2);
 
       // Only flag if this is a known multi-word combination
-      if (isMultiWordBase(word2)) {
-        StemVector stemVec = createMultiWordStemVector(word1, word2);
+      if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+        StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
 
         if (m_stemToBz.count(stemVec)) {
           size_t len2 = iter->length();
@@ -373,7 +283,7 @@ void MainWindow::findUnnumberedWords() {
       }
 
       std::wstring word = iter->str();
-      StemVector stemVec = createStemVector(word);
+      StemVector stemVec = m_textAnalyzer.createStemVector(word);
 
       // Check if this stem is known from valid references
       if (m_stemToBz.count(stemVec)) {
@@ -419,7 +329,7 @@ void MainWindow::checkArticleUsage() {
 
   for (const auto &occ : allOccurrences) {
     auto [precedingWord, precedingPos] =
-        findPrecedingWord(m_fullText, occ.position);
+        GermanTextAnalyzer::findPrecedingWord(m_fullText, occ.position);
 
     if (precedingWord.empty()) {
       // No preceding word found - might be at start of text
@@ -433,14 +343,14 @@ void MainWindow::checkArticleUsage() {
 
     if (isFirstOccurrence) {
       // First occurrence: should not be definite article
-      if (isDefiniteArticle(precedingWord)) {
+      if (GermanTextAnalyzer::isDefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
       seenStems.insert(occ.stem);
     } else {
       // Subsequent occurrence: should have definite article
-      if (isIndefiniteArticle(precedingWord)) {
+      if (GermanTextAnalyzer::isIndefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
@@ -472,145 +382,35 @@ void MainWindow::setupAndClear() {
 }
 
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
-  m_noNumberSelected += 1;
-  if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
-      m_noNumberSelected < 0) {
-    m_noNumberSelected = 0;
-  }
-
-  if (!m_noNumberPositions.empty()) {
-    const auto& pos = m_noNumberPositions[m_noNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectNext(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
 }
 
 void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
-  m_noNumberSelected -= 1;
-  if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
-      m_noNumberSelected < 0) {
-    m_noNumberSelected = m_noNumberPositions.size() - 1;
-  }
-
-  if (!m_noNumberPositions.empty()) {
-    const auto& pos = m_noNumberPositions[m_noNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectPrevious(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
-  m_wrongNumberSelected += 1;
-  if (m_wrongNumberSelected >=
-          static_cast<int>(m_wrongNumberPositions.size()) ||
-      m_wrongNumberSelected < 0) {
-    m_wrongNumberSelected = 0;
-  }
-
-  if (!m_wrongNumberPositions.empty()) {
-    const auto& pos = m_wrongNumberPositions[m_wrongNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
-  m_wrongNumberSelected -= 1;
-  if (m_wrongNumberSelected >=
-          static_cast<int>(m_wrongNumberPositions.size()) ||
-      m_wrongNumberSelected < 0) {
-    m_wrongNumberSelected = m_wrongNumberPositions.size() - 1;
-  }
-
-  if (!m_wrongNumberPositions.empty()) {
-    const auto& pos = m_wrongNumberPositions[m_wrongNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
-  m_splitNumberSelected += 1;
-  if (m_splitNumberSelected >=
-          static_cast<int>(m_splitNumberPositions.size()) ||
-      m_splitNumberSelected < 0) {
-    m_splitNumberSelected = 0;
-  }
-
-  if (!m_splitNumberPositions.empty()) {
-    const auto& pos = m_splitNumberPositions[m_splitNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
-  m_splitNumberSelected -= 1;
-  if (m_splitNumberSelected >=
-          static_cast<int>(m_splitNumberPositions.size()) ||
-      m_splitNumberSelected < 0) {
-    m_splitNumberSelected = m_splitNumberPositions.size() - 1;
-  }
-
-  if (!m_splitNumberPositions.empty()) {
-    const auto& pos = m_splitNumberPositions[m_splitNumberSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
-  m_wrongArticleSelected += 1;
-  if (m_wrongArticleSelected >=
-          static_cast<int>(m_wrongArticlePositions.size()) ||
-      m_wrongArticleSelected < 0) {
-    m_wrongArticleSelected = 0;
-  }
-
-  if (!m_wrongArticlePositions.empty()) {
-    const auto& pos = m_wrongArticlePositions[m_wrongArticleSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectNext(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
 }
 
 void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
-  m_wrongArticleSelected -= 1;
-  if (m_wrongArticleSelected >=
-          static_cast<int>(m_wrongArticlePositions.size()) ||
-      m_wrongArticleSelected < 0) {
-    m_wrongArticleSelected = m_wrongArticlePositions.size() - 1;
-  }
-
-  if (!m_wrongArticlePositions.empty()) {
-    const auto& pos = m_wrongArticlePositions[m_wrongArticleSelected];
-    m_textBox->SetSelection(pos.first, pos.second);
-    m_textBox->ShowPosition(pos.first);
-    m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
-  }
+  ErrorNavigator::selectPrevious(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
 }
 
 void MainWindow::setupUi() {
