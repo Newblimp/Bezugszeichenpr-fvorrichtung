@@ -8,6 +8,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# Set Qt installation path for Windows
+if(WIN32)
+  set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/mingw_64")
+endif()
+
 # Try to find Qt6 first, then fall back to Qt5
 find_package(Qt6 COMPONENTS Core Widgets Gui)
 if(NOT Qt6_FOUND)
