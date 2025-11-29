@@ -613,9 +613,30 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     menu.Append(1, isMultiWord ? "Disable multi-word mode"
                                : "Enable multi-word mode");
 
-    // Add clear error option
-    bool isCleared = m_clearedErrors.count(bz) > 0;
-    menu.Append(2, isCleared ? "Restore error" : "Clear error");
+    // Check if this BZ actually has an error (ignoring cleared status)
+    const auto &stems = m_bzToStems[bz];
+    bool hasError = false;
+
+    // Check if multiple different stems are assigned to this BZ
+    if (stems.size() > 1) {
+      hasError = true;
+    }
+
+    // Check if the stem is also used with other BZs
+    if (!hasError) {
+      for (const auto &stem : stems) {
+        if (m_stemToBz.at(stem).size() > 1) {
+          hasError = true;
+          break;
+        }
+      }
+    }
+
+    // Only show clear/restore error option if there's an actual error
+    if (hasError) {
+      bool isCleared = m_clearedErrors.count(bz) > 0;
+      menu.Append(2, isCleared ? "Restore error" : "Clear error");
+    }
 
     int selection = GetPopupMenuSelectionFromUser(menu);
     if (selection == 1) {
