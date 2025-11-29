@@ -1,32 +1,37 @@
 #include "MainWindow.h"
-#include "../img/check_16.xpm"
-#include "../img/warning_16.xpm"
 #include "utils.h"
-#include "wx/event.h"
-#include "wx/gdicmn.h"
-#include "wx/timer.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QWidget>
+#include <QMenu>
+#include <QTextCursor>
+#include <QTextDocument>
+#include <QMessageBox>
+#include <QIcon>
+#include <QPixmap>
+#include <QHeaderView>
 #include <algorithm>
 #include <locale>
 #include <regex>
 #include <string>
-#include <wx/bitmap.h>
 
-MainWindow::MainWindow()
-    : wxFrame(nullptr, wxID_ANY,
-              wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
-              wxDefaultPosition, wxSize(1200, 800)) {
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent) {
+  setWindowTitle(QString::fromUtf8("Bezugszeichenprüfvorrichtung"));
+  resize(1200, 800);
+
 #ifdef _WIN32
-  SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
-  SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
-#endif // SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
+  // Set window icon on Windows
+  setWindowIcon(QIcon(":/icons/app_icon.ico"));
+#endif
 
   setupUi();
   loadIcons();
   setupBindings();
 }
 
-void MainWindow::debounceFunc(wxCommandEvent &event) {
-  m_debounceTimer.Start(500, true);
+void MainWindow::debounceFunc() {
+  m_debounceTimer.start(500);
 }
 
 void MainWindow::stemWord(std::wstring &word) {
@@ -112,7 +117,7 @@ std::pair<std::wstring, size_t> findPrecedingWord(const std::wstring &text,
 }
 } // namespace
 
-void MainWindow::scanText(wxTimerEvent &event) {
+void MainWindow::scanText() {
   setupAndClear();
 
   // Track matched positions to avoid duplicate processing
@@ -210,31 +215,30 @@ void MainWindow::scanText(wxTimerEvent &event) {
   checkArticleUsage();
 
   // Update navigation labels
-  m_noNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
-  m_wrongNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
-  m_splitNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
-  m_wrongArticleLabel->SetLabel(
-      L"0/" + std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+  m_noNumberLabel->setText(
+      QString::fromStdWString(L"0/" + std::to_wstring(m_noNumberPositions.size() / 2) + L"\t"));
+  m_wrongNumberLabel->setText(
+      QString::fromStdWString(L"0/" + std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t"));
+  m_splitNumberLabel->setText(
+      QString::fromStdWString(L"0/" + std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t"));
+  m_wrongArticleLabel->setText(
+      QString::fromStdWString(L"0/" + std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t"));
 
   fillBzList();
 }
 
 void MainWindow::fillListTree() {
   for (const auto &[bz, stems] : m_bzToStems) {
-    wxTreeListItem item;
+    QTreeWidgetItem *item = new QTreeWidgetItem(m_treeList.get());
+
+    item->setText(0, QString::fromStdWString(bz));
+    item->setText(1, QString::fromStdWString(stemsToDisplayString(stems, m_bzToOriginalWords[bz])));
 
     if (isUniquelyAssigned(bz)) {
-      item = m_treeList->AppendItem(m_treeList->GetRootItem(), bz, 0, 0);
+      item->setIcon(0, QIcon(":/icons/check_16.png"));
     } else {
-      item = m_treeList->AppendItem(m_treeList->GetRootItem(), bz, 1, 1);
+      item->setIcon(0, QIcon(":/icons/warning_16.png"));
     }
-
-    // Display original words for this BZ
-    m_treeList->SetItemText(
-        item, 1, stemsToDisplayString(stems, m_bzToOriginalWords[bz]));
   }
 }
 
@@ -245,13 +249,17 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
   if (stems.size() > 1) {
     // Highlight all occurrences of this BZ
     const auto &positions = m_bzToPositions[bz];
-    // for (size_t i = 0; i < positions.size(); i += 2) {
     for (const auto i : positions) {
       size_t start = i.first;
       size_t len = i.second;
       m_wrongNumberPositions.push_back(start);
       m_wrongNumberPositions.push_back(start + len);
-      m_textBox->SetStyle(start, start + len, m_warningStyle);
+
+      // Apply highlighting using QTextEdit
+      QTextCursor cursor(m_textBox->document());
+      cursor.setPosition(start);
+      cursor.setPosition(start + len, QTextCursor::KeepAnchor);
+      cursor.setCharFormat(m_warningStyle);
     }
     return false;
   }
@@ -261,7 +269,6 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
     if (m_stemToBz.at(stem).size() > 1) {
       // This stem maps to multiple BZs - highlight occurrences
       const auto &positions = m_stemToPositions[stem];
-      // for (size_t i = 0; i < positions.size(); i += 2) {
       for (const auto i : positions) {
         size_t start = i.first;
         size_t len = i.second;
@@ -272,7 +279,11 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
                       start) == m_splitNumberPositions.end()) {
           m_splitNumberPositions.push_back(start);
           m_splitNumberPositions.push_back(start + len);
-          m_textBox->SetStyle(start, start + len, m_warningStyle);
+
+          QTextCursor cursor(m_textBox->document());
+          cursor.setPosition(start);
+          cursor.setPosition(start + len, QTextCursor::KeepAnchor);
+          cursor.setCharFormat(m_warningStyle);
         }
       }
       return false;
@@ -283,18 +294,8 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
 }
 
 void MainWindow::loadIcons() {
-  // wxIcon icon;
-  // icon.CopyFromBitmap(wxBitmap("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
-  // SetIcon(icon);
-
-  // rest of the code
-  m_imageList = std::make_shared<wxImageList>(16, 16, false, 0);
-  wxBitmap check(check_16_xpm);
-  wxBitmap warning(warning_16_xpm);
-
-  m_imageList->Add(check);
-  m_imageList->Add(warning);
-  m_treeList->SetImageList(m_imageList.get());
+  // Icons would be loaded from resources
+  // For now, we'll skip the actual icon loading
 }
 
 void MainWindow::findUnnumberedWords() {
@@ -348,7 +349,11 @@ void MainWindow::findUnnumberedWords() {
           size_t len2 = iter->length();
           m_noNumberPositions.push_back(pos1);
           m_noNumberPositions.push_back(pos2 + len2);
-          m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
+
+          QTextCursor cursor(m_textBox->document());
+          cursor.setPosition(pos1);
+          cursor.setPosition(pos2 + len2, QTextCursor::KeepAnchor);
+          cursor.setCharFormat(m_warningStyle);
         }
       }
       prev = *iter;
@@ -379,7 +384,11 @@ void MainWindow::findUnnumberedWords() {
         size_t len = iter->length();
         m_noNumberPositions.push_back(pos);
         m_noNumberPositions.push_back(pos + len);
-        m_textBox->SetStyle(pos, pos + len, m_warningStyle);
+
+        QTextCursor cursor(m_textBox->document());
+        cursor.setPosition(pos);
+        cursor.setPosition(pos + len, QTextCursor::KeepAnchor);
+        cursor.setCharFormat(m_warningStyle);
       }
 
       ++iter;
@@ -436,7 +445,11 @@ void MainWindow::checkArticleUsage() {
       if (isDefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.push_back(precedingPos);
         m_wrongArticlePositions.push_back(articleEnd);
-        m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+
+        QTextCursor cursor(m_textBox->document());
+        cursor.setPosition(precedingPos);
+        cursor.setPosition(articleEnd, QTextCursor::KeepAnchor);
+        cursor.setCharFormat(m_articleWarningStyle);
       }
       seenStems.insert(occ.stem);
     } else {
@@ -444,14 +457,18 @@ void MainWindow::checkArticleUsage() {
       if (isIndefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.push_back(precedingPos);
         m_wrongArticlePositions.push_back(articleEnd);
-        m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+
+        QTextCursor cursor(m_textBox->document());
+        cursor.setPosition(precedingPos);
+        cursor.setPosition(articleEnd, QTextCursor::KeepAnchor);
+        cursor.setCharFormat(m_articleWarningStyle);
       }
     }
   }
 }
 
 void MainWindow::setupAndClear() {
-  m_fullText = m_textBox->GetValue().ToStdWstring();
+  m_fullText = m_textBox->toPlainText().toStdWString();
 
   // Clear all data structures
   m_bzToStems.clear();
@@ -461,7 +478,7 @@ void MainWindow::setupAndClear() {
   m_stemToPositions.clear();
   m_allStems.clear();
 
-  m_treeList->DeleteAllItems();
+  m_treeList->clear();
 
   m_noNumberPositions.clear();
   m_wrongNumberPositions.clear();
@@ -470,10 +487,12 @@ void MainWindow::setupAndClear() {
   m_bzCurrentOccurrence.clear();
 
   // Reset text highlighting
-  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
+  QTextCursor cursor(m_textBox->document());
+  cursor.select(QTextCursor::Document);
+  cursor.setCharFormat(m_neutralStyle);
 }
 
-void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
+void MainWindow::selectNextNoNumber() {
   m_noNumberSelected += 2;
   if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
       m_noNumberSelected < 0) {
@@ -481,16 +500,19 @@ void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
   }
 
   if (!m_noNumberPositions.empty()) {
-    m_textBox->SetSelection(m_noNumberPositions[m_noNumberSelected],
-                            m_noNumberPositions[m_noNumberSelected + 1]);
-    m_textBox->ShowPosition(m_noNumberPositions[m_noNumberSelected]);
-    m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_noNumberPositions[m_noNumberSelected]);
+    cursor.setPosition(m_noNumberPositions[m_noNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_noNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
+void MainWindow::selectPreviousNoNumber() {
   m_noNumberSelected -= 2;
   if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
       m_noNumberSelected < 0) {
@@ -498,16 +520,19 @@ void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
   }
 
   if (!m_noNumberPositions.empty()) {
-    m_textBox->SetSelection(m_noNumberPositions[m_noNumberSelected],
-                            m_noNumberPositions[m_noNumberSelected + 1]);
-    m_textBox->ShowPosition(m_noNumberPositions[m_noNumberSelected]);
-    m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_noNumberPositions[m_noNumberSelected]);
+    cursor.setPosition(m_noNumberPositions[m_noNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_noNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
+void MainWindow::selectNextWrongNumber() {
   m_wrongNumberSelected += 2;
   if (m_wrongNumberSelected >=
           static_cast<int>(m_wrongNumberPositions.size()) ||
@@ -516,16 +541,19 @@ void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
   }
 
   if (!m_wrongNumberPositions.empty()) {
-    m_textBox->SetSelection(m_wrongNumberPositions[m_wrongNumberSelected],
-                            m_wrongNumberPositions[m_wrongNumberSelected + 1]);
-    m_textBox->ShowPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
-    m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
+    cursor.setPosition(m_wrongNumberPositions[m_wrongNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_wrongNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
+void MainWindow::selectPreviousWrongNumber() {
   m_wrongNumberSelected -= 2;
   if (m_wrongNumberSelected >=
           static_cast<int>(m_wrongNumberPositions.size()) ||
@@ -534,16 +562,19 @@ void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
   }
 
   if (!m_wrongNumberPositions.empty()) {
-    m_textBox->SetSelection(m_wrongNumberPositions[m_wrongNumberSelected],
-                            m_wrongNumberPositions[m_wrongNumberSelected + 1]);
-    m_textBox->ShowPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
-    m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
+    cursor.setPosition(m_wrongNumberPositions[m_wrongNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_wrongNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
+void MainWindow::selectNextSplitNumber() {
   m_splitNumberSelected += 2;
   if (m_splitNumberSelected >=
           static_cast<int>(m_splitNumberPositions.size()) ||
@@ -552,16 +583,19 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
   }
 
   if (!m_splitNumberPositions.empty()) {
-    m_textBox->SetSelection(m_splitNumberPositions[m_splitNumberSelected],
-                            m_splitNumberPositions[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPositions[m_splitNumberSelected]);
-    m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_splitNumberPositions[m_splitNumberSelected]);
+    cursor.setPosition(m_splitNumberPositions[m_splitNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_splitNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
+void MainWindow::selectPreviousSplitNumber() {
   m_splitNumberSelected -= 2;
   if (m_splitNumberSelected >=
           static_cast<int>(m_splitNumberPositions.size()) ||
@@ -570,16 +604,19 @@ void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
   }
 
   if (!m_splitNumberPositions.empty()) {
-    m_textBox->SetSelection(m_splitNumberPositions[m_splitNumberSelected],
-                            m_splitNumberPositions[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPositions[m_splitNumberSelected]);
-    m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_splitNumberPositions[m_splitNumberSelected]);
+    cursor.setPosition(m_splitNumberPositions[m_splitNumberSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_splitNumberLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
+void MainWindow::selectNextWrongArticle() {
   m_wrongArticleSelected += 2;
   if (m_wrongArticleSelected >=
           static_cast<int>(m_wrongArticlePositions.size()) ||
@@ -588,17 +625,19 @@ void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
   }
 
   if (!m_wrongArticlePositions.empty()) {
-    m_textBox->SetSelection(
-        m_wrongArticlePositions[m_wrongArticleSelected],
-        m_wrongArticlePositions[m_wrongArticleSelected + 1]);
-    m_textBox->ShowPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
-    m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
+    cursor.setPosition(m_wrongArticlePositions[m_wrongArticleSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_wrongArticleLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t"));
   }
 }
 
-void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
+void MainWindow::selectPreviousWrongArticle() {
   m_wrongArticleSelected -= 2;
   if (m_wrongArticleSelected >=
           static_cast<int>(m_wrongArticlePositions.size()) ||
@@ -607,162 +646,164 @@ void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
   }
 
   if (!m_wrongArticlePositions.empty()) {
-    m_textBox->SetSelection(
-        m_wrongArticlePositions[m_wrongArticleSelected],
-        m_wrongArticlePositions[m_wrongArticleSelected + 1]);
-    m_textBox->ShowPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
-    m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
+    cursor.setPosition(m_wrongArticlePositions[m_wrongArticleSelected + 1], QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+
+    m_wrongArticleLabel->setText(
+        QString::fromStdWString(std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
+        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t"));
   }
 }
 
 void MainWindow::setupUi() {
-  wxPanel *panel = new wxPanel(this, wxID_ANY);
+  QWidget *centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
 
-  wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
-  panel->SetSizer(viewSizer);
+  QHBoxLayout *viewLayout = new QHBoxLayout(centralWidget);
 
-  wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
-  wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
-  wxBoxSizer *noNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *wrongArticleSizer = new wxBoxSizer(wxHORIZONTAL);
+  QVBoxLayout *outputLayout = new QVBoxLayout();
+  QVBoxLayout *numberLayout = new QVBoxLayout();
+  QHBoxLayout *noNumberLayout = new QHBoxLayout();
+  QHBoxLayout *wrongNumberLayout = new QHBoxLayout();
+  QHBoxLayout *splitNumberLayout = new QHBoxLayout();
+  QHBoxLayout *wrongArticleLayout = new QHBoxLayout();
 
-  m_notebookList = new wxNotebook(panel, wxID_ANY);
+  m_notebookList = new QTabWidget(centralWidget);
 
   // Main text editor
-  m_textBox = new wxRichTextCtrl(panel);
-  m_bzList =
-      std::make_shared<wxRichTextCtrl>(m_notebookList, wxID_ANY, wxEmptyString,
-                                       wxDefaultPosition, wxSize(350, -1));
+  m_textBox = new QTextEdit(centralWidget);
+  m_bzList = std::make_shared<QTextEdit>(m_notebookList);
+  m_bzList->setReadOnly(true);
 
-  viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
-  viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
+  viewLayout->addWidget(m_textBox, 1);
+  viewLayout->addLayout(outputLayout, 0);
 
-  // Tree list for displaying BZ-term mappings
-  m_treeList = std::make_shared<wxTreeListCtrl>(
-      m_notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-  m_treeList->AppendColumn("reference sign");
-  m_treeList->AppendColumn("feature");
+  // Tree widget for displaying BZ-term mappings
+  m_treeList = std::make_shared<QTreeWidget>(m_notebookList);
+  m_treeList->setColumnCount(2);
+  QStringList headers;
+  headers << "reference sign" << "feature";
+  m_treeList->setHeaderLabels(headers);
+  m_treeList->setContextMenuPolicy(Qt::CustomContextMenu);
 
-  outputSizer->Add(m_notebookList, 2, wxEXPAND | wxALL, 10);
-  m_notebookList->AddPage(m_treeList.get(), "overview");
-  m_notebookList->AddPage(m_bzList.get(), "reference sign list");
+  outputLayout->addWidget(m_notebookList, 2);
+  m_notebookList->addTab(m_treeList.get(), "overview");
+  m_notebookList->addTab(m_bzList.get(), "reference sign list");
 
   // Navigation buttons for unnumbered references
-  m_buttonBackwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
-  m_buttonForwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+  m_buttonBackwardNoNumber = std::make_shared<QPushButton>("<", centralWidget);
+  m_buttonBackwardNoNumber->setFixedWidth(50);
+  m_buttonForwardNoNumber = std::make_shared<QPushButton>(">", centralWidget);
+  m_buttonForwardNoNumber->setFixedWidth(50);
 
   // Navigation buttons for wrong number errors
-  m_buttonBackwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
-  m_buttonForwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+  m_buttonBackwardWrongNumber = std::make_shared<QPushButton>("<", centralWidget);
+  m_buttonBackwardWrongNumber->setFixedWidth(50);
+  m_buttonForwardWrongNumber = std::make_shared<QPushButton>(">", centralWidget);
+  m_buttonForwardWrongNumber->setFixedWidth(50);
 
   // Navigation buttons for split number errors
-  m_buttonBackwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
-  m_buttonForwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+  m_buttonBackwardSplitNumber = std::make_shared<QPushButton>("<", centralWidget);
+  m_buttonBackwardSplitNumber->setFixedWidth(50);
+  m_buttonForwardSplitNumber = std::make_shared<QPushButton>(">", centralWidget);
+  m_buttonForwardSplitNumber->setFixedWidth(50);
 
   // Navigation buttons for wrong article errors
-  m_buttonBackwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
-  m_buttonForwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+  m_buttonBackwardWrongArticle = std::make_shared<QPushButton>("<", centralWidget);
+  m_buttonBackwardWrongArticle->setFixedWidth(50);
+  m_buttonForwardWrongArticle = std::make_shared<QPushButton>(">", centralWidget);
+  m_buttonForwardWrongArticle->setFixedWidth(50);
 
   // Layout for unnumbered references row
-  noNumberSizer->Add(m_buttonBackwardNoNumber.get());
-  noNumberSizer->Add(m_buttonForwardNoNumber.get());
-  auto noNumberDescription =
-      new wxStaticText(panel, wxID_ANY, "unnumbered", wxDefaultPosition,
-                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT, 10);
-  noNumberSizer->Add(noNumberDescription, 0, wxLEFT, 0);
+  noNumberLayout->addWidget(m_buttonBackwardNoNumber.get());
+  noNumberLayout->addWidget(m_buttonForwardNoNumber.get());
+  QLabel *noNumberDescription = new QLabel("unnumbered", centralWidget);
+  noNumberDescription->setFixedWidth(150);
+  m_noNumberLabel = std::make_shared<QLabel>("0/0\t", centralWidget);
+  noNumberLayout->addWidget(m_noNumberLabel.get());
+  noNumberLayout->addWidget(noNumberDescription);
 
   // Layout for wrong number row
-  wrongNumberSizer->Add(m_buttonBackwardWrongNumber.get());
-  wrongNumberSizer->Add(m_buttonForwardWrongNumber.get());
-  auto wrongNumberDescription =
-      new wxStaticText(panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
-                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT, 10);
-  wrongNumberSizer->Add(wrongNumberDescription, 0, wxLEFT, 0);
+  wrongNumberLayout->addWidget(m_buttonBackwardWrongNumber.get());
+  wrongNumberLayout->addWidget(m_buttonForwardWrongNumber.get());
+  QLabel *wrongNumberDescription = new QLabel("inconsistent terms", centralWidget);
+  wrongNumberDescription->setFixedWidth(150);
+  m_wrongNumberLabel = std::make_shared<QLabel>("0/0\t", centralWidget);
+  wrongNumberLayout->addWidget(m_wrongNumberLabel.get());
+  wrongNumberLayout->addWidget(wrongNumberDescription);
 
   // Layout for split number row
-  splitNumberSizer->Add(m_buttonBackwardSplitNumber.get());
-  splitNumberSizer->Add(m_buttonForwardSplitNumber.get());
-  auto splitNumberDescription = new wxStaticText(
-      panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
-      wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT, 10);
-  splitNumberSizer->Add(splitNumberDescription, 0, wxLEFT, 0);
+  splitNumberLayout->addWidget(m_buttonBackwardSplitNumber.get());
+  splitNumberLayout->addWidget(m_buttonForwardSplitNumber.get());
+  QLabel *splitNumberDescription = new QLabel("inconsistent reference signs", centralWidget);
+  splitNumberDescription->setFixedWidth(150);
+  m_splitNumberLabel = std::make_shared<QLabel>("0/0\t", centralWidget);
+  splitNumberLayout->addWidget(m_splitNumberLabel.get());
+  splitNumberLayout->addWidget(splitNumberDescription);
 
   // Layout for wrong article row
-  wrongArticleSizer->Add(m_buttonBackwardWrongArticle.get());
-  wrongArticleSizer->Add(m_buttonForwardWrongArticle.get());
-  auto wrongArticleDescription = new wxStaticText(
-      panel, wxID_ANY, "inconsistent article", wxDefaultPosition,
-      wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_wrongArticleLabel =
-      std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT, 10);
-  wrongArticleSizer->Add(wrongArticleDescription, 0, wxLEFT, 0);
+  wrongArticleLayout->addWidget(m_buttonBackwardWrongArticle.get());
+  wrongArticleLayout->addWidget(m_buttonForwardWrongArticle.get());
+  QLabel *wrongArticleDescription = new QLabel("inconsistent article", centralWidget);
+  wrongArticleDescription->setFixedWidth(150);
+  m_wrongArticleLabel = std::make_shared<QLabel>("0/0\t", centralWidget);
+  wrongArticleLayout->addWidget(m_wrongArticleLabel.get());
+  wrongArticleLayout->addWidget(wrongArticleDescription);
 
-  numberSizer->Add(noNumberSizer, wxLEFT);
-  numberSizer->Add(wrongNumberSizer, wxLEFT);
-  numberSizer->Add(splitNumberSizer, wxLEFT);
-  numberSizer->Add(wrongArticleSizer, wxLEFT);
+  numberLayout->addLayout(noNumberLayout);
+  numberLayout->addLayout(wrongNumberLayout);
+  numberLayout->addLayout(splitNumberLayout);
+  numberLayout->addLayout(wrongArticleLayout);
 
-  outputSizer->Add(numberSizer, 0, wxALL, 10);
+  outputLayout->addLayout(numberLayout, 0);
 
   // Set up text styles
-  m_neutralStyle.SetBackgroundColour(
-      wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-  m_warningStyle.SetBackgroundColour(*wxYELLOW);
-  m_articleWarningStyle.SetBackgroundColour(*wxCYAN);
+  m_neutralStyle.setBackground(Qt::white);
+  m_warningStyle.setBackground(Qt::yellow);
+  m_articleWarningStyle.setBackground(Qt::cyan);
 }
 
 void MainWindow::setupBindings() {
-  m_textBox->Bind(wxEVT_TEXT, &MainWindow::debounceFunc, this);
-  m_debounceTimer.Bind(wxEVT_TIMER, &MainWindow::scanText, this);
+  connect(m_textBox, &QTextEdit::textChanged, this, &MainWindow::debounceFunc);
 
-  m_buttonBackwardNoNumber->Bind(wxEVT_BUTTON,
-                                 &MainWindow::selectPreviousNoNumber, this);
-  m_buttonForwardNoNumber->Bind(wxEVT_BUTTON, &MainWindow::selectNextNoNumber,
-                                this);
-  m_buttonBackwardWrongNumber->Bind(
-      wxEVT_BUTTON, &MainWindow::selectPreviousWrongNumber, this);
-  m_buttonForwardWrongNumber->Bind(wxEVT_BUTTON,
-                                   &MainWindow::selectNextWrongNumber, this);
-  m_buttonBackwardSplitNumber->Bind(
-      wxEVT_BUTTON, &MainWindow::selectPreviousSplitNumber, this);
-  m_buttonForwardSplitNumber->Bind(wxEVT_BUTTON,
-                                   &MainWindow::selectNextSplitNumber, this);
-  m_buttonBackwardWrongArticle->Bind(
-      wxEVT_BUTTON, &MainWindow::selectPreviousWrongArticle, this);
-  m_buttonForwardWrongArticle->Bind(wxEVT_BUTTON,
-                                    &MainWindow::selectNextWrongArticle, this);
+  m_debounceTimer.setSingleShot(true);
+  connect(&m_debounceTimer, &QTimer::timeout, this, &MainWindow::scanText);
 
-  m_treeList->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
-                   &MainWindow::onTreeListContextMenu, this);
-  m_treeList->Bind(wxEVT_TREELIST_ITEM_ACTIVATED,
-                   &MainWindow::onTreeListItemActivated, this);
+  connect(m_buttonBackwardNoNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectPreviousNoNumber);
+  connect(m_buttonForwardNoNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectNextNoNumber);
+
+  connect(m_buttonBackwardWrongNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectPreviousWrongNumber);
+  connect(m_buttonForwardWrongNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectNextWrongNumber);
+
+  connect(m_buttonBackwardSplitNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectPreviousSplitNumber);
+  connect(m_buttonForwardSplitNumber.get(), &QPushButton::clicked,
+          this, &MainWindow::selectNextSplitNumber);
+
+  connect(m_buttonBackwardWrongArticle.get(), &QPushButton::clicked,
+          this, &MainWindow::selectPreviousWrongArticle);
+  connect(m_buttonForwardWrongArticle.get(), &QPushButton::clicked,
+          this, &MainWindow::selectNextWrongArticle);
+
+  connect(m_treeList.get(), &QTreeWidget::customContextMenuRequested,
+          this, &MainWindow::onTreeItemContextMenu);
+  connect(m_treeList.get(), &QTreeWidget::itemActivated,
+          this, &MainWindow::onTreeItemActivated);
 }
 
 void MainWindow::fillBzList() {
-  m_bzList->SetValue("");
+  m_bzList->clear();
 
-  auto treeItem = m_treeList->GetFirstItem();
-  while (treeItem.IsOk()) {
-    std::wstring bz = m_treeList->GetItemText(treeItem, 0).ToStdWstring();
+  for (int i = 0; i < m_treeList->topLevelItemCount(); ++i) {
+    QTreeWidgetItem *item = m_treeList->topLevelItem(i);
+    std::wstring bz = item->text(0).toStdWString();
 
     if (m_bzToPositions.count(bz) && m_bzToPositions[bz].size() >= 1) {
       size_t start = m_bzToPositions[bz][0].first;
@@ -772,21 +813,18 @@ void MainWindow::fillBzList() {
       size_t termLen = len > bz.size() + 1 ? len - bz.size() - 1 : 0;
       std::wstring termText = m_fullText.substr(start, termLen);
 
-      m_bzList->AppendText(bz + L"\t" + termText + L"\n");
+      m_bzList->append(QString::fromStdWString(bz + L"\t" + termText));
     }
-
-    treeItem = m_treeList->GetNextItem(treeItem);
   }
 }
 
-void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
-  wxTreeListItem item = event.GetItem();
-  if (!item.IsOk()) {
+void MainWindow::onTreeItemContextMenu(const QPoint &pos) {
+  QTreeWidgetItem *item = m_treeList->itemAt(pos);
+  if (!item) {
     return;
   }
 
-  wxString bzText = m_treeList->GetItemText(item, 0);
-  std::wstring bz = bzText.ToStdWstring();
+  std::wstring bz = item->text(0).toStdWString();
 
   // Get the stems for this BZ to determine the base word
   if (m_bzToStems.count(bz) && !m_bzToStems[bz].empty()) {
@@ -802,13 +840,13 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     std::wstring baseStem = firstStem.back();
 
     // Create context menu
-    wxMenu menu;
+    QMenu menu(this);
     bool isMultiWord = m_multiWordBaseStems.count(baseStem) > 0;
-    menu.Append(1, isMultiWord ? "Disable multi-word mode"
+    QAction *action = menu.addAction(isMultiWord ? "Disable multi-word mode"
                                : "Enable multi-word mode");
 
-    int selection = GetPopupMenuSelectionFromUser(menu);
-    if (selection == 1) {
+    QAction *selected = menu.exec(m_treeList->mapToGlobal(pos));
+    if (selected == action) {
       toggleMultiWordTerm(baseStem);
     }
   }
@@ -822,17 +860,15 @@ void MainWindow::toggleMultiWordTerm(const std::wstring &baseStem) {
   }
 
   // Trigger rescan
-  m_debounceTimer.Start(1, true);
+  m_debounceTimer.start(1);
 }
 
-void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
-  wxTreeListItem item = event.GetItem();
-  if (!item.IsOk()) {
+void MainWindow::onTreeItemActivated(QTreeWidgetItem *item, int column) {
+  if (!item) {
     return;
   }
 
-  wxString bzText = m_treeList->GetItemText(item, 0);
-  std::wstring bz = bzText.ToStdWstring();
+  std::wstring bz = item->text(0).toStdWString();
 
   // Check if this BZ has any positions
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
@@ -847,12 +883,14 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
     // Get the current occurrence
     size_t start = positions[currentIdx].first;
     size_t len = positions[currentIdx].second;
-    // const auto& [start, length] = positions[currentIdx];
 
     // Select and show the text
-    m_textBox->SetSelection(start, start + len);
-    m_textBox->ShowPosition(start);
-    m_textBox->SetFocus();
+    QTextCursor cursor(m_textBox->document());
+    cursor.setPosition(start);
+    cursor.setPosition(start + len, QTextCursor::KeepAnchor);
+    m_textBox->setTextCursor(cursor);
+    m_textBox->ensureCursorVisible();
+    m_textBox->setFocus();
 
     // Move to next occurrence for next double-click
     currentIdx = (currentIdx + 1) % positions.size();

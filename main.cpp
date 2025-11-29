@@ -1,12 +1,11 @@
 #include "MainWindow.h"
+#include <QApplication>
 
-class MyApp : public wxApp {
-public:
-  virtual bool OnInit() {
-    MainWindow *frame = new MainWindow();
-    frame->Show();
-    return true;
-  }
-};
+int main(int argc, char *argv[]) {
+  QApplication app(argc, argv);
 
-wxIMPLEMENT_APP(MyApp);
+  MainWindow window;
+  window.show();
+
+  return app.exec();
+}

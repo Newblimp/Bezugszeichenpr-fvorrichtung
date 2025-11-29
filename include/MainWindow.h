@@ -1,31 +1,48 @@
 #pragma once
 #include "german_stem.h"
 #include "utils.h"
-#include "wx/notebook.h"
-#include "wx/richtext/richtextctrl.h"
-#include "wx/textctrl.h"
-#include "wx/timer.h"
-#include "wx/treelist.h"
+#include <QMainWindow>
+#include <QTextEdit>
+#include <QTabWidget>
+#include <QTreeWidget>
+#include <QPushButton>
+#include <QLabel>
+#include <QTimer>
+#include <QTextCharFormat>
 #include <map>
 #include <memory>
 #include <regex>
-#include <wx/dataview.h>
-#include <wx/listctrl.h>
-#include <wx/wx.h>
 
-class MainWindow : public wxFrame {
+class MainWindow : public QMainWindow {
+    Q_OBJECT
+
 public:
-    MainWindow();
+    MainWindow(QWidget *parent = nullptr);
+
+private slots:
+    // Core scanning logic
+    void scanText();
+    void debounceFunc();
+
+    // Navigation methods
+    void selectNextNoNumber();
+    void selectPreviousNoNumber();
+    void selectNextWrongNumber();
+    void selectPreviousWrongNumber();
+    void selectNextSplitNumber();
+    void selectPreviousSplitNumber();
+    void selectNextWrongArticle();
+    void selectPreviousWrongArticle();
+
+    // Context menu handling
+    void onTreeItemContextMenu(const QPoint &pos);
+    void onTreeItemActivated(QTreeWidgetItem *item, int column);
 
 private:
     // Setup methods
     void setupUi();
     void setupBindings();
     void loadIcons();
-
-    // Core scanning logic
-    void scanText(wxTimerEvent& event);
-    void debounceFunc(wxCommandEvent& event);
     void setupAndClear();
 
     // Term processing
@@ -44,19 +61,7 @@ private:
     void checkArticleUsage();
     void highlightConflicts();
 
-    // Navigation methods
-    void selectNextNoNumber(wxCommandEvent& event);
-    void selectPreviousNoNumber(wxCommandEvent& event);
-    void selectNextWrongNumber(wxCommandEvent& event);
-    void selectPreviousWrongNumber(wxCommandEvent& event);
-    void selectNextSplitNumber(wxCommandEvent& event);
-    void selectPreviousSplitNumber(wxCommandEvent& event);
-    void selectNextWrongArticle(wxCommandEvent& event);
-    void selectPreviousWrongArticle(wxCommandEvent& event);
-
     // Context menu handling
-    void onTreeListContextMenu(wxTreeListEvent& event);
-    void onTreeListItemActivated(wxTreeListEvent &event);
     void toggleMultiWordTerm(const std::wstring& baseStem);
 
     // Regex patterns
@@ -82,12 +87,12 @@ private:
     std::wstring m_fullText;
 
     // Text styles
-    wxTextAttr m_neutralStyle;
-    wxTextAttr m_warningStyle;
-    wxTextAttr m_articleWarningStyle;
+    QTextCharFormat m_neutralStyle;
+    QTextCharFormat m_warningStyle;
+    QTextCharFormat m_articleWarningStyle;
 
     // Debounce timer for text changes
-    wxTimer m_debounceTimer;
+    QTimer m_debounceTimer;
 
     // Main data structure: BZ -> set of StemVectors
     // Example: "10" -> {{"lager"}, {"zweit", "lager"}}
@@ -107,7 +112,7 @@ private:
     // Position tracking for highlighting and navigation
     // BZ -> list of (start, length) pairs
     std::unordered_map<std::wstring, std::vector<std::pair<size_t,size_t>>> m_bzToPositions;
-    
+
     // StemVector -> list of (start, length) pairs
     std::unordered_map<StemVector, std::vector<std::pair<size_t,size_t>>, StemVectorHash> m_stemToPositions;
 
@@ -122,36 +127,35 @@ private:
     std::unordered_set<StemVector, StemVectorHash> m_allStems;
 
     // UI components
-    wxNotebook* m_notebookList;
-    wxRichTextCtrl* m_textBox;
-    std::shared_ptr<wxRichTextCtrl> m_bzList;
-    std::shared_ptr<wxImageList> m_imageList;
-    std::shared_ptr<wxTreeListCtrl> m_treeList;
-    
+    QTabWidget* m_notebookList;
+    QTextEdit* m_textBox;
+    std::shared_ptr<QTextEdit> m_bzList;
+    std::shared_ptr<QTreeWidget> m_treeList;
+
     // Navigation buttons
-    std::shared_ptr<wxButton> m_buttonForwardNoNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
-    std::shared_ptr<wxButton> m_buttonForwardWrongNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardWrongNumber;
-    std::shared_ptr<wxButton> m_buttonForwardSplitNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardSplitNumber;
-    std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
-    std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
+    std::shared_ptr<QPushButton> m_buttonForwardNoNumber;
+    std::shared_ptr<QPushButton> m_buttonBackwardNoNumber;
+    std::shared_ptr<QPushButton> m_buttonForwardWrongNumber;
+    std::shared_ptr<QPushButton> m_buttonBackwardWrongNumber;
+    std::shared_ptr<QPushButton> m_buttonForwardSplitNumber;
+    std::shared_ptr<QPushButton> m_buttonBackwardSplitNumber;
+    std::shared_ptr<QPushButton> m_buttonForwardWrongArticle;
+    std::shared_ptr<QPushButton> m_buttonBackwardWrongArticle;
 
     // Error position lists: stores alternating (start, end) positions
     std::vector<int> m_noNumberPositions;
     int m_noNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_noNumberLabel;
+    std::shared_ptr<QLabel> m_noNumberLabel;
 
     std::vector<int> m_wrongNumberPositions;
     int m_wrongNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_wrongNumberLabel;
+    std::shared_ptr<QLabel> m_wrongNumberLabel;
 
     std::vector<int> m_splitNumberPositions;
     int m_splitNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_splitNumberLabel;
+    std::shared_ptr<QLabel> m_splitNumberLabel;
 
     std::vector<int> m_wrongArticlePositions;
     int m_wrongArticleSelected{-2};
-    std::shared_ptr<wxStaticText> m_wrongArticleLabel;
+    std::shared_ptr<QLabel> m_wrongArticleLabel;
 };
