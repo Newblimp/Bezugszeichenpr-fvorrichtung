@@ -1,22 +1,22 @@
 #include "utils.h"
 #include <sstream>
 
-wxString stemsToDisplayString(
+std::wstring stemsToDisplayString(
     const std::unordered_set<StemVector, StemVectorHash>& stems,
     const std::unordered_set<std::wstring>& originalWords)
 {
-    wxString listing;
-    
+    std::wstring listing;
+
     // Display the original (unstemmed) words for readability
     for (const auto& word : originalWords) {
         listing.append(word + L"; ");
     }
-    
+
     // Remove trailing "; " if present
     if (listing.length() >= 2) {
-        listing.RemoveLast(2);
+        listing.erase(listing.length() - 2);
     }
-    
+
     return listing;
 }
 
