@@ -474,9 +474,9 @@ void MainWindow::setupUi() {
 
   // Navigation buttons for all errors
   m_buttonBackwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
   m_buttonForwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
 
   // Navigation buttons for unnumbered references
   m_buttonBackwardNoNumber = std::make_shared<wxButton>(
@@ -509,8 +509,8 @@ void MainWindow::setupUi() {
       new wxStaticText(panel, wxID_ANY, "errors", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  allErrorsSizer->Add(m_allErrorsLabel.get(), 0, wxLEFT, 10);
-  allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT, 0);
+  allErrorsSizer->Add(m_allErrorsLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for unnumbered references row
   noNumberSizer->Add(m_buttonBackwardNoNumber.get());
@@ -519,8 +519,8 @@ void MainWindow::setupUi() {
       new wxStaticText(panel, wxID_ANY, "unnumbered", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT, 10);
-  noNumberSizer->Add(noNumberDescription, 0, wxLEFT, 0);
+  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  noNumberSizer->Add(noNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for wrong number row
   wrongNumberSizer->Add(m_buttonBackwardWrongNumber.get());
@@ -529,8 +529,8 @@ void MainWindow::setupUi() {
       new wxStaticText(panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT, 10);
-  wrongNumberSizer->Add(wrongNumberDescription, 0, wxLEFT, 0);
+  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  wrongNumberSizer->Add(wrongNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for split number row
   splitNumberSizer->Add(m_buttonBackwardSplitNumber.get());
@@ -539,8 +539,8 @@ void MainWindow::setupUi() {
       panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT, 10);
-  splitNumberSizer->Add(splitNumberDescription, 0, wxLEFT, 0);
+  splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  splitNumberSizer->Add(splitNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for wrong article row
   wrongArticleSizer->Add(m_buttonBackwardWrongArticle.get());
@@ -550,10 +550,11 @@ void MainWindow::setupUi() {
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_wrongArticleLabel =
       std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT, 10);
-  wrongArticleSizer->Add(wrongArticleDescription, 0, wxLEFT, 0);
+  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  wrongArticleSizer->Add(wrongArticleDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   numberSizer->Add(allErrorsSizer, wxLEFT);
+  numberSizer->AddSpacer(10);  // Vertical spacing between errors and unnumbered
   numberSizer->Add(noNumberSizer, wxLEFT);
   numberSizer->Add(wrongNumberSizer, wxLEFT);
   numberSizer->Add(splitNumberSizer, wxLEFT);
