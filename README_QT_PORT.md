@@ -41,60 +41,75 @@ make
 
 ### Windows
 
-This project uses MSVC with Qt 6.10.1 (MSVC 2022 64-bit).
+This project uses **static linking** with Qt 6.10.1 (MSVC 2022 64-bit) to produce a single standalone .exe without DLL dependencies.
 
-**Build with Visual Studio:**
+#### Step 1: Build Qt Statically from Source
+
+First, you need to build Qt from source with static configuration:
+
+1. Download Qt source code from https://download.qt.io/official_releases/qt/6.10/6.10.1/single/
+   - Get `qt-everywhere-src-6.10.1.zip` or `.tar.xz`
+
+2. Extract to `C:\Qt\6.10.1-src` (or your preferred location)
+
+3. Open "x64 Native Tools Command Prompt for VS 2022"
+
+4. Configure Qt for static build:
 ```bash
+cd C:\Qt\6.10.1-src
+configure -static -release -platform win32-msvc -prefix C:\Qt\6.10.1-static\msvc2022_64 ^
+  -nomake examples -nomake tests ^
+  -skip qtwebengine -skip qt3d -skip qtquick3d ^
+  -opensource -confirm-license
+```
+
+5. Build Qt (this will take 2-4 hours):
+```bash
+cmake --build . --parallel
+cmake --install .
+```
+
+6. Qt static libraries will be installed to `C:\Qt\6.10.1-static\msvc2022_64`
+
+#### Step 2: Build the Application
+
+After Qt is built statically:
+
+```bash
+cd <your-project-directory>
 mkdir build
 cd build
 cmake .. -G "Visual Studio 17 2022" -A x64
 cmake --build . --config Release
 ```
 
-Or open the generated solution file in Visual Studio:
-```bash
-cmake .. -G "Visual Studio 17 2022" -A x64
-start Bezugszeichenvorrichtung.sln
-```
+The resulting `Release\Bezugszeichenvorrichtung.exe` will be a standalone executable with no DLL dependencies.
 
-**Note:** The Qt path is pre-configured in CMakeLists.txt as `C:\Qt\6.10.1\msvc2022_64`. If your Qt installation is in a different location, update the `CMAKE_PREFIX_PATH` in CMakeLists.txt.
+**Note:** Update `CMAKE_PREFIX_PATH` in CMakeLists.txt if you installed static Qt to a different location.
 
 ## Distribution
 
-The build system automatically runs `windeployqt` after building to copy all necessary Qt DLLs into the output directory.
+**This project uses static linking - you get a single standalone .exe file!**
 
-**To create a distribution package:**
-
-1. Build in Release mode:
+After building in Release mode:
 ```bash
 cmake --build . --config Release
 ```
 
-2. The executable and all required DLLs will be in `build\Release\`
+The `build\Release\Bezugszeichenvorrichtung.exe` is a **completely standalone executable**:
+- No DLLs required
+- No Qt installation needed on user's computer
+- Just distribute the single .exe file
+- Larger file size (~15-30 MB) but maximum portability
 
-3. **Distribute the entire `Release` folder** - do NOT distribute just the .exe alone!
-   - Zip the entire `Release` folder
-   - Users extract and run the .exe from the extracted folder
-   - All DLLs must stay in the same folder as the .exe
+Users can simply copy and run the .exe anywhere on Windows without any dependencies.
 
-**What gets deployed (all required for the application to run):**
-- `Bezugszeichenvorrichtung.exe` - your application
-- `Qt6Core.dll`, `Qt6Widgets.dll`, `Qt6Gui.dll` - Qt libraries
-- `platforms\qwindows.dll` - Qt platform plugin (must be in platforms subfolder)
-- MSVC runtime DLLs
-- Other necessary Qt dependencies
+**Licensing Note:** Since this uses static linking with Qt (LGPL/GPL), you must either:
+- Release your source code under GPL/LGPL, OR
+- Provide object files allowing users to relink with different Qt versions (LGPL requirement), OR
+- Use a commercial Qt license
 
-**Important:** The .exe will NOT run without these DLLs. Always distribute the complete folder.
-
-### Alternative: Static Linking (Single .exe file)
-
-If you want a single .exe file with no DLLs:
-- Requires building Qt from source with static configuration, OR
-- Commercial Qt license with static builds
-- Results in much larger .exe file (~20-50 MB instead of ~1 MB)
-- Slower build times but simpler distribution
-
-For most use cases, distributing the folder with DLLs is the recommended approach.
+Make sure to comply with Qt's licensing requirements for static builds.
 
 ## Changes from wxWidgets
 
