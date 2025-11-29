@@ -9,6 +9,7 @@
 #include <locale>
 #include <regex>
 #include <string>
+#include <unordered_set>
 #include <wx/bitmap.h>
 
 MainWindow::MainWindow()
@@ -59,6 +60,15 @@ bool MainWindow::isMultiWordBase(const std::wstring &word) {
 }
 
 namespace {
+// Static sets for fast article lookup (O(1) instead of O(n) string comparisons)
+static const std::unordered_set<std::wstring> indefiniteArticles = {
+  L"ein", L"eine", L"eines", L"einen", L"einer", L"einem"
+};
+
+static const std::unordered_set<std::wstring> definiteArticles = {
+  L"der", L"die", L"das", L"den", L"dem", L"des"
+};
+
 // Check if a word is an indefinite article (ein, eine, eines, einen, einer,
 // einem)
 bool isIndefiniteArticle(const std::wstring &word) {
@@ -66,8 +76,7 @@ bool isIndefiniteArticle(const std::wstring &word) {
   for (auto &c : lower) {
     c = std::tolower(c);
   }
-  return lower == L"ein" || lower == L"eine" || lower == L"eines" ||
-         lower == L"einen" || lower == L"einer" || lower == L"einem";
+  return indefiniteArticles.count(lower) > 0;
 }
 
 // Check if a word is a definite article (der, die, das, den, dem, des)
@@ -76,8 +85,7 @@ bool isDefiniteArticle(const std::wstring &word) {
   for (auto &c : lower) {
     c = std::tolower(c);
   }
-  return lower == L"der" || lower == L"die" || lower == L"das" ||
-         lower == L"den" || lower == L"dem" || lower == L"des";
+  return definiteArticles.count(lower) > 0;
 }
 
 // Find the word immediately preceding a given position in the text
@@ -309,14 +317,9 @@ void MainWindow::findUnnumberedWords() {
   // Check for two-word patterns without numbers (if they match known multi-word
   // stems)
   {
-    // Pattern: [word1] [word2] NOT followed by a number
-    std::wregex twoWordNoNumber{
-        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
-        std::regex_constants::ECMAScript | std::regex_constants::optimize |
-            std::regex_constants::icase};
-
+    // Use pre-compiled regex member variable for better performance
     std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(),
-                               twoWordNoNumber);
+                               m_twoWordNoNumberRegex);
     std::wsregex_iterator end;
 
     if (iter == end)

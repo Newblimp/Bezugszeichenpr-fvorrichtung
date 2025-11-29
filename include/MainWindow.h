@@ -78,6 +78,12 @@ private:
         std::regex_constants::ECMAScript | std::regex_constants::optimize |
             std::regex_constants::icase};
 
+    // Single word NOT followed by a number (for finding unnumbered multi-word terms)
+    std::wregex m_twoWordNoNumberRegex{
+        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
+        std::regex_constants::ECMAScript | std::regex_constants::optimize |
+            std::regex_constants::icase};
+
     stemming::german_stem<> m_germanStemmer;
     std::wstring m_fullText;
 
