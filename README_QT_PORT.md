@@ -43,37 +43,20 @@ make
 
 This project uses **static linking** with Qt 6.10.1 (MSVC 2022 64-bit) to produce a single standalone .exe without DLL dependencies.
 
-#### Step 1: Build Qt Statically from Source
+**Qt is built from source automatically during the build process.**
 
-First, you need to build Qt from source with static configuration:
+#### Prerequisites
 
-1. Download Qt source code from https://download.qt.io/official_releases/qt/6.10/6.10.1/single/
+1. Download Qt 6.10.1 source code from https://download.qt.io/official_releases/qt/6.10/6.10.1/single/
    - Get `qt-everywhere-src-6.10.1.zip` or `.tar.xz`
+   - Extract to `C:\Qt\6.10.1\Src` (this is the expected location)
+   - If you extract to a different location, update `QT_SOURCE_DIR` in CMakeLists.txt
 
-2. Extract to `C:\Qt\6.10.1-src` (or your preferred location)
+2. Install Visual Studio 2022 with C++ development tools
 
-3. Open "x64 Native Tools Command Prompt for VS 2022"
+#### Build the Application
 
-4. Configure Qt for static build:
-```bash
-cd C:\Qt\6.10.1-src
-configure -static -release -platform win32-msvc -prefix C:\Qt\6.10.1-static\msvc2022_64 ^
-  -nomake examples -nomake tests ^
-  -skip qtwebengine -skip qt3d -skip qtquick3d ^
-  -opensource -confirm-license
-```
-
-5. Build Qt (this will take 2-4 hours):
-```bash
-cmake --build . --parallel
-cmake --install .
-```
-
-6. Qt static libraries will be installed to `C:\Qt\6.10.1-static\msvc2022_64`
-
-#### Step 2: Build the Application
-
-After Qt is built statically:
+Open "x64 Native Tools Command Prompt for VS 2022" and run:
 
 ```bash
 cd <your-project-directory>
@@ -83,9 +66,13 @@ cmake .. -G "Visual Studio 17 2022" -A x64
 cmake --build . --config Release
 ```
 
-The resulting `Release\Bezugszeichenvorrichtung.exe` will be a standalone executable with no DLL dependencies.
+**Important Notes:**
+- **First build will take 1-3 hours** as Qt is compiled from source statically
+- Subsequent builds are much faster as Qt is cached in `build/qt6-build/`
+- Only the required Qt modules (Core, Widgets, Gui) are built
+- The final .exe is completely standalone with no DLL dependencies
 
-**Note:** Update `CMAKE_PREFIX_PATH` in CMakeLists.txt if you installed static Qt to a different location.
+The resulting `Release\Bezugszeichenvorrichtung.exe` will be a standalone executable (~15-30 MB).
 
 ## Distribution
 

@@ -8,23 +8,40 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Set Qt installation path for Windows
-if(WIN32)
-  # For static builds, point to your static Qt build directory
-  # Change this path to where you built static Qt
-  set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1-static/msvc2022_64")
-endif()
-
-# Force static linking
+# Force static linking for Qt
 set(BUILD_SHARED_LIBS OFF)
+set(QT_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Qt statically" FORCE)
 
-# Try to find Qt6 first, then fall back to Qt5
-find_package(Qt6 COMPONENTS Core Widgets Gui)
-if(NOT Qt6_FOUND)
-  find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
-  set(QT_VERSION_MAJOR 5)
-else()
+# Point to Qt source directory
+if(WIN32)
+  set(QT_SOURCE_DIR "C:/Qt/6.10.1/Src")
+
+  # Configure Qt to build statically
+  set(QT_FEATURE_static ON CACHE BOOL "" FORCE)
+  set(QT_FEATURE_shared OFF CACHE BOOL "" FORCE)
+  set(QT_FEATURE_framework OFF CACHE BOOL "" FORCE)
+
+  # Disable unnecessary Qt features to speed up build
+  set(QT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(QT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(QT_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+
+  # Only build the modules we need
+  set(QT_BUILD_SUBMODULES "qtbase" CACHE STRING "" FORCE)
+
+  # Add Qt source as subdirectory (will build Qt statically)
+  add_subdirectory(${QT_SOURCE_DIR} ${CMAKE_BINARY_DIR}/qt6-build EXCLUDE_FROM_ALL)
+
   set(QT_VERSION_MAJOR 6)
+else()
+  # Non-Windows: try to find pre-installed Qt
+  find_package(Qt6 COMPONENTS Core Widgets Gui)
+  if(NOT Qt6_FOUND)
+    find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
+    set(QT_VERSION_MAJOR 5)
+  else()
+    set(QT_VERSION_MAJOR 6)
+  endif()
 endif()
 
 # Source files
