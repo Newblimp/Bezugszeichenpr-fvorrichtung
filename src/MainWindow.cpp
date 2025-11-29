@@ -1,7 +1,7 @@
 #include "MainWindow.h"
-#include "ErrorNavigator.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
+#include "ErrorNavigator.h"
 #include "utils.h"
 #include "wx/event.h"
 #include "wx/gdicmn.h"
@@ -68,7 +68,8 @@ void MainWindow::scanText(wxTimerEvent &event) {
           matchedRanges.emplace_back(pos, endPos);
 
           // Create stem vector with both words stemmed separately
-          StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+          StemVector stemVec =
+              m_textAnalyzer.createMultiWordStemVector(word1, word2);
           std::wstring originalPhrase = word1 + L" " + word2;
 
           // Store mappings
@@ -120,7 +121,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
   }
 
   // Collect all unique stems
-  collectAllStems(m_stemToBz, m_allStems);
+  // collectAllStems(m_stemToBz, m_allStems);
 
   // Update display
   fillListTree();
@@ -194,7 +195,8 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
         size_t len = i.second;
 
         // Avoid duplicates in the split number list
-        auto pos_pair = std::make_pair(static_cast<int>(start), static_cast<int>(start + len));
+        auto pos_pair = std::make_pair(static_cast<int>(start),
+                                       static_cast<int>(start + len));
         if (std::find(m_splitNumberPositions.begin(),
                       m_splitNumberPositions.end(),
                       pos_pair) == m_splitNumberPositions.end()) {
@@ -264,7 +266,8 @@ void MainWindow::findUnnumberedWords() {
 
       // Only flag if this is a known multi-word combination
       if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
-        StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+        StemVector stemVec =
+            m_textAnalyzer.createMultiWordStemVector(word1, word2);
 
         if (m_stemToBz.count(stemVec)) {
           size_t len2 = iter->length();
@@ -377,7 +380,7 @@ void MainWindow::setupAndClear() {
   m_bzToOriginalWords.clear();
   m_bzToPositions.clear();
   m_stemToPositions.clear();
-  m_allStems.clear();
+  // m_allStems.clear();
 
   m_treeList->DeleteAllItems();
 
@@ -392,35 +395,44 @@ void MainWindow::setupAndClear() {
 }
 
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
+  ErrorNavigator::selectNext(m_noNumberPositions, m_noNumberSelected, m_textBox,
+                             m_noNumberLabel.get());
 }
 
 void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_noNumberPositions, m_noNumberSelected,
+                                 m_textBox, m_noNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
+  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected,
+                             m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected,
+                                 m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
+  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected,
+                             m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected,
+                                 m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
+  ErrorNavigator::selectNext(m_wrongArticlePositions, m_wrongArticleSelected,
+                             m_textBox, m_wrongArticleLabel.get());
 }
 
 void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
+  ErrorNavigator::selectPrevious(m_wrongArticlePositions,
+                                 m_wrongArticleSelected, m_textBox,
+                                 m_wrongArticleLabel.get());
 }
 
 void MainWindow::setupUi() {
@@ -614,8 +626,30 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
                                : "Enable multi-word mode");
 
     // Add clear error option
-    bool isCleared = m_clearedErrors.count(bz) > 0;
-    menu.Append(2, isCleared ? "Restore error" : "Clear error");
+    // Check if this BZ actually has an error (ignoring cleared status)
+    const auto &stems = m_bzToStems[bz];
+    bool hasError = false;
+
+    // Check if multiple different stems are assigned to this BZ
+    if (stems.size() > 1) {
+      hasError = true;
+    }
+
+    // Check if the stem is also used with other BZs
+    if (!hasError) {
+      for (const auto &stem : stems) {
+        if (m_stemToBz.at(stem).size() > 1) {
+          hasError = true;
+          break;
+        }
+      }
+    }
+
+    // Only show clear/restore error option if there's an actual error
+    if (hasError) {
+      bool isCleared = m_clearedErrors.count(bz) > 0;
+      menu.Append(2, isCleared ? "Restore error" : "Clear error");
+    }
 
     int selection = GetPopupMenuSelectionFromUser(menu);
     if (selection == 1) {
@@ -663,7 +697,8 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
     const auto &positions = m_bzToPositions[bz];
 
-    // Get current occurrence index for this BZ (or initialize based on cursor position)
+    // Get current occurrence index for this BZ (or initialize based on cursor
+    // position)
     if (!m_bzCurrentOccurrence.count(bz)) {
       // Get current cursor position in the text
       long cursorPos = m_textBox->GetInsertionPoint();
@@ -672,7 +707,8 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
       int closestIdx = 0;
 
       // If cursor is past all occurrences, start from the beginning
-      if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
+      if (cursorPos >
+          static_cast<long>(positions[positions.size() - 1].second)) {
         closestIdx = 0;
       }
       // If cursor is before all occurrences, start from the first one
