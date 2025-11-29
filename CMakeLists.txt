@@ -22,7 +22,20 @@ else()
   set(QT_VERSION_MAJOR 6)
 endif()
 
-include_directories(include img)
+# Source files
+set(SOURCES
+  main.cpp
+  src/MainWindow.cpp
+  src/utils.cpp
+  src/stem_collector.cpp
+)
+
+# Header files (needed for AUTOMOC to work properly)
+set(HEADERS
+  include/MainWindow.h
+  include/utils.h
+  include/stem_collector.h
+)
 
 # Add executable target
 if(WIN32)
@@ -31,10 +44,13 @@ if(WIN32)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung WIN32 ${SOURCES} ${HEADERS})
 else()
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung ${SOURCES} ${HEADERS})
 endif()
+
+# Make sure the target knows about the include directory
+target_include_directories(Bezugszeichenvorrichtung PRIVATE include img)
 
 # Link against Qt libraries
 if(QT_VERSION_MAJOR EQUAL 6)
