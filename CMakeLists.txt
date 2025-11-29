@@ -27,7 +27,7 @@ include_directories(include img)
 # Add executable target
 if(WIN32)
   if(MSVC)
-	add_compile_options(/Zc:strictStrings-)
+	add_compile_options(/Zc:strictStrings- /Zc:__cplusplus)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   endif()
