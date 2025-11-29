@@ -1,5 +1,5 @@
 #pragma once
-#include "german_stem.h"
+#include "GermanTextAnalyzer.h"
 #include "utils.h"
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
@@ -27,12 +27,6 @@ private:
     void scanText(wxTimerEvent& event);
     void debounceFunc(wxCommandEvent& event);
     void setupAndClear();
-
-    // Term processing
-    void stemWord(std::wstring& word);
-    StemVector createStemVector(const std::wstring& word);
-    StemVector createMultiWordStemVector(const std::wstring& firstWord, const std::wstring& secondWord);
-    bool isMultiWordBase(const std::wstring& word);
 
     // Display methods
     void fillListTree();
@@ -84,7 +78,8 @@ private:
         std::regex_constants::ECMAScript | std::regex_constants::optimize |
             std::regex_constants::icase};
 
-    stemming::german_stem<> m_germanStemmer;
+    // German text analyzer for stemming and article checking
+    GermanTextAnalyzer m_textAnalyzer;
     std::wstring m_fullText;
 
     // Text styles
@@ -113,7 +108,7 @@ private:
     // Position tracking for highlighting and navigation
     // BZ -> list of (start, length) pairs
     std::unordered_map<std::wstring, std::vector<std::pair<size_t,size_t>>> m_bzToPositions;
-    
+
     // StemVector -> list of (start, length) pairs
     std::unordered_map<StemVector, std::vector<std::pair<size_t,size_t>>, StemVectorHash> m_stemToPositions;
 
@@ -133,7 +128,7 @@ private:
     std::shared_ptr<wxRichTextCtrl> m_bzList;
     std::shared_ptr<wxImageList> m_imageList;
     std::shared_ptr<wxTreeListCtrl> m_treeList;
-    
+
     // Navigation buttons
     std::shared_ptr<wxButton> m_buttonForwardNoNumber;
     std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
