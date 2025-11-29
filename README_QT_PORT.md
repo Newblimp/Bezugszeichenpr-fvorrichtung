@@ -43,20 +43,28 @@ make
 
 This project uses **static linking** with Qt 6.10.1 (MSVC 2022 64-bit) to produce a single standalone .exe without DLL dependencies.
 
-**Qt is built from source automatically during the build process.**
-
 #### Prerequisites
 
 1. Download Qt 6.10.1 source code from https://download.qt.io/official_releases/qt/6.10/6.10.1/single/
    - Get `qt-everywhere-src-6.10.1.zip` or `.tar.xz`
-   - Extract to `C:\Qt\6.10.1\Src` (this is the expected location)
-   - If you extract to a different location, update `QT_SOURCE_DIR` in CMakeLists.txt
+   - Extract to `C:\Qt\6.10.1\Src`
 
 2. Install Visual Studio 2022 with C++ development tools
 
+#### Build Static Qt (One-Time Setup - 1-3 hours)
+
+Run the provided batch script from "x64 Native Tools Command Prompt for VS 2022":
+
+```bash
+cd <project-directory>
+build_qt_static.bat
+```
+
+This builds Qt statically to `C:\Qt\6.10.1-static`. **You only need to do this once.**
+
 #### Build the Application
 
-Open "x64 Native Tools Command Prompt for VS 2022" and run:
+After Qt is built statically:
 
 ```bash
 cd <your-project-directory>
@@ -66,13 +74,7 @@ cmake .. -G "Visual Studio 17 2022" -A x64
 cmake --build . --config Release
 ```
 
-**Important Notes:**
-- **First build will take 1-3 hours** as Qt is compiled from source statically
-- Subsequent builds are much faster as Qt is cached in `build/qt6-build/`
-- Only the required Qt modules (Core, Widgets, Gui) are built
-- The final .exe is completely standalone with no DLL dependencies
-
-The resulting `Release\Bezugszeichenvorrichtung.exe` will be a standalone executable (~15-30 MB).
+The resulting `Release\Bezugszeichenvorrichtung.exe` will be a standalone executable (~15-30 MB) with no DLL dependencies.
 
 ## Distribution
 

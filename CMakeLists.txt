@@ -10,39 +10,15 @@ set(CMAKE_AUTOUIC ON)
 
 # Force static linking for Qt
 set(BUILD_SHARED_LIBS OFF)
-set(QT_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Qt statically" FORCE)
 
-# Point to Qt source directory
+# Point to static Qt installation
 if(WIN32)
-  set(QT_SOURCE_DIR "C:/Qt/6.10.1/Src")
-
-  # Configure Qt to build statically
-  set(QT_FEATURE_static ON CACHE BOOL "" FORCE)
-  set(QT_FEATURE_shared OFF CACHE BOOL "" FORCE)
-  set(QT_FEATURE_framework OFF CACHE BOOL "" FORCE)
-
-  # Disable unnecessary Qt features to speed up build
-  set(QT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-  set(QT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-  set(QT_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
-
-  # Only build the modules we need
-  set(QT_BUILD_SUBMODULES "qtbase" CACHE STRING "" FORCE)
-
-  # Add Qt source as subdirectory (will build Qt statically)
-  add_subdirectory(${QT_SOURCE_DIR} ${CMAKE_BINARY_DIR}/qt6-build EXCLUDE_FROM_ALL)
-
-  set(QT_VERSION_MAJOR 6)
-else()
-  # Non-Windows: try to find pre-installed Qt
-  find_package(Qt6 COMPONENTS Core Widgets Gui)
-  if(NOT Qt6_FOUND)
-    find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
-    set(QT_VERSION_MAJOR 5)
-  else()
-    set(QT_VERSION_MAJOR 6)
-  endif()
+  # Use pre-built static Qt (build once using build_qt_static.bat)
+  set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1-static")
 endif()
+
+# Find Qt6
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui)
 
 # Source files
 set(SOURCES
@@ -80,28 +56,24 @@ target_compile_definitions(Bezugszeichenvorrichtung PRIVATE QT_STATIC)
 target_include_directories(Bezugszeichenvorrichtung PRIVATE include img)
 
 # Link against Qt libraries
-if(QT_VERSION_MAJOR EQUAL 6)
+target_link_libraries(Bezugszeichenvorrichtung
+  Qt6::Core
+  Qt6::Widgets
+  Qt6::Gui
+)
+
+# For static Qt builds on Windows, we need to link platform plugins and additional libraries
+if(WIN32)
+  # Link the Windows platform plugin statically
+  target_link_libraries(Bezugszeichenvorrichtung Qt6::QWindowsIntegrationPlugin)
+
+  # Link additional Windows libraries required for static Qt
   target_link_libraries(Bezugszeichenvorrichtung
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
+    dwmapi
+    uxtheme
+    imm32
+    winmm
+    wtsapi32
   )
-
-  # For static Qt builds on Windows, we need to link platform plugins and additional libraries
-  if(WIN32)
-    # Link the Windows platform plugin statically
-    target_link_libraries(Bezugszeichenvorrichtung Qt6::QWindowsIntegrationPlugin)
-
-    # Link additional Windows libraries required for static Qt
-    target_link_libraries(Bezugszeichenvorrichtung
-      dwmapi
-      uxtheme
-      imm32
-      winmm
-      wtsapi32
-    )
-  endif()
-else()
-  target_link_libraries(Bezugszeichenvorrichtung Qt5::Core Qt5::Widgets Qt5::Gui)
 endif()
 
