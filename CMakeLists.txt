@@ -18,14 +18,27 @@ endif()
 # Enable dead code elimination
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
 
-
+# Disable unused wxWidgets features to reduce binary size
+# Only enable what we actually use: core, base, and richtext
+set(wxUSE_GLCANVAS OFF CACHE BOOL "" FORCE)
+set(wxUSE_WEBVIEW OFF CACHE BOOL "" FORCE)
+set(wxUSE_MEDIACTRL OFF CACHE BOOL "" FORCE)
+set(wxUSE_RIBBON OFF CACHE BOOL "" FORCE)
+set(wxUSE_AUI OFF CACHE BOOL "" FORCE)
+set(wxUSE_PROPGRID OFF CACHE BOOL "" FORCE)
+set(wxUSE_XRC OFF CACHE BOOL "" FORCE)
+set(wxUSE_HTML OFF CACHE BOOL "" FORCE)
+set(wxUSE_STC OFF CACHE BOOL "" FORCE)
+set(wxUSE_WEBVIEW_WEBKIT OFF CACHE BOOL "" FORCE)
+set(wxUSE_WEBVIEW_WEBKIT2 OFF CACHE BOOL "" FORCE)
+set(wxUSE_WEBVIEW_IE OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/wxWidgets)
 include_directories(include img)
 
 # Add executable target
 if(WIN32)
-  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1; -DwxUSE_GLCANVAS=1)
+  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1)
   if(MSVC)
 	add_compile_options(/Zc:strictStrings-)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
@@ -35,7 +48,7 @@ if(WIN32)
   add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_compile_options(-Wno-write-strings)
-  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GLCANVAS=1)
+  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
   add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
 # Link against wxWidgets libraries

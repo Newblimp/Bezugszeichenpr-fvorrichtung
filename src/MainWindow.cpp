@@ -219,13 +219,13 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
   // Update navigation labels
   m_noNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
+      L"0/" + std::to_wstring(m_noNumberPositions.size()) + L"\t");
   m_wrongNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
+      L"0/" + std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
   m_splitNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
+      L"0/" + std::to_wstring(m_splitNumberPositions.size()) + L"\t");
   m_wrongArticleLabel->SetLabel(
-      L"0/" + std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+      L"0/" + std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
 
   fillBzList();
 }
@@ -257,8 +257,7 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
     for (const auto i : positions) {
       size_t start = i.first;
       size_t len = i.second;
-      m_wrongNumberPositions.push_back(start);
-      m_wrongNumberPositions.push_back(start + len);
+      m_wrongNumberPositions.emplace_back(start, start + len);
       m_textBox->SetStyle(start, start + len, m_warningStyle);
     }
     return false;
@@ -275,11 +274,11 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
         size_t len = i.second;
 
         // Avoid duplicates in the split number list
+        auto pos_pair = std::make_pair(static_cast<int>(start), static_cast<int>(start + len));
         if (std::find(m_splitNumberPositions.begin(),
                       m_splitNumberPositions.end(),
-                      start) == m_splitNumberPositions.end()) {
-          m_splitNumberPositions.push_back(start);
-          m_splitNumberPositions.push_back(start + len);
+                      pos_pair) == m_splitNumberPositions.end()) {
+          m_splitNumberPositions.emplace_back(start, start + len);
           m_textBox->SetStyle(start, start + len, m_warningStyle);
         }
       }
@@ -349,8 +348,7 @@ void MainWindow::findUnnumberedWords() {
 
         if (m_stemToBz.count(stemVec)) {
           size_t len2 = iter->length();
-          m_noNumberPositions.push_back(pos1);
-          m_noNumberPositions.push_back(pos2 + len2);
+          m_noNumberPositions.emplace_back(pos1, pos2 + len2);
           m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
         }
       }
@@ -380,8 +378,7 @@ void MainWindow::findUnnumberedWords() {
       // Check if this stem is known from valid references
       if (m_stemToBz.count(stemVec)) {
         size_t len = iter->length();
-        m_noNumberPositions.push_back(pos);
-        m_noNumberPositions.push_back(pos + len);
+        m_noNumberPositions.emplace_back(pos, pos + len);
         m_textBox->SetStyle(pos, pos + len, m_warningStyle);
       }
 
@@ -437,16 +434,14 @@ void MainWindow::checkArticleUsage() {
     if (isFirstOccurrence) {
       // First occurrence: should not be definite article
       if (isDefiniteArticle(precedingWord)) {
-        m_wrongArticlePositions.push_back(precedingPos);
-        m_wrongArticlePositions.push_back(articleEnd);
+        m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
       seenStems.insert(occ.stem);
     } else {
       // Subsequent occurrence: should have definite article
       if (isIndefiniteArticle(precedingWord)) {
-        m_wrongArticlePositions.push_back(precedingPos);
-        m_wrongArticlePositions.push_back(articleEnd);
+        m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
     }
@@ -477,41 +472,41 @@ void MainWindow::setupAndClear() {
 }
 
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
-  m_noNumberSelected += 2;
+  m_noNumberSelected += 1;
   if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
       m_noNumberSelected < 0) {
     m_noNumberSelected = 0;
   }
 
   if (!m_noNumberPositions.empty()) {
-    m_textBox->SetSelection(m_noNumberPositions[m_noNumberSelected],
-                            m_noNumberPositions[m_noNumberSelected + 1]);
-    m_textBox->ShowPosition(m_noNumberPositions[m_noNumberSelected]);
+    const auto& pos = m_noNumberPositions[m_noNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_noNumberSelected + 1) + L"/" +
+        std::to_wstring(m_noNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
-  m_noNumberSelected -= 2;
+  m_noNumberSelected -= 1;
   if (m_noNumberSelected >= static_cast<int>(m_noNumberPositions.size()) ||
       m_noNumberSelected < 0) {
-    m_noNumberSelected = m_noNumberPositions.size() - 2;
+    m_noNumberSelected = m_noNumberPositions.size() - 1;
   }
 
   if (!m_noNumberPositions.empty()) {
-    m_textBox->SetSelection(m_noNumberPositions[m_noNumberSelected],
-                            m_noNumberPositions[m_noNumberSelected + 1]);
-    m_textBox->ShowPosition(m_noNumberPositions[m_noNumberSelected]);
+    const auto& pos = m_noNumberPositions[m_noNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_noNumberLabel->SetLabel(
-        std::to_wstring(m_noNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_noNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_noNumberSelected + 1) + L"/" +
+        std::to_wstring(m_noNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
-  m_wrongNumberSelected += 2;
+  m_wrongNumberSelected += 1;
   if (m_wrongNumberSelected >=
           static_cast<int>(m_wrongNumberPositions.size()) ||
       m_wrongNumberSelected < 0) {
@@ -519,35 +514,35 @@ void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
   }
 
   if (!m_wrongNumberPositions.empty()) {
-    m_textBox->SetSelection(m_wrongNumberPositions[m_wrongNumberSelected],
-                            m_wrongNumberPositions[m_wrongNumberSelected + 1]);
-    m_textBox->ShowPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
+    const auto& pos = m_wrongNumberPositions[m_wrongNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_wrongNumberSelected + 1) + L"/" +
+        std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
-  m_wrongNumberSelected -= 2;
+  m_wrongNumberSelected -= 1;
   if (m_wrongNumberSelected >=
           static_cast<int>(m_wrongNumberPositions.size()) ||
       m_wrongNumberSelected < 0) {
-    m_wrongNumberSelected = m_wrongNumberPositions.size() - 2;
+    m_wrongNumberSelected = m_wrongNumberPositions.size() - 1;
   }
 
   if (!m_wrongNumberPositions.empty()) {
-    m_textBox->SetSelection(m_wrongNumberPositions[m_wrongNumberSelected],
-                            m_wrongNumberPositions[m_wrongNumberSelected + 1]);
-    m_textBox->ShowPosition(m_wrongNumberPositions[m_wrongNumberSelected]);
+    const auto& pos = m_wrongNumberPositions[m_wrongNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_wrongNumberLabel->SetLabel(
-        std::to_wstring(m_wrongNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_wrongNumberSelected + 1) + L"/" +
+        std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
-  m_splitNumberSelected += 2;
+  m_splitNumberSelected += 1;
   if (m_splitNumberSelected >=
           static_cast<int>(m_splitNumberPositions.size()) ||
       m_splitNumberSelected < 0) {
@@ -555,35 +550,35 @@ void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
   }
 
   if (!m_splitNumberPositions.empty()) {
-    m_textBox->SetSelection(m_splitNumberPositions[m_splitNumberSelected],
-                            m_splitNumberPositions[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPositions[m_splitNumberSelected]);
+    const auto& pos = m_splitNumberPositions[m_splitNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_splitNumberSelected + 1) + L"/" +
+        std::to_wstring(m_splitNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
-  m_splitNumberSelected -= 2;
+  m_splitNumberSelected -= 1;
   if (m_splitNumberSelected >=
           static_cast<int>(m_splitNumberPositions.size()) ||
       m_splitNumberSelected < 0) {
-    m_splitNumberSelected = m_splitNumberPositions.size() - 2;
+    m_splitNumberSelected = m_splitNumberPositions.size() - 1;
   }
 
   if (!m_splitNumberPositions.empty()) {
-    m_textBox->SetSelection(m_splitNumberPositions[m_splitNumberSelected],
-                            m_splitNumberPositions[m_splitNumberSelected + 1]);
-    m_textBox->ShowPosition(m_splitNumberPositions[m_splitNumberSelected]);
+    const auto& pos = m_splitNumberPositions[m_splitNumberSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_splitNumberLabel->SetLabel(
-        std::to_wstring(m_splitNumberSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_splitNumberPositions.size() / 2) + L"\t");
+        std::to_wstring(m_splitNumberSelected + 1) + L"/" +
+        std::to_wstring(m_splitNumberPositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
-  m_wrongArticleSelected += 2;
+  m_wrongArticleSelected += 1;
   if (m_wrongArticleSelected >=
           static_cast<int>(m_wrongArticlePositions.size()) ||
       m_wrongArticleSelected < 0) {
@@ -591,32 +586,30 @@ void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
   }
 
   if (!m_wrongArticlePositions.empty()) {
-    m_textBox->SetSelection(
-        m_wrongArticlePositions[m_wrongArticleSelected],
-        m_wrongArticlePositions[m_wrongArticleSelected + 1]);
-    m_textBox->ShowPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
+    const auto& pos = m_wrongArticlePositions[m_wrongArticleSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+        std::to_wstring(m_wrongArticleSelected + 1) + L"/" +
+        std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
   }
 }
 
 void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
-  m_wrongArticleSelected -= 2;
+  m_wrongArticleSelected -= 1;
   if (m_wrongArticleSelected >=
           static_cast<int>(m_wrongArticlePositions.size()) ||
       m_wrongArticleSelected < 0) {
-    m_wrongArticleSelected = m_wrongArticlePositions.size() - 2;
+    m_wrongArticleSelected = m_wrongArticlePositions.size() - 1;
   }
 
   if (!m_wrongArticlePositions.empty()) {
-    m_textBox->SetSelection(
-        m_wrongArticlePositions[m_wrongArticleSelected],
-        m_wrongArticlePositions[m_wrongArticleSelected + 1]);
-    m_textBox->ShowPosition(m_wrongArticlePositions[m_wrongArticleSelected]);
+    const auto& pos = m_wrongArticlePositions[m_wrongArticleSelected];
+    m_textBox->SetSelection(pos.first, pos.second);
+    m_textBox->ShowPosition(pos.first);
     m_wrongArticleLabel->SetLabel(
-        std::to_wstring(m_wrongArticleSelected / 2 + 1) + L"/" +
-        std::to_wstring(m_wrongArticlePositions.size() / 2) + L"\t");
+        std::to_wstring(m_wrongArticleSelected + 1) + L"/" +
+        std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
   }
 }
 

@@ -144,20 +144,20 @@ private:
     std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
     std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
 
-    // Error position lists: stores alternating (start, end) positions
-    std::vector<int> m_noNumberPositions;
-    int m_noNumberSelected{-2};
+    // Error position lists: stores (start, end) position pairs
+    std::vector<std::pair<int, int>> m_noNumberPositions;
+    int m_noNumberSelected{-1};
     std::shared_ptr<wxStaticText> m_noNumberLabel;
 
-    std::vector<int> m_wrongNumberPositions;
-    int m_wrongNumberSelected{-2};
+    std::vector<std::pair<int, int>> m_wrongNumberPositions;
+    int m_wrongNumberSelected{-1};
     std::shared_ptr<wxStaticText> m_wrongNumberLabel;
 
-    std::vector<int> m_splitNumberPositions;
-    int m_splitNumberSelected{-2};
+    std::vector<std::pair<int, int>> m_splitNumberPositions;
+    int m_splitNumberSelected{-1};
     std::shared_ptr<wxStaticText> m_splitNumberLabel;
 
-    std::vector<int> m_wrongArticlePositions;
-    int m_wrongArticleSelected{-2};
+    std::vector<std::pair<int, int>> m_wrongArticlePositions;
+    int m_wrongArticleSelected{-1};
     std::shared_ptr<wxStaticText> m_wrongArticleLabel;
 };
