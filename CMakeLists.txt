@@ -14,7 +14,16 @@ set(BUILD_SHARED_LIBS OFF)
 # Point to static Qt installation
 if(WIN32)
   # Use pre-built static Qt (build once using build_qt_static.bat)
-  set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1-static")
+  # Check multiple possible locations
+  if(EXISTS "C:/Qt/6.10.1-static/lib/cmake/Qt6")
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1-static")
+    message(STATUS "Using static Qt from: C:/Qt/6.10.1-static")
+  elseif(EXISTS "C:/Qt/6.10.1/Src/lib/cmake/Qt6")
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/Src")
+    message(STATUS "Using Qt from source directory: C:/Qt/6.10.1/Src")
+  else()
+    message(FATAL_ERROR "Cannot find static Qt installation. Please run build_qt_static.bat first or check installation path.")
+  endif()
 endif()
 
 # Find Qt6
