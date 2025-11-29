@@ -59,6 +59,29 @@ start Bezugszeichenvorrichtung.sln
 
 **Note:** The Qt path is pre-configured in CMakeLists.txt as `C:\Qt\6.10.1\msvc2022_64`. If your Qt installation is in a different location, update the `CMAKE_PREFIX_PATH` in CMakeLists.txt.
 
+## Distribution
+
+The build system automatically runs `windeployqt` after building to copy all necessary Qt DLLs into the output directory. This makes the executable standalone and distributable.
+
+**To create a distribution package:**
+
+1. Build in Release mode:
+```bash
+cmake --build . --config Release
+```
+
+2. The executable and all required DLLs will be in `build\Release\`
+
+3. Distribute the entire `Release` folder, or create an installer using the contents
+
+**What gets deployed:**
+- Your executable
+- Qt6Core.dll, Qt6Widgets.dll, Qt6Gui.dll
+- Platform plugin (qwindows.dll in platforms/ folder)
+- Other necessary Qt dependencies
+
+Users can run the .exe without installing Qt.
+
 ## Changes from wxWidgets
 
 The application has been ported to use Qt equivalents:
