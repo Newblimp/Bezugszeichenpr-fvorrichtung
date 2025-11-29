@@ -9,9 +9,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
 
-# Find FLTK
-find_package(FLTK REQUIRED)
-include_directories(${FLTK_INCLUDE_DIR})
+# Configure FLTK options
+set(FLTK_BUILD_TEST OFF CACHE BOOL "Build FLTK test programs")
+set(FLTK_BUILD_EXAMPLES OFF CACHE BOOL "Build FLTK example programs")
+set(OPTION_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries")
+
+# Add FLTK subdirectory
+add_subdirectory(libs/fltk)
+include_directories(${CMAKE_BINARY_DIR}/libs/fltk ${CMAKE_SOURCE_DIR}/libs/fltk)
 include_directories(include img)
 
 # Add executable target
@@ -29,5 +34,5 @@ else()
 endif()
 
 # Link against FLTK libraries
-target_link_libraries(Bezugszeichenvorrichtung ${FLTK_LIBRARIES})
+target_link_libraries(Bezugszeichenvorrichtung fltk fltk_images)
 
