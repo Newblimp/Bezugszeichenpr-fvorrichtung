@@ -19,7 +19,7 @@ endif()
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
 
 # Disable unused wxWidgets features to reduce binary size
-# Only enable what we actually use: core, base, and richtext
+# Only enable what we actually use: core, base, richtext (which requires HTML)
 set(wxUSE_GLCANVAS OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW OFF CACHE BOOL "" FORCE)
 set(wxUSE_MEDIACTRL OFF CACHE BOOL "" FORCE)
@@ -27,11 +27,12 @@ set(wxUSE_RIBBON OFF CACHE BOOL "" FORCE)
 set(wxUSE_AUI OFF CACHE BOOL "" FORCE)
 set(wxUSE_PROPGRID OFF CACHE BOOL "" FORCE)
 set(wxUSE_XRC OFF CACHE BOOL "" FORCE)
-set(wxUSE_HTML OFF CACHE BOOL "" FORCE)
 set(wxUSE_STC OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_WEBKIT OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_WEBKIT2 OFF CACHE BOOL "" FORCE)
 set(wxUSE_WEBVIEW_IE OFF CACHE BOOL "" FORCE)
+# Note: wxUSE_HTML must stay enabled - wxRichTextCtrl depends on it
+# But we can disable the help controllers
 set(wxUSE_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
