@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <wx/string.h>
+#include <string>
 
 // Type alias for a stemmed term (vector of stemmed words)
 // Single-word term: {"vorricht"}
@@ -61,7 +61,7 @@ struct StemVectorComparator {
 };
 
 // Convert a set of StemVectors to a display string, showing the original words
-wxString stemsToDisplayString(
+std::wstring stemsToDisplayString(
     const std::unordered_set<StemVector, StemVectorHash>& stems,
     const std::unordered_set<std::wstring>& originalWords);
 

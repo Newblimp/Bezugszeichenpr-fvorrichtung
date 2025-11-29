@@ -1,21 +1,24 @@
 #pragma once
 #include "german_stem.h"
 #include "utils.h"
-#include "wx/notebook.h"
-#include "wx/richtext/richtextctrl.h"
-#include "wx/textctrl.h"
-#include "wx/timer.h"
-#include "wx/treelist.h"
+#include <FL/Fl.H>
+#include <FL/Fl_Double_Window.H>
+#include <FL/Fl_Tabs.H>
+#include <FL/Fl_Text_Editor.H>
+#include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Tree.H>
+#include <FL/Fl_Button.H>
+#include <FL/Fl_Box.H>
+#include <FL/Fl_Group.H>
+#include <FL/Fl_Pack.H>
 #include <map>
 #include <memory>
 #include <regex>
-#include <wx/dataview.h>
-#include <wx/listctrl.h>
-#include <wx/wx.h>
 
-class MainWindow : public wxFrame {
+class MainWindow : public Fl_Double_Window {
 public:
     MainWindow();
+    ~MainWindow();
 
 private:
     // Setup methods
@@ -24,8 +27,8 @@ private:
     void loadIcons();
 
     // Core scanning logic
-    void scanText(wxTimerEvent& event);
-    void debounceFunc(wxCommandEvent& event);
+    void scanText();
+    void debounceFunc();
     void setupAndClear();
 
     // Term processing
@@ -45,19 +48,27 @@ private:
     void highlightConflicts();
 
     // Navigation methods
-    void selectNextNoNumber(wxCommandEvent& event);
-    void selectPreviousNoNumber(wxCommandEvent& event);
-    void selectNextWrongNumber(wxCommandEvent& event);
-    void selectPreviousWrongNumber(wxCommandEvent& event);
-    void selectNextSplitNumber(wxCommandEvent& event);
-    void selectPreviousSplitNumber(wxCommandEvent& event);
-    void selectNextWrongArticle(wxCommandEvent& event);
-    void selectPreviousWrongArticle(wxCommandEvent& event);
+    void selectNextNoNumber();
+    void selectPreviousNoNumber();
+    void selectNextWrongNumber();
+    void selectPreviousWrongNumber();
+    void selectNextSplitNumber();
+    void selectPreviousSplitNumber();
+    void selectNextWrongArticle();
+    void selectPreviousWrongArticle();
 
     // Context menu handling
-    void onTreeListContextMenu(wxTreeListEvent& event);
-    void onTreeListItemActivated(wxTreeListEvent &event);
+    void onTreeListContextMenu();
+    void onTreeListItemActivated();
     void toggleMultiWordTerm(const std::wstring& baseStem);
+
+    // Static callbacks for FLTK
+    static void debounce_callback(void* data);
+    static void scan_timer_callback(void* data);
+    static void button_callback(Fl_Widget* w, void* data);
+    static void text_changed_callback(int pos, int nInserted, int nDeleted,
+                                     int nRestyled, const char* deletedText, void* data);
+    static void tree_callback(Fl_Widget* w, void* data);
 
     // Regex patterns
     // Single word + number: captures (word)(number)
@@ -81,13 +92,13 @@ private:
     stemming::german_stem<> m_germanStemmer;
     std::wstring m_fullText;
 
-    // Text styles
-    wxTextAttr m_neutralStyle;
-    wxTextAttr m_warningStyle;
-    wxTextAttr m_articleWarningStyle;
+    // Text styles (FLTK uses style tables)
+    Fl_Text_Display::Style_Table_Entry* m_styleTable;
+    int m_styleTableSize;
 
-    // Debounce timer for text changes
-    wxTimer m_debounceTimer;
+    // Debounce timer tracking
+    bool m_timerScheduled;
+    double m_debounceDelay;
 
     // Main data structure: BZ -> set of StemVectors
     // Example: "10" -> {{"lager"}, {"zweit", "lager"}}
@@ -107,7 +118,7 @@ private:
     // Position tracking for highlighting and navigation
     // BZ -> list of (start, length) pairs
     std::unordered_map<std::wstring, std::vector<std::pair<size_t,size_t>>> m_bzToPositions;
-    
+
     // StemVector -> list of (start, length) pairs
     std::unordered_map<StemVector, std::vector<std::pair<size_t,size_t>>, StemVectorHash> m_stemToPositions;
 
@@ -122,36 +133,38 @@ private:
     std::unordered_set<StemVector, StemVectorHash> m_allStems;
 
     // UI components
-    wxNotebook* m_notebookList;
-    wxRichTextCtrl* m_textBox;
-    std::shared_ptr<wxRichTextCtrl> m_bzList;
-    std::shared_ptr<wxImageList> m_imageList;
-    std::shared_ptr<wxTreeListCtrl> m_treeList;
-    
+    Fl_Tabs* m_notebookList;
+    Fl_Text_Editor* m_textBox;
+    Fl_Text_Buffer* m_textBuffer;
+    Fl_Text_Buffer* m_styleBuffer;
+    Fl_Text_Display* m_bzList;
+    Fl_Text_Buffer* m_bzListBuffer;
+    Fl_Tree* m_treeList;
+
     // Navigation buttons
-    std::shared_ptr<wxButton> m_buttonForwardNoNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
-    std::shared_ptr<wxButton> m_buttonForwardWrongNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardWrongNumber;
-    std::shared_ptr<wxButton> m_buttonForwardSplitNumber;
-    std::shared_ptr<wxButton> m_buttonBackwardSplitNumber;
-    std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
-    std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
+    Fl_Button* m_buttonForwardNoNumber;
+    Fl_Button* m_buttonBackwardNoNumber;
+    Fl_Button* m_buttonForwardWrongNumber;
+    Fl_Button* m_buttonBackwardWrongNumber;
+    Fl_Button* m_buttonForwardSplitNumber;
+    Fl_Button* m_buttonBackwardSplitNumber;
+    Fl_Button* m_buttonForwardWrongArticle;
+    Fl_Button* m_buttonBackwardWrongArticle;
 
     // Error position lists: stores alternating (start, end) positions
     std::vector<int> m_noNumberPositions;
     int m_noNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_noNumberLabel;
+    Fl_Box* m_noNumberLabel;
 
     std::vector<int> m_wrongNumberPositions;
     int m_wrongNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_wrongNumberLabel;
+    Fl_Box* m_wrongNumberLabel;
 
     std::vector<int> m_splitNumberPositions;
     int m_splitNumberSelected{-2};
-    std::shared_ptr<wxStaticText> m_splitNumberLabel;
+    Fl_Box* m_splitNumberLabel;
 
     std::vector<int> m_wrongArticlePositions;
     int m_wrongArticleSelected{-2};
-    std::shared_ptr<wxStaticText> m_wrongArticleLabel;
+    Fl_Box* m_wrongArticleLabel;
 };

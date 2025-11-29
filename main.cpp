@@ -1,12 +1,8 @@
 #include "MainWindow.h"
+#include <FL/Fl.H>
 
-class MyApp : public wxApp {
-public:
-  virtual bool OnInit() {
-    MainWindow *frame = new MainWindow();
-    frame->Show();
-    return true;
-  }
-};
-
-wxIMPLEMENT_APP(MyApp);
+int main(int argc, char **argv) {
+  MainWindow *window = new MainWindow();
+  window->show(argc, argv);
+  return Fl::run();
+}
