@@ -61,7 +61,7 @@ start Bezugszeichenvorrichtung.sln
 
 ## Distribution
 
-The build system automatically runs `windeployqt` after building to copy all necessary Qt DLLs into the output directory. This makes the executable standalone and distributable.
+The build system automatically runs `windeployqt` after building to copy all necessary Qt DLLs into the output directory.
 
 **To create a distribution package:**
 
@@ -72,15 +72,29 @@ cmake --build . --config Release
 
 2. The executable and all required DLLs will be in `build\Release\`
 
-3. Distribute the entire `Release` folder, or create an installer using the contents
+3. **Distribute the entire `Release` folder** - do NOT distribute just the .exe alone!
+   - Zip the entire `Release` folder
+   - Users extract and run the .exe from the extracted folder
+   - All DLLs must stay in the same folder as the .exe
 
-**What gets deployed:**
-- Your executable
-- Qt6Core.dll, Qt6Widgets.dll, Qt6Gui.dll
-- Platform plugin (qwindows.dll in platforms/ folder)
+**What gets deployed (all required for the application to run):**
+- `Bezugszeichenvorrichtung.exe` - your application
+- `Qt6Core.dll`, `Qt6Widgets.dll`, `Qt6Gui.dll` - Qt libraries
+- `platforms\qwindows.dll` - Qt platform plugin (must be in platforms subfolder)
+- MSVC runtime DLLs
 - Other necessary Qt dependencies
 
-Users can run the .exe without installing Qt.
+**Important:** The .exe will NOT run without these DLLs. Always distribute the complete folder.
+
+### Alternative: Static Linking (Single .exe file)
+
+If you want a single .exe file with no DLLs:
+- Requires building Qt from source with static configuration, OR
+- Commercial Qt license with static builds
+- Results in much larger .exe file (~20-50 MB instead of ~1 MB)
+- Slower build times but simpler distribution
+
+For most use cases, distributing the folder with DLLs is the recommended approach.
 
 ## Changes from wxWidgets
 
