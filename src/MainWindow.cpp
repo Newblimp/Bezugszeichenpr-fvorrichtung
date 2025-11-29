@@ -144,9 +144,14 @@ void MainWindow::fillListTree() {
   for (const auto &[bz, stems] : m_bzToStems) {
     wxTreeListItem item;
 
-    if (isUniquelyAssigned(bz)) {
+    // Check if error has been cleared by user
+    bool isCleared = m_clearedErrors.count(bz) > 0;
+
+    if (isCleared || isUniquelyAssigned(bz)) {
+      // Use check icon (0) for cleared errors or no errors
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bz, 0, 0);
     } else {
+      // Use warning icon (1) for actual errors
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bz, 1, 1);
     }
 
@@ -157,6 +162,11 @@ void MainWindow::fillListTree() {
 }
 
 bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
+  // Check if this error has been cleared by user
+  if (m_clearedErrors.count(bz) > 0) {
+    return true; // Treat as no error
+  }
+
   const auto &stems = m_bzToStems.at(bz);
 
   // Check if multiple different stems are assigned to this BZ
@@ -603,9 +613,15 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     menu.Append(1, isMultiWord ? "Disable multi-word mode"
                                : "Enable multi-word mode");
 
+    // Add clear error option
+    bool isCleared = m_clearedErrors.count(bz) > 0;
+    menu.Append(2, isCleared ? "Restore error" : "Clear error");
+
     int selection = GetPopupMenuSelectionFromUser(menu);
     if (selection == 1) {
       toggleMultiWordTerm(baseStem);
+    } else if (selection == 2) {
+      clearError(bz);
     }
   }
 }
@@ -621,6 +637,19 @@ void MainWindow::toggleMultiWordTerm(const std::wstring &baseStem) {
   m_debounceTimer.Start(1, true);
 }
 
+void MainWindow::clearError(const std::wstring &bz) {
+  if (m_clearedErrors.count(bz)) {
+    // Restore error - remove from cleared set
+    m_clearedErrors.erase(bz);
+  } else {
+    // Clear error - add to cleared set
+    m_clearedErrors.insert(bz);
+  }
+
+  // Trigger rescan to update highlighting and icons
+  m_debounceTimer.Start(1, true);
+}
+
 void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
   wxTreeListItem item = event.GetItem();
   if (!item.IsOk()) {
@@ -632,18 +661,42 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
 
   // Check if this BZ has any positions
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
-    // Get current occurrence index for this BZ (or initialize to 0)
+    const auto &positions = m_bzToPositions[bz];
+
+    // Get current occurrence index for this BZ (or initialize based on cursor position)
     if (!m_bzCurrentOccurrence.count(bz)) {
-      m_bzCurrentOccurrence[bz] = 0;
+      // Get current cursor position in the text
+      long cursorPos = m_textBox->GetInsertionPoint();
+
+      // Find the occurrence closest to or after the cursor position
+      int closestIdx = 0;
+
+      // If cursor is past all occurrences, start from the beginning
+      if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
+        closestIdx = 0;
+      }
+      // If cursor is before all occurrences, start from the first one
+      else if (cursorPos < static_cast<long>(positions[0].first)) {
+        closestIdx = 0;
+      }
+      // Otherwise, find the next occurrence at or after cursor
+      else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+          if (static_cast<long>(positions[i].first) >= cursorPos) {
+            closestIdx = i;
+            break;
+          }
+        }
+      }
+
+      m_bzCurrentOccurrence[bz] = closestIdx;
     }
 
     int &currentIdx = m_bzCurrentOccurrence[bz];
-    const auto &positions = m_bzToPositions[bz];
 
     // Get the current occurrence
     size_t start = positions[currentIdx].first;
     size_t len = positions[currentIdx].second;
-    // const auto& [start, length] = positions[currentIdx];
 
     // Select and show the text
     m_textBox->SetSelection(start, start + len);
