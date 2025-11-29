@@ -142,6 +142,8 @@ private:
   std::shared_ptr<wxTreeListCtrl> m_treeList;
 
   // Navigation buttons
+  std::shared_ptr<wxButton> m_buttonForwardAllErrors;
+  std::shared_ptr<wxButton> m_buttonBackwardAllErrors;
   std::shared_ptr<wxButton> m_buttonForwardNoNumber;
   std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
   std::shared_ptr<wxButton> m_buttonForwardWrongNumber;
@@ -152,6 +154,10 @@ private:
   std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
 
   // Error position lists: stores (start, end) position pairs
+  std::vector<std::pair<int, int>> m_allErrorsPositions;
+  int m_allErrorsSelected{-1};
+  std::shared_ptr<wxStaticText> m_allErrorsLabel;
+
   std::vector<std::pair<int, int>> m_noNumberPositions;
   int m_noNumberSelected{-1};
   std::shared_ptr<wxStaticText> m_noNumberLabel;

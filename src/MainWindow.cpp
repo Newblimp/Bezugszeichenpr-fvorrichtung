@@ -129,6 +129,8 @@ void MainWindow::scanText(wxTimerEvent &event) {
   checkArticleUsage();
 
   // Update navigation labels
+  m_allErrorsLabel->SetLabel(
+      L"0/" + std::to_wstring(m_allErrorsPositions.size()) + L"\t");
   m_noNumberLabel->SetLabel(
       L"0/" + std::to_wstring(m_noNumberPositions.size()) + L"\t");
   m_wrongNumberLabel->SetLabel(
@@ -443,6 +445,7 @@ void MainWindow::setupUi() {
 
   wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
   wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
+  wxBoxSizer *allErrorsSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *noNumberSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -469,29 +472,45 @@ void MainWindow::setupUi() {
   m_notebookList->AddPage(m_treeList.get(), "overview");
   m_notebookList->AddPage(m_bzList.get(), "reference sign list");
 
+  // Navigation buttons for all errors
+  m_buttonBackwardAllErrors = std::make_shared<wxButton>(
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+  m_buttonForwardAllErrors = std::make_shared<wxButton>(
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+
   // Navigation buttons for unnumbered references
   m_buttonBackwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for wrong number errors
   m_buttonBackwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for split number errors
   m_buttonBackwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for wrong article errors
   m_buttonBackwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+
+  // Layout for all errors row
+  allErrorsSizer->Add(m_buttonBackwardAllErrors.get());
+  allErrorsSizer->Add(m_buttonForwardAllErrors.get());
+  auto allErrorsDescription =
+      new wxStaticText(panel, wxID_ANY, "errors", wxDefaultPosition,
+                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
+  m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
+  allErrorsSizer->Add(m_allErrorsLabel.get(), 0, wxLEFT, 10);
+  allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT, 0);
 
   // Layout for unnumbered references row
   noNumberSizer->Add(m_buttonBackwardNoNumber.get());
@@ -534,6 +553,7 @@ void MainWindow::setupUi() {
   wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT, 10);
   wrongArticleSizer->Add(wrongArticleDescription, 0, wxLEFT, 0);
 
+  numberSizer->Add(allErrorsSizer, wxLEFT);
   numberSizer->Add(noNumberSizer, wxLEFT);
   numberSizer->Add(wrongNumberSizer, wxLEFT);
   numberSizer->Add(splitNumberSizer, wxLEFT);
