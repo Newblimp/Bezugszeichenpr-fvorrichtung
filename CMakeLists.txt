@@ -10,7 +10,18 @@ set(CMAKE_AUTOUIC ON)
 
 # Set Qt installation path for Windows
 if(WIN32)
-  set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/mingw_64")
+  # Detect compiler and set appropriate Qt path
+  if(MINGW)
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/mingw_64")
+  elseif(MSVC)
+    # If you're using MSVC, you need the MSVC version of Qt
+    # Install it from Qt installer and update this path, e.g.:
+    # set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/msvc2019_64")
+    message(WARNING "Building with MSVC but CMAKE_PREFIX_PATH points to MinGW Qt. Please install MSVC version of Qt or use MinGW compiler.")
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/mingw_64")
+  else()
+    set(CMAKE_PREFIX_PATH "C:/Qt/6.10.1/mingw_64")
+  endif()
 endif()
 
 # Try to find Qt6 first, then fall back to Qt5

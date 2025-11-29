@@ -42,13 +42,31 @@ make
 ### Windows
 
 1. Download and install Qt from https://www.qt.io/download
-2. Configure CMake with Qt path:
+
+**Important:** The compiler you use must match your Qt installation:
+- If you have MinGW Qt (e.g., `C:\Qt\6.10.1\mingw_64`), use MinGW compiler
+- If you have MSVC Qt (e.g., `C:\Qt\6.10.1\msvc2019_64`), use MSVC compiler
+
+**Option A: Using MinGW (recommended for this project)**
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH="C:\Qt\6.x.x\msvc2019_64"
+cmake .. -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:\Qt\6.10.1\mingw_64"
 cmake --build .
 ```
+
+**Option B: Using Visual Studio/MSVC**
+First, install the MSVC version of Qt from the Qt installer, then:
+```bash
+mkdir build
+cd build
+cmake .. -G "Visual Studio 17 2022" -DCMAKE_PREFIX_PATH="C:\Qt\6.10.1\msvc2019_64"
+cmake --build .
+```
+
+**Troubleshooting:**
+- If you get `cannot open file 'mingw32.lib'` error, you're using MSVC with MinGW Qt - switch to MinGW compiler or install MSVC Qt
+- If you get C++17 compiler errors, ensure `/Zc:__cplusplus` flag is enabled (already configured in CMakeLists.txt for MSVC)
 
 ## Changes from wxWidgets
 
