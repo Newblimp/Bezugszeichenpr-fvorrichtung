@@ -634,41 +634,34 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
     const auto &positions = m_bzToPositions[bz];
 
-    // Get current cursor position in the text
-    long cursorPos = m_textBox->GetInsertionPoint();
+    // Get current occurrence index for this BZ (or initialize based on cursor position)
+    if (!m_bzCurrentOccurrence.count(bz)) {
+      // Get current cursor position in the text
+      long cursorPos = m_textBox->GetInsertionPoint();
 
-    // Find the occurrence closest to or after the cursor position
-    int closestIdx = 0;
-    int minDistance = std::abs(static_cast<int>(positions[0].first) - static_cast<int>(cursorPos));
+      // Find the occurrence closest to or after the cursor position
+      int closestIdx = 0;
 
-    for (size_t i = 1; i < positions.size(); ++i) {
-      int distance = std::abs(static_cast<int>(positions[i].first) - static_cast<int>(cursorPos));
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIdx = i;
+      // If cursor is past all occurrences, start from the beginning
+      if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
+        closestIdx = 0;
       }
-    }
-
-    // If cursor is past all occurrences, start from the beginning
-    if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
-      closestIdx = 0;
-    }
-    // If cursor is before all occurrences, start from the first one
-    else if (cursorPos < static_cast<long>(positions[0].first)) {
-      closestIdx = 0;
-    }
-    // Otherwise, find the next occurrence after cursor
-    else {
-      for (size_t i = 0; i < positions.size(); ++i) {
-        if (static_cast<long>(positions[i].first) >= cursorPos) {
-          closestIdx = i;
-          break;
+      // If cursor is before all occurrences, start from the first one
+      else if (cursorPos < static_cast<long>(positions[0].first)) {
+        closestIdx = 0;
+      }
+      // Otherwise, find the next occurrence at or after cursor
+      else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+          if (static_cast<long>(positions[i].first) >= cursorPos) {
+            closestIdx = i;
+            break;
+          }
         }
       }
-    }
 
-    // Update the current occurrence index
-    m_bzCurrentOccurrence[bz] = closestIdx;
+      m_bzCurrentOccurrence[bz] = closestIdx;
+    }
 
     int &currentIdx = m_bzCurrentOccurrence[bz];
 
