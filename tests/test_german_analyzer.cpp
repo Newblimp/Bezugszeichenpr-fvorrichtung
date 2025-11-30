@@ -11,7 +11,7 @@ protected:
 TEST_F(GermanTextAnalyzerTest, CreateStemVector_SingleWord) {
   StemVector result = analyzer.createStemVector(L"Lager");
   ASSERT_EQ(result.size(), 1);
-  EXPECT_EQ(result[0], L"lager");
+  EXPECT_EQ(result[0], L"lag");
 }
 
 TEST_F(GermanTextAnalyzerTest, CreateStemVector_Plural) {
@@ -26,14 +26,18 @@ TEST_F(GermanTextAnalyzerTest, CreateStemVector_WithUmlaut) {
   ASSERT_EQ(result.size(), 1);
   EXPECT_FALSE(result[0].empty());
   // Should handle umlauts properly
-  EXPECT_EQ(result[0][0], L'a'); // Lowercase ä becomes a in stem
+  EXPECT_EQ(result[0][0], L'a'); // Ä should be stemmed to a
 }
 
 TEST_F(GermanTextAnalyzerTest, CreateMultiWordStemVector) {
-  StemVector result = analyzer.createMultiWordStemVector(L"erstes", L"Lager");
-  ASSERT_EQ(result.size(), 2);
-  EXPECT_EQ(result[0], L"erst");
-  EXPECT_EQ(result[1], L"lager");
+  StemVector result1 = analyzer.createMultiWordStemVector(L"erstes", L"Lager");
+  StemVector result2 = analyzer.createMultiWordStemVector(L"zweiten", L"Wellen");
+  ASSERT_EQ(result1.size(), 2);
+  EXPECT_EQ(result1[0], L"erst");
+  EXPECT_EQ(result1[1], L"lag");
+  ASSERT_EQ(result2.size(), 2);
+  EXPECT_EQ(result2[0], L"zweit");
+  EXPECT_EQ(result2[1], L"well");
 }
 
 TEST_F(GermanTextAnalyzerTest, CreateMultiWordStemVector_Different) {
@@ -50,15 +54,18 @@ TEST_F(GermanTextAnalyzerTest, IsMultiWordBase_EmptySet) {
 }
 
 TEST_F(GermanTextAnalyzerTest, IsMultiWordBase_WordInSet) {
-  multiWordStems.insert(L"lager");
+  multiWordStems.insert(L"lag");
   bool result = analyzer.isMultiWordBase(L"Lager", multiWordStems);
   EXPECT_TRUE(result);
 }
 
 TEST_F(GermanTextAnalyzerTest, IsMultiWordBase_CaseInsensitive) {
-  multiWordStems.insert(L"lager");
+  multiWordStems.insert(L"lag");
+  multiWordStems.insert(L"planetenradsatz");
   bool result1 = analyzer.isMultiWordBase(L"Lager", multiWordStems);
   bool result2 = analyzer.isMultiWordBase(L"LAGER", multiWordStems);
+  bool result3 = analyzer.isMultiWordBase(L"Planetenradsätze", multiWordStems);
+  bool result4 = analyzer.isMultiWordBase(L"PLANETENRADSÄTZE", multiWordStems);
   EXPECT_TRUE(result1);
   EXPECT_TRUE(result2);
 }

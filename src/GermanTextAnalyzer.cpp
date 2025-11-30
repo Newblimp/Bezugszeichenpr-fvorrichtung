@@ -23,12 +23,14 @@ GermanTextAnalyzer::GermanTextAnalyzer() {
     m_ctypeFacet = &std::use_facet<std::ctype<wchar_t>>(m_germanLocale);
 }
 
+
 void GermanTextAnalyzer::stemWord(std::wstring& word) {
     if (word.empty())
         return;
     
     // Normalize first character to lowercase using German locale (proper handling of Ä, Ö, Ü, etc.)
-    word[0] = m_ctypeFacet->tolower(word[0]);
+    std::transform(word.begin(), word.end(), word.begin(),
+                   [this](wchar_t c) { return m_ctypeFacet->tolower(c); });
     
     // Check cache first
     auto it = m_stemCache.find(word);
