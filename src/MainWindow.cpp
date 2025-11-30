@@ -25,6 +25,28 @@ MainWindow::MainWindow()
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
 #endif // SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE"));
 
+  // Verify RE2 patterns compiled successfully
+  if (!m_singleWordRegex.ok()) {
+    wxMessageBox("Failed to compile singleWordRegex: " +
+                 wxString::FromUTF8(m_singleWordRegex.error().c_str()),
+                 "Regex Error", wxOK | wxICON_ERROR);
+  }
+  if (!m_twoWordRegex.ok()) {
+    wxMessageBox("Failed to compile twoWordRegex: " +
+                 wxString::FromUTF8(m_twoWordRegex.error().c_str()),
+                 "Regex Error", wxOK | wxICON_ERROR);
+  }
+  if (!m_wordRegex.ok()) {
+    wxMessageBox("Failed to compile wordRegex: " +
+                 wxString::FromUTF8(m_wordRegex.error().c_str()),
+                 "Regex Error", wxOK | wxICON_ERROR);
+  }
+  if (!m_twoWordNoNumberRegex.ok()) {
+    wxMessageBox("Failed to compile twoWordNoNumberRegex: " +
+                 wxString::FromUTF8(m_twoWordNoNumberRegex.error().c_str()),
+                 "Regex Error", wxOK | wxICON_ERROR);
+  }
+
   setupUi();
   loadIcons();
   setupBindings();
@@ -238,37 +260,36 @@ void MainWindow::findUnnumberedWords() {
   {
     RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordNoNumberRegex);
 
-    if (!iter.hasNext())
-      return; // No matches at all
+    if (iter.hasNext()) {
+      // Store the previous match manually
+      auto prev = iter.next();
+      while (iter.hasNext()) {
+        auto current = iter.next();
+        size_t pos1 = prev.position;
+        size_t pos2 = current.position;
 
-    // Store the previous match manually
-    auto prev = iter.next();
-    while (iter.hasNext()) {
-      auto current = iter.next();
-      size_t pos1 = prev.position;
-      size_t pos2 = current.position;
-
-      // Skip if already part of a valid reference
-      if (validStarts.count(pos1)) {
-        prev = current;
-        continue;
-      }
-
-      std::wstring word1 = prev[1];
-      std::wstring word2 = current[1];
-      m_textAnalyzer.stemWord(word2);
-
-      // Only flag if this is a known multi-word combination
-      if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
-        StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
-
-        if (m_stemToBz.count(stemVec)) {
-          size_t len2 = current.length;
-          m_noNumberPositions.emplace_back(pos1, pos2 + len2);
-          m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
+        // Skip if already part of a valid reference
+        if (validStarts.count(pos1)) {
+          prev = current;
+          continue;
         }
+
+        std::wstring word1 = prev[1];
+        std::wstring word2 = current[1];
+        m_textAnalyzer.stemWord(word2);
+
+        // Only flag if this is a known multi-word combination
+        if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+          StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+
+          if (m_stemToBz.count(stemVec)) {
+            size_t len2 = current.length;
+            m_noNumberPositions.emplace_back(pos1, pos2 + len2);
+            m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
+          }
+        }
+        prev = current;
       }
-      prev = current;
     }
   }
 
