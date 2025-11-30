@@ -1,5 +1,5 @@
 #pragma once
-#include "german_stem_umlaut_preserving.h"
+#include "german_stem.h"
 #include "utils_core.h"
 #include <string>
 #include <unordered_set>
@@ -42,7 +42,7 @@ public:
     void clearCache() { m_stemCache.clear(); }
 
 private:
-    stemming::german_stem_umlaut_preserving<> m_germanStemmer;
+    stemming::german_stem<> m_germanStemmer;
     
     // German locale for proper character handling (ä, ö, ü, ß)
     std::locale m_germanLocale;
