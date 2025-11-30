@@ -11,14 +11,23 @@ const std::unordered_set<std::wstring> GermanTextAnalyzer::s_definiteArticles = 
     L"der", L"die", L"das", L"den", L"dem", L"des"
 };
 
-GermanTextAnalyzer::GermanTextAnalyzer() = default;
+GermanTextAnalyzer::GermanTextAnalyzer() {
+    // Initialize German locale for proper character handling (ä, ö, ü, ß)
+    try {
+        m_germanLocale = std::locale("de_DE.UTF-8");
+    } catch (const std::runtime_error&) {
+        // Fallback to default locale if German locale not available
+        m_germanLocale = std::locale("");
+    }
+    m_ctypeFacet = &std::use_facet<std::ctype<wchar_t>>(m_germanLocale);
+}
 
 void GermanTextAnalyzer::stemWord(std::wstring& word) {
     if (word.empty())
         return;
     
-    // Normalize first character to lowercase (German stemmer requirement)
-    word[0] = std::tolower(word[0]);
+    // Normalize first character to lowercase using German locale (proper handling of Ä, Ö, Ü, etc.)
+    word[0] = m_ctypeFacet->tolower(word[0]);
     
     // Check cache first
     auto it = m_stemCache.find(word);

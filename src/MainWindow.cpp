@@ -10,6 +10,9 @@
 #include <locale>
 #include <string>
 #include <wx/bitmap.h>
+// Static member definition - single instance with persistent cache
+GermanTextAnalyzer MainWindow::s_textAnalyzer;
+
 
 MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY,
@@ -83,7 +86,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
       // Check if word2's stem is marked for multi-word matching
       // Note: isMultiWordBase copies word2 and stems it (cached lookup)
-      if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+      if (s_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
         if (!overlapsExisting(pos, endPos)) {
           matchedRanges.emplace_back(pos, endPos);
 
@@ -94,7 +97,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
           // Create stem vector with both words (move to avoid copies)
           StemVector stemVec =
-              m_textAnalyzer.createMultiWordStemVector(std::move(word1), std::move(word2));
+              s_textAnalyzer.createMultiWordStemVector(std::move(word1), std::move(word2));
 
           // Store mappings
           m_bzToStems[bz].insert(stemVec);
@@ -128,7 +131,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
         std::wstring bz = match[2];
 
         // Create single-element stem vector (word gets moved)
-        StemVector stemVec = m_textAnalyzer.createStemVector(std::move(word));
+        StemVector stemVec = s_textAnalyzer.createStemVector(std::move(word));
 
         // Store mappings
         m_bzToStems[bz].insert(stemVec);
@@ -323,8 +326,8 @@ void MainWindow::findUnnumberedWords() {
 
     // Only flag if this is a known multi-word combination
     // Note: isMultiWordBase stems internally, no need to stem here
-    if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
-      StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+    if (s_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+      StemVector stemVec = s_textAnalyzer.createMultiWordStemVector(word1, word2);
 
       if (m_stemToBz.count(stemVec)) {
         size_t startPos = word1Match.position;
@@ -338,7 +341,7 @@ void MainWindow::findUnnumberedWords() {
 
   // Check for single words without numbers
   for (const auto& wordMatch : wordsWithoutNumbers) {
-    StemVector stemVec = m_textAnalyzer.createStemVector(wordMatch.word);
+    StemVector stemVec = s_textAnalyzer.createStemVector(wordMatch.word);
 
     // Check if this stem is known from valid references
     if (m_stemToBz.count(stemVec)) {
