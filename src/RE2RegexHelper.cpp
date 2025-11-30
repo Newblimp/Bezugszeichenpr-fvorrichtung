@@ -27,31 +27,21 @@ RE2RegexHelper::MatchIterator::MatchIterator(const std::wstring& text, const RE2
 
 void RE2RegexHelper::MatchIterator::buildPositionMap(const std::wstring& text) {
     // Build a map from UTF-8 byte position to wchar position
-    // Optimized: do single-pass conversion instead of per-character
+    // IMPORTANT: Must use actual UTF-8 conversion, not theoretical calculation
     m_wcharPositions.clear();
     m_wcharPositions.reserve(m_utf8Text.size() + 1);
 
     size_t wcharPos = 0;
     size_t utf8Pos = 0;
 
-    // Process text in chunks for better performance
+    // Convert each character and map its actual UTF-8 bytes
     for (size_t i = 0; i < text.length(); ++i) {
-        wchar_t wc = text[i];
+        // Convert single character to UTF-8 to get its actual byte length
+        std::wstring single_char(1, text[i]);
+        std::string utf8_char = t_converter.to_bytes(single_char);
         
-        // Determine UTF-8 byte length for this character
-        size_t utf8Len;
-        if (wc <= 0x7F) {
-            utf8Len = 1;
-        } else if (wc <= 0x7FF) {
-            utf8Len = 2;
-        } else if (wc <= 0xFFFF) {
-            utf8Len = 3;
-        } else {
-            utf8Len = 4;
-        }
-        
-        // Map each UTF-8 byte position to the current wchar position
-        for (size_t j = 0; j < utf8Len; ++j) {
+        // Map each UTF-8 byte of this character to the current wchar position
+        for (size_t j = 0; j < utf8_char.size(); ++j) {
             m_wcharPositions.push_back(wcharPos);
         }
         
