@@ -909,8 +909,18 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
 }
 
 void MainWindow::onTextRightClick(wxMouseEvent &event) {
-  // Get click position in text
-  long clickPos = m_textBox->GetInsertionPoint();
+  // Convert mouse position to text position
+  wxPoint mousePos = event.GetPosition();
+  wxTextCoord col, row;
+  wxTextCtrlHitTestResult hitTest = m_textBox->HitTest(mousePos, &col, &row);
+  
+  if (hitTest == wxTE_HT_UNKNOWN || hitTest == wxTE_HT_BEYOND) {
+    event.Skip();
+    return;
+  }
+  
+  // Convert row/col to character position
+  long clickPos = m_textBox->XYToPosition(col, row);
   
   // Check if we're on a highlighted error
   size_t errorStart = 0, errorEnd = 0;
