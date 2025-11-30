@@ -52,7 +52,7 @@ MainWindow::MainWindow()
 }
 
 void MainWindow::debounceFunc(wxCommandEvent &event) {
-  m_debounceTimer.Start(500, true);
+  m_debounceTimer.Start(200, true);
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
@@ -548,9 +548,9 @@ void MainWindow::setupUi() {
   wxMenuBar *menuBar = new wxMenuBar();
   wxMenu *toolsMenu = new wxMenu();
   
-  toolsMenu->Append(wxID_HIGHEST + 20, "Restore cleared textbox errors");
-  toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared overview errors");
-  toolsMenu->Append(wxID_HIGHEST + 22, "Restore all errors");
+  toolsMenu->Append(wxID_HIGHEST + 20, "Restore all errors");
+  toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared textbox errors");
+  toolsMenu->Append(wxID_HIGHEST + 22, "Restore cleared overview errors");
   
   menuBar->Append(toolsMenu, "Tools");
   SetMenuBar(menuBar);
