@@ -15,7 +15,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/GermanTextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/EnglishTextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/RE2RegexHelper.cpp
-  ${CMAKE_SOURCE_DIR}/src/utils.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils_core.cpp
   ${CMAKE_SOURCE_DIR}/src/stem_collector.cpp
 )
 
