@@ -241,9 +241,12 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
     for (const auto i : positions) {
       size_t start = i.first;
       size_t len = i.second;
-      m_wrongNumberPositions.emplace_back(start, start + len);
-      m_allErrorsPositions.emplace_back(start, start + len);
-      m_textBox->SetStyle(start, start + len, m_warningStyle);
+      // Skip if this position has been manually cleared
+      if (!isPositionCleared(start, start + len)) {
+        m_wrongNumberPositions.emplace_back(start, start + len);
+        m_allErrorsPositions.emplace_back(start, start + len);
+        m_textBox->SetStyle(start, start + len, m_warningStyle);
+      }
     }
     return false;
   }
@@ -263,7 +266,8 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
                                        static_cast<int>(start + len));
         if (std::find(m_splitNumberPositions.begin(),
                       m_splitNumberPositions.end(),
-                      pos_pair) == m_splitNumberPositions.end()) {
+                      pos_pair) == m_splitNumberPositions.end() &&
+            !isPositionCleared(start, start + len)) {
           m_splitNumberPositions.emplace_back(start, start + len);
           m_allErrorsPositions.emplace_back(start, start + len);
           m_textBox->SetStyle(start, start + len, m_warningStyle);
@@ -365,9 +369,11 @@ void MainWindow::findUnnumberedWords() {
       if (m_stemToBz.count(stemVec)) {
         size_t startPos = word1Match.position;
         size_t endPos = word2Match.position + word2Match.length;
-        m_noNumberPositions.emplace_back(startPos, endPos);
-        m_allErrorsPositions.emplace_back(startPos, endPos);
-        m_textBox->SetStyle(startPos, endPos, m_warningStyle);
+        if (!isPositionCleared(startPos, endPos)) {
+          m_noNumberPositions.emplace_back(startPos, endPos);
+          m_allErrorsPositions.emplace_back(startPos, endPos);
+          m_textBox->SetStyle(startPos, endPos, m_warningStyle);
+        }
       }
     }
   }
@@ -378,9 +384,13 @@ void MainWindow::findUnnumberedWords() {
 
     // Check if this stem is known from valid references
     if (m_stemToBz.count(stemVec)) {
-      m_noNumberPositions.emplace_back(wordMatch.position, wordMatch.position + wordMatch.length);
-      m_allErrorsPositions.emplace_back(wordMatch.position, wordMatch.position + wordMatch.length);
-      m_textBox->SetStyle(wordMatch.position, wordMatch.position + wordMatch.length, m_warningStyle);
+      size_t start = wordMatch.position;
+      size_t end = wordMatch.position + wordMatch.length;
+      if (!isPositionCleared(start, end)) {
+        m_noNumberPositions.emplace_back(start, end);
+        m_allErrorsPositions.emplace_back(start, end);
+        m_textBox->SetStyle(start, end, m_warningStyle);
+      }
     }
   }
 }
@@ -439,16 +449,20 @@ void MainWindow::checkArticleUsage() {
     if (isFirstOccurrence) {
       // First occurrence: should not be definite article
       if (GermanTextAnalyzer::isDefiniteArticle(precedingWord)) {
-        m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
-        m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
-        m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+        if (!isPositionCleared(precedingPos, articleEnd)) {
+          m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
+          m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
+          m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+        }
       }
       seenStems.insert(occ.stem);
     } else {
       // Subsequent occurrence: should have definite article
       if (GermanTextAnalyzer::isIndefiniteArticle(precedingWord)) {
-        m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
-        m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+        if (!isPositionCleared(precedingPos, articleEnd)) {
+          m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
+          m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
+        }
       }
     }
   }
@@ -530,6 +544,17 @@ void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
 }
 
 void MainWindow::setupUi() {
+  // Create menu bar
+  wxMenuBar *menuBar = new wxMenuBar();
+  wxMenu *toolsMenu = new wxMenu();
+  
+  toolsMenu->Append(wxID_HIGHEST + 20, "Restore cleared textbox errors");
+  toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared overview errors");
+  toolsMenu->Append(wxID_HIGHEST + 22, "Restore all errors");
+  
+  menuBar->Append(toolsMenu, "Tools");
+  SetMenuBar(menuBar);
+  
   wxPanel *panel = new wxPanel(this, wxID_ANY);
 
   wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -700,6 +725,14 @@ void MainWindow::setupBindings() {
                    &MainWindow::onTreeListContextMenu, this);
   m_treeList->Bind(wxEVT_TREELIST_ITEM_ACTIVATED,
                    &MainWindow::onTreeListItemActivated, this);
+  
+  // Text right-click for clearing errors
+  m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
+  
+  // Menu bar handlers
+  Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 20);
+  Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 21);
+  Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 22);
 }
 
 void MainWindow::fillBzList() {
@@ -873,4 +906,74 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
     // Move to next occurrence for next double-click
     currentIdx = (currentIdx + 1) % positions.size();
   }
+}
+
+void MainWindow::onTextRightClick(wxMouseEvent &event) {
+  // Get click position in text
+  long clickPos = m_textBox->GetInsertionPoint();
+  
+  // Check if we're on a highlighted error
+  size_t errorStart = 0, errorEnd = 0;
+  bool foundError = false;
+  
+  // Check all error position vectors
+  auto checkPositions = [&](const std::vector<std::pair<int, int>>& positions) {
+    for (const auto& [start, end] : positions) {
+      if (clickPos >= start && clickPos < end) {
+        errorStart = start;
+        errorEnd = end;
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  if (checkPositions(m_allErrorsPositions) ||
+      checkPositions(m_noNumberPositions) ||
+      checkPositions(m_wrongNumberPositions) ||
+      checkPositions(m_splitNumberPositions) ||
+      checkPositions(m_wrongArticlePositions)) {
+    foundError = true;
+  }
+  
+  if (foundError) {
+    wxMenu menu;
+    const int ID_CLEAR_TEXT_ERROR = wxID_HIGHEST + 10;
+    menu.Append(ID_CLEAR_TEXT_ERROR, "Clear error");
+    
+    int selection = GetPopupMenuSelectionFromUser(menu, event.GetPosition());
+    if (selection == ID_CLEAR_TEXT_ERROR) {
+      clearTextError(errorStart, errorEnd);
+    }
+  } else {
+    event.Skip(); // Let other handlers process the event
+  }
+}
+
+void MainWindow::clearTextError(size_t start, size_t end) {
+  // Add to cleared positions
+  m_clearedTextPositions.insert({start, end});
+  
+  // Trigger rescan to update highlighting
+  m_debounceTimer.Start(1, true);
+}
+
+bool MainWindow::isPositionCleared(size_t start, size_t end) const {
+  return m_clearedTextPositions.count({start, end}) > 0;
+}
+
+void MainWindow::onRestoreTextboxErrors(wxCommandEvent &event) {
+  m_clearedTextPositions.clear();
+  m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::onRestoreOverviewErrors(wxCommandEvent &event) {
+  m_clearedErrors.clear();
+  m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
+  m_clearedTextPositions.clear();
+  m_clearedErrors.clear();
+  m_debounceTimer.Start(1, true);
 }
