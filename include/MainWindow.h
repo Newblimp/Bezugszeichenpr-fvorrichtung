@@ -1,5 +1,6 @@
 #pragma once
 #include "GermanTextAnalyzer.h"
+#include "RE2RegexHelper.h"
 #include "utils.h"
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
@@ -8,7 +9,7 @@
 #include "wx/treelist.h"
 #include <map>
 #include <memory>
-#include <regex>
+#include <re2/re2.h>
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
 #include <wx/wx.h>
@@ -54,30 +55,20 @@ private:
     void toggleMultiWordTerm(const std::wstring& baseStem);
     void clearError(const std::wstring& bz);
 
-    // Regex patterns
+    // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
-    std::wregex m_singleWordRegex{
-        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
-        std::regex_constants::ECMAScript | std::regex_constants::optimize |
-            std::regex_constants::icase};
+    // Pattern: word followed by whitespace and number
+    re2::RE2 m_singleWordRegex;
 
     // Two words + number: captures (word1)(word2)(number)
-    std::wregex m_twoWordRegex{
-        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
-        std::regex_constants::ECMAScript | std::regex_constants::optimize |
-            std::regex_constants::icase};
+    // Pattern: word followed by word followed by number
+    re2::RE2 m_twoWordRegex;
 
     // Single word (for finding unnumbered references)
-    std::wregex m_wordRegex{
-        L"\\b[[:alpha:]äöüÄÖÜß]+\\b",
-        std::regex_constants::ECMAScript | std::regex_constants::optimize |
-            std::regex_constants::icase};
+    re2::RE2 m_wordRegex;
 
     // Single word NOT followed by a number (for finding unnumbered multi-word terms)
-    std::wregex m_twoWordNoNumberRegex{
-        L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
-        std::regex_constants::ECMAScript | std::regex_constants::optimize |
-            std::regex_constants::icase};
+    re2::RE2 m_twoWordNoNumberRegex;
 
     // German text analyzer for stemming and article checking
     GermanTextAnalyzer m_textAnalyzer;

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(Bezugszeichenvorrichtung)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -7,6 +7,28 @@ set(CMAKE_BUILD_TYPE Release)
 set(wxBUILD_SHARED OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+
+# Fetch abseil library (required by RE2)
+include(FetchContent)
+FetchContent_Declare(
+  absl
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG 20240722.0
+)
+# Disable abseil testing
+set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(absl)
+
+# Fetch RE2 library for faster regex performance
+FetchContent_Declare(
+  re2
+  GIT_REPOSITORY https://github.com/google/re2.git
+  GIT_TAG 2024-07-02
+)
+# Build RE2 as static library
+set(RE2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(re2)
 
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -49,12 +71,12 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/GermanTextAnalyzer.cpp src/ErrorNavigator.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/GermanTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_compile_options(-Wno-write-strings)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/GermanTextAnalyzer.cpp src/ErrorNavigator.cpp img/check_16.xpm src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/GermanTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
-# Link against wxWidgets libraries
-target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext)
+# Link against wxWidgets and RE2 libraries
+target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
 
