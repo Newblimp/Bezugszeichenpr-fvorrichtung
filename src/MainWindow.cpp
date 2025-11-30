@@ -82,7 +82,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
       std::wstring bz = match[3];
 
       // Check if word2's stem is marked for multi-word matching
-      // Note: isMultiWordBase now accepts by value, copy happens here
+      // Note: isMultiWordBase copies word2 and stems it (cached lookup)
       if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
         if (!overlapsExisting(pos, endPos)) {
           matchedRanges.emplace_back(pos, endPos);
@@ -320,9 +320,9 @@ void MainWindow::findUnnumberedWords() {
 
     std::wstring word1 = word1Match.word;
     std::wstring word2 = word2Match.word;
-    m_textAnalyzer.stemWord(word2);
 
     // Only flag if this is a known multi-word combination
+    // Note: isMultiWordBase stems internally, no need to stem here
     if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
       StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
 
