@@ -59,14 +59,14 @@ private:
   // Regex patterns
   // Single word + number: captures (word)(number)
   std::wregex m_singleWordRegex{
-      L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
+      L"(\\b[[:alpha:]äöüÄÖÜß]+) +([[:digit:]]+[a-zA-Z']*\\b)",
       std::regex_constants::ECMAScript | std::regex_constants::optimize |
           std::regex_constants::icase};
 
   // Two words + number: captures (word1)(word2)(number)
   std::wregex m_twoWordRegex{
-      L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:space:]]+(\\b[[:alpha:]äöüÄÖÜß]+\\b)[[:"
-      L"space:]]+(\\b[[:digit:]]+[a-zA-Z']*\\b)",
+      L"(\\b[[:alpha:]äöüÄÖÜß]+) +([[:alpha:]äöüÄÖÜß]+)"
+      L" +([[:digit:]]+[a-zA-Z']*\\b)",
       std::regex_constants::ECMAScript | std::regex_constants::optimize |
           std::regex_constants::icase};
 
@@ -79,7 +79,7 @@ private:
   // Single word NOT followed by a number (for finding unnumbered multi-word
   // terms)
   std::wregex m_twoWordNoNumberRegex{
-      L"(\\b[[:alpha:]äöüÄÖÜß]+\\b)(?![[:space:]]+[[:digit:]])",
+      L"(\\b[[:alpha:]äöüÄÖÜß]+)(?! +[[:digit:]])",
       std::regex_constants::ECMAScript | std::regex_constants::optimize |
           std::regex_constants::icase};
 
