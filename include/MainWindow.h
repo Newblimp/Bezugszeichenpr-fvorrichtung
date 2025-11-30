@@ -54,6 +54,14 @@ private:
   // Context menu handling
   void onTreeListContextMenu(wxTreeListEvent &event);
   void onTreeListItemActivated(wxTreeListEvent &event);
+  void onTextRightClick(wxMouseEvent &event);
+  void clearTextError(size_t start, size_t end);
+  bool isPositionCleared(size_t start, size_t end) const;
+
+  // Menu handlers for restoring errors
+  void onRestoreTextboxErrors(wxCommandEvent &event);
+  void onRestoreOverviewErrors(wxCommandEvent &event);
+  void onRestoreAllErrors(wxCommandEvent &event);
   void toggleMultiWordTerm(const std::wstring &baseStem);
   void clearError(const std::wstring &bz);
 
@@ -120,6 +128,9 @@ private:
   // Set of BZ numbers whose errors have been cleared/ignored by user
   std::unordered_set<std::wstring> m_clearedErrors;
 
+  // Track cleared text positions (for right-click clear on highlighted text)
+  std::set<std::pair<size_t, size_t>> m_clearedTextPositions;
+
   // All unique stems encountered
   // std::unordered_set<StemVector, StemVectorHash> m_allStems;
 
@@ -163,3 +174,5 @@ private:
   int m_wrongArticleSelected{-1};
   std::shared_ptr<wxStaticText> m_wrongArticleLabel;
 };
+
+  // Track cleared text positions (for right-click clear on highlighted text)
