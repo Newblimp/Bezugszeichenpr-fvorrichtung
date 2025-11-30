@@ -636,9 +636,7 @@ void MainWindow::setupUi() {
       std::make_shared<wxRichTextCtrl>(m_notebookList, wxID_ANY, wxEmptyString,
                                        wxDefaultPosition, wxSize(350, -1));
 
-  // Add language selector at the top
   wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-  mainSizer->Add(m_languageSelector, 0, wxALL | wxALIGN_CENTER, 5);
   mainSizer->Add(viewSizer, 1, wxEXPAND);
   panel->SetSizer(mainSizer);
   
@@ -753,7 +751,13 @@ void MainWindow::setupUi() {
   numberSizer->Add(splitNumberSizer, wxLEFT);
   numberSizer->Add(wrongArticleSizer, wxLEFT);
 
-  outputSizer->Add(numberSizer, 0, wxALL, 10);
+  // Create horizontal sizer for error navigation and language selector
+  wxBoxSizer *bottomSizer = new wxBoxSizer(wxHORIZONTAL);
+  bottomSizer->Add(numberSizer, 0, wxALL, 0);
+  bottomSizer->AddStretchSpacer(1); // Push language selector to the right
+  bottomSizer->Add(m_languageSelector, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+
+  outputSizer->Add(bottomSizer, 0, wxALL | wxEXPAND, 10);
 
   // Set up text styles
   m_neutralStyle.SetBackgroundColour(
