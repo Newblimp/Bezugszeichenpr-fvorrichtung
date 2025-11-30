@@ -5,6 +5,16 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Release)
 set(wxBUILD_SHARED OFF)
+
+# Set source file encoding to UTF-8 for proper handling of German umlauts (ä, ö, ü, ß)
+if(MSVC)
+  # MSVC: /utf-8 sets both source and execution charset to UTF-8
+  add_compile_options(/utf-8)
+else()
+  # GCC/Clang: explicitly set input and execution charsets
+  add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
 
