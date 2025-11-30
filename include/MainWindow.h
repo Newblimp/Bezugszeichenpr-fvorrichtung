@@ -67,9 +67,6 @@ private:
     // Single word (for finding unnumbered references)
     re2::RE2 m_wordRegex;
 
-    // Single word NOT followed by a number (for finding unnumbered multi-word terms)
-    re2::RE2 m_twoWordNoNumberRegex;
-
     // German text analyzer for stemming and article checking
     GermanTextAnalyzer m_textAnalyzer;
     std::wstring m_fullText;
