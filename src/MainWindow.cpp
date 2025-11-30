@@ -56,9 +56,9 @@ void MainWindow::debounceFunc(wxCommandEvent &event) {
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
-  Timer t;
+  Timer t_setup;
   setupAndClear();
-  std::cout << "Time for setup and clearing: " << t.elapsed() << " milliseconds\n";
+  std::cout << "Time for setup and clearing: " << t_setup.elapsed() << " milliseconds\n";
 
   // Track matched positions to avoid duplicate processing
   std::vector<std::pair<size_t, size_t>> matchedRanges;
@@ -75,6 +75,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
   // First pass: scan for two-word patterns
   // Match "[word1] [word2] [number]" and check if word2's stem is in multi-word
   // set
+  Timer t_twoWordScan;
   {
     RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordRegex);
 
@@ -115,9 +116,12 @@ void MainWindow::scanText(wxTimerEvent &event) {
       }
     }
   }
+  std::cout << "Time for two word scan: " << t_twoWordScan.elapsed() << " milliseconds\n";
+
 
   // Second pass: scan for single-word patterns (excluding already matched
   // positions)
+    Timer t_oneWordScan;
   {
     RE2RegexHelper::MatchIterator iter(m_fullText, m_singleWordRegex);
 
@@ -148,17 +152,28 @@ void MainWindow::scanText(wxTimerEvent &event) {
       }
     }
   }
+  std::cout << "Time for one word scan: " << t_oneWordScan.elapsed() << " milliseconds\n";
 
   // Update display
+  Timer t_fillListTree;
   fillListTree();
+  std::cout << "Time for fillListTree: " << t_fillListTree.elapsed() << " milliseconds\n";
+
+  Timer t_finUnnumberedWords;
   findUnnumberedWords();
+  std::cout << "Time for finding unnumbered words: " << t_finUnnumberedWords.elapsed() << " milliseconds\n";
+
+  Timer t_checkArticleUsage;
   checkArticleUsage();
+  std::cout << "Time for checking articles: " << t_checkArticleUsage.elapsed() << " milliseconds\n";
 
   // sort the positions of all the errors and remove any duplicate entries
+  Timer t_sortErrors;
   std::sort(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
   auto last =
       std::unique(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
   m_allErrorsPositions.erase(last, m_allErrorsPositions.end());
+  std::cout << "Time for error sort: " << t_sortErrors.elapsed() << " milliseconds\n";
 
   // Update navigation labels
   m_allErrorsLabel->SetLabel(
@@ -175,7 +190,9 @@ void MainWindow::scanText(wxTimerEvent &event) {
   // Refresh layout to accommodate label size changes
   Layout();
 
+  Timer t_fillBzList;
   fillBzList();
+  std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n";
 }
 
 void MainWindow::fillListTree() {

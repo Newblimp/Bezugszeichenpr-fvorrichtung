@@ -27,10 +27,8 @@ void GermanTextAnalyzer::stemWord(std::wstring& word) {
     if (word.empty())
         return;
     
-    std::cout << "Before tolower" << word << std::endl;
     // Normalize first character to lowercase using German locale (proper handling of Ä, Ö, Ü, etc.)
     word[0] = m_ctypeFacet->tolower(word[0]);
-    std::cout << "After tolower" << word << std::endl;
     
     // Check cache first
     auto it = m_stemCache.find(word);

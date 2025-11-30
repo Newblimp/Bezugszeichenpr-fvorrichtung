@@ -6,7 +6,7 @@ private:
 	// Type aliases to make accessing nested type easier
 	using Clock = std::chrono::steady_clock;
 	using Second = std::chrono::duration<double, std::ratio<1> >;
-    using Milliseond = std::chrono::duration<double, std::ratio<1000> >; 
+    using Milliseond = std::chrono::duration<double, std::ratio<1, 1000> >; 
 
 	std::chrono::time_point<Clock> m_beg { Clock::now() };
 
@@ -18,6 +18,6 @@ public:
 
 	double elapsed() const
 	{
-		return std::chrono::duration_cast<Second>(Clock::now() - m_beg).count();
+		return std::chrono::duration_cast<Milliseond>(Clock::now() - m_beg).count();
 	}
 };
