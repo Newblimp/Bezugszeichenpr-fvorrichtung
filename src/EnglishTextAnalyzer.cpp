@@ -27,7 +27,8 @@ void EnglishTextAnalyzer::stemWord(std::wstring& word) {
         return;
     
     // Normalize first character to lowercase using English locale
-    word[0] = m_ctypeFacet->tolower(word[0]);
+    std::transform(word.begin(), word.end(), word.begin(),
+             [this](wchar_t c) { return m_ctypeFacet->tolower(c); });
     
     // Check cache first
     auto it = m_stemCache.find(word);

@@ -22,7 +22,7 @@ public:
 
     // Stemming operations (now with caching)
     void stemWord(std::wstring& word);
-    
+
     // Optimized: accepts by value to enable move semantics
     StemVector createStemVector(std::wstring word);
     StemVector createMultiWordStemVector(std::wstring firstWord,
