@@ -10,6 +10,8 @@
 #include <locale>
 #include <string>
 #include <wx/bitmap.h>
+#include "TimerHelper.h"
+
 // Static member definition - single instance with persistent cache
 GermanTextAnalyzer MainWindow::s_textAnalyzer;
 
@@ -54,7 +56,9 @@ void MainWindow::debounceFunc(wxCommandEvent &event) {
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
+  Timer t;
   setupAndClear();
+  std::cout << "Time for setup and clearing: " << t.elapsed() << " milliseconds\n";
 
   // Track matched positions to avoid duplicate processing
   std::vector<std::pair<size_t, size_t>> matchedRanges;
