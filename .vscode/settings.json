@@ -1,0 +1,83 @@
+{
+  // C++ IntelliSense
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+
+  // CMake settings
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.configureOnOpen": false,
+  "cmake.buildBeforeRun": true,
+
+  // Test Explorer settings
+  "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*",
+  "testMate.cpp.test.workingDirectory": "${workspaceFolder}/build/tests",
+  "testMate.cpp.debug.configTemplate": {
+    "type": "cppdbg",
+    "linux": {
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    "windows": {
+      "type": "cppvsdbg"
+    },
+    "program": "${exec}",
+    "args": "${argsArray}",
+    "cwd": "${workspaceFolder}/build/tests",
+    "environment": [],
+    "externalConsole": false,
+    "stopAtEntry": false,
+    "setupCommands": [
+      {
+        "description": "Enable pretty-printing for gdb",
+        "text": "-enable-pretty-printing",
+        "ignoreFailures": true
+      }
+    ]
+  },
+
+  // Google Test Adapter settings (alternative)
+  "gtest-adapter.debugConfig": [
+    "(gdb) Debug Tests - Linux",
+    "(msvc) Debug Tests - Windows"
+  ],
+  "gtest-adapter.supportLocation": true,
+
+  // File associations
+  "files.associations": {
+    "*.h": "cpp",
+    "*.cpp": "cpp",
+    "*.tpp": "cpp",
+    "vector": "cpp",
+    "string": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "memory": "cpp",
+    "functional": "cpp",
+    "utility": "cpp"
+  },
+
+  // Editor settings for C++
+  "editor.formatOnSave": false,
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools",
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  // Exclude build artifacts from search
+  "search.exclude": {
+    "**/build": true,
+    "**/build/**": true,
+    "**/.git": true,
+    "**/node_modules": true
+  },
+
+  // File watcher exclusions
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true
+  }
+}
