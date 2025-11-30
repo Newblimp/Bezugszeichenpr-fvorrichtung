@@ -32,6 +32,19 @@ FetchContent_Declare(
 set(RE2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(re2)
 
+# Fetch Google Test for unit testing
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Enable testing
+enable_testing()
+
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   if(NOT MSVC)
@@ -82,3 +95,5 @@ endif()
 # Link against wxWidgets and RE2 libraries
 target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
 
+# Add tests subdirectory
+add_subdirectory(tests)
