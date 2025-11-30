@@ -8,14 +8,18 @@
 #include "wx/timer.h"
 #include <algorithm>
 #include <locale>
-#include <regex>
 #include <string>
 #include <wx/bitmap.h>
 
 MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY,
               wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
-              wxDefaultPosition, wxSize(1200, 800)) {
+              wxDefaultPosition, wxSize(1200, 800)),
+      // Initialize RE2 patterns (case-insensitive matching with (?i) prefix)
+      m_singleWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
+      m_twoWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
+      m_wordRegex("(?i)\\b\\p{L}+\\b"),
+      m_twoWordNoNumberRegex("(?i)(\\b\\p{L}+\\b)(?!\\s+\\d)") {
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
@@ -49,18 +53,17 @@ void MainWindow::scanText(wxTimerEvent &event) {
   // Match "[word1] [word2] [number]" and check if word2's stem is in multi-word
   // set
   {
-    std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(),
-                               m_twoWordRegex);
-    std::wsregex_iterator end;
+    RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordRegex);
 
-    while (iter != end) {
-      size_t pos = iter->position();
-      size_t len = iter->length();
+    while (iter.hasNext()) {
+      auto match = iter.next();
+      size_t pos = match.position;
+      size_t len = match.length;
       size_t endPos = pos + len;
 
-      std::wstring word1 = (*iter)[1].str();
-      std::wstring word2 = (*iter)[2].str();
-      std::wstring bz = (*iter)[3].str();
+      std::wstring word1 = match[1];
+      std::wstring word2 = match[2];
+      std::wstring bz = match[3];
 
       // Check if word2's stem is marked for multi-word matching
       if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
@@ -81,27 +84,25 @@ void MainWindow::scanText(wxTimerEvent &event) {
           m_stemToPositions[stemVec].push_back({pos, len});
         }
       }
-      ++iter;
     }
   }
 
   // Second pass: scan for single-word patterns (excluding already matched
   // positions)
   {
-    std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(),
-                               m_singleWordRegex);
-    std::wsregex_iterator end;
+    RE2RegexHelper::MatchIterator iter(m_fullText, m_singleWordRegex);
 
-    while (iter != end) {
-      size_t pos = iter->position();
-      size_t len = iter->length();
+    while (iter.hasNext()) {
+      auto match = iter.next();
+      size_t pos = match.position;
+      size_t len = match.length;
       size_t endPos = pos + len;
 
       if (!overlapsExisting(pos, endPos)) {
         matchedRanges.emplace_back(pos, endPos);
 
-        std::wstring word = (*iter)[1].str();
-        std::wstring bz = (*iter)[2].str();
+        std::wstring word = match[1];
+        std::wstring bz = match[2];
 
         // Create single-element stem vector
         StemVector stemVec = m_textAnalyzer.createStemVector(word);
@@ -115,7 +116,6 @@ void MainWindow::scanText(wxTimerEvent &event) {
         m_bzToPositions[bz].push_back({pos, len});
         m_stemToPositions[stemVec].push_back({pos, len});
       }
-      ++iter;
     }
   }
 
@@ -236,30 +236,26 @@ void MainWindow::findUnnumberedWords() {
   // Check for two-word patterns without numbers (if they match known multi-word
   // stems)
   {
-    // Use pre-compiled regex member variable for better performance
-    std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(),
-                               m_twoWordNoNumberRegex);
-    std::wsregex_iterator end;
+    RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordNoNumberRegex);
 
-    if (iter == end)
+    if (!iter.hasNext())
       return; // No matches at all
 
     // Store the previous match manually
-    std::wsmatch prev = *iter;
-    ++iter;
-    while (iter != end) {
-      size_t pos1 = prev.position();
-      size_t pos2 = iter->position();
+    auto prev = iter.next();
+    while (iter.hasNext()) {
+      auto current = iter.next();
+      size_t pos1 = prev.position;
+      size_t pos2 = current.position;
 
       // Skip if already part of a valid reference
       if (validStarts.count(pos1)) {
-        prev = *iter;
-        ++iter;
+        prev = current;
         continue;
       }
 
-      std::wstring word1 = prev.str();
-      std::wstring word2 = iter->str();
+      std::wstring word1 = prev[1];
+      std::wstring word2 = current[1];
       m_textAnalyzer.stemWord(word2);
 
       // Only flag if this is a known multi-word combination
@@ -267,42 +263,37 @@ void MainWindow::findUnnumberedWords() {
         StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
 
         if (m_stemToBz.count(stemVec)) {
-          size_t len2 = iter->length();
+          size_t len2 = current.length;
           m_noNumberPositions.emplace_back(pos1, pos2 + len2);
           m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
         }
       }
-      prev = *iter;
-      ++iter;
+      prev = current;
     }
   }
 
   // Check for single words without numbers
   {
-    std::wsregex_iterator iter(m_fullText.begin(), m_fullText.end(),
-                               m_wordRegex);
-    std::wsregex_iterator end;
+    RE2RegexHelper::MatchIterator iter(m_fullText, m_wordRegex);
 
-    while (iter != end) {
-      size_t pos = iter->position();
+    while (iter.hasNext()) {
+      auto match = iter.next();
+      size_t pos = match.position;
 
       // Skip if already part of a valid reference
       if (validStarts.count(pos)) {
-        ++iter;
         continue;
       }
 
-      std::wstring word = iter->str();
+      std::wstring word = match[0];  // Full match for wordRegex (no capture groups)
       StemVector stemVec = m_textAnalyzer.createStemVector(word);
 
       // Check if this stem is known from valid references
       if (m_stemToBz.count(stemVec)) {
-        size_t len = iter->length();
+        size_t len = match.length;
         m_noNumberPositions.emplace_back(pos, pos + len);
         m_textBox->SetStyle(pos, pos + len, m_warningStyle);
       }
-
-      ++iter;
     }
   }
 }
