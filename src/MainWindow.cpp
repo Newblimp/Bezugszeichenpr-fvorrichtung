@@ -19,9 +19,9 @@ MainWindow::MainWindow()
               wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
               wxDefaultPosition, wxSize(1200, 800)),
       // Initialize RE2 patterns (case-insensitive matching with (?i) prefix)
-      m_singleWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
-      m_twoWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
-      m_wordRegex("(?i)\\b\\p{L}+\\b") {
+      m_singleWordRegex("(?i)(\\p{L}+)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
+      m_twoWordRegex("(?i)(\\p{L}+)\\s+(\\p{L}+)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
+      m_wordRegex("(?i)\\p{L}+") {
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
