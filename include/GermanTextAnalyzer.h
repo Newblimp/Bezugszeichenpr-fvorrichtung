@@ -3,13 +3,14 @@
 #include "utils.h"
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <utility>
 
 /**
  * @brief German language text analysis utilities
  *
  * Handles German-specific text processing including:
- * - Stemming (using Oleander library)
+ * - Stemming (using Oleander library with caching)
  * - Article detection (definite/indefinite)
  * - Word extraction and validation
  */
@@ -17,7 +18,7 @@ class GermanTextAnalyzer {
 public:
     GermanTextAnalyzer();
 
-    // Stemming operations
+    // Stemming operations (now with caching)
     void stemWord(std::wstring& word);
     
     // Optimized: accepts by value to enable move semantics
@@ -34,8 +35,16 @@ public:
     // Text utilities
     static std::pair<std::wstring, size_t> findPrecedingWord(const std::wstring& text, size_t pos);
 
+    // Cache management (for diagnostics)
+    size_t getCacheSize() const { return m_stemCache.size(); }
+    void clearCache() { m_stemCache.clear(); }
+
 private:
     stemming::german_stem<> m_germanStemmer;
+    
+    // Cache for stemming results to avoid repeated expensive operations
+    // Key: normalized word (first char lowercased), Value: stemmed word
+    mutable std::unordered_map<std::wstring, std::wstring> m_stemCache;
 
     // Static sets for fast article lookup
     static const std::unordered_set<std::wstring> s_indefiniteArticles;

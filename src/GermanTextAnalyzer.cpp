@@ -16,8 +16,24 @@ GermanTextAnalyzer::GermanTextAnalyzer() = default;
 void GermanTextAnalyzer::stemWord(std::wstring& word) {
     if (word.empty())
         return;
+    
+    // Normalize first character to lowercase (German stemmer requirement)
     word[0] = std::tolower(word[0]);
+    
+    // Check cache first
+    auto it = m_stemCache.find(word);
+    if (it != m_stemCache.end()) {
+        // Cache hit - use cached result
+        word = it->second;
+        return;
+    }
+    
+    // Cache miss - perform expensive stemming operation
+    std::wstring original = word;
     m_germanStemmer(word);
+    
+    // Store in cache for future lookups
+    m_stemCache[std::move(original)] = word;
 }
 
 // Optimized: accept by value and move, avoiding defensive copy
@@ -41,7 +57,7 @@ bool GermanTextAnalyzer::isMultiWordBase(std::wstring word,
     return multiWordBaseStems.count(word) > 0;
 }
 
-// Optimized: use manual lowercase loop instead of copying entire string
+// Optimized: use manual lowercase loop with early exit
 bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
     // Fast path: check length first
     if (word.length() < 3 || word.length() > 6) {
@@ -57,16 +73,16 @@ bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
     return s_indefiniteArticles.count(lower) > 0;
 }
 
-// Optimized: use manual lowercase loop instead of copying entire string
+// Optimized: use manual lowercase loop with early exit
 bool GermanTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
-    // Fast path: check length first
-    if (word.length() < 3 || word.length() > 3) {
+    // Fast path: check length first (all definite articles are exactly 3 chars)
+    if (word.length() != 3) {
         return false;
     }
     
     // Create lowercase version only if length is valid
     std::wstring lower;
-    lower.reserve(word.length());
+    lower.reserve(3);
     for (wchar_t c : word) {
         lower.push_back(std::tolower(c));
     }
