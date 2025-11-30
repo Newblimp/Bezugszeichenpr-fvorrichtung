@@ -192,7 +192,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
   Timer t_fillBzList;
   fillBzList();
-  std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n";
+  std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
 }
 
 void MainWindow::fillListTree() {
