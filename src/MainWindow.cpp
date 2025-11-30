@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "EnglishTextAnalyzer.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
 #include "ErrorNavigator.h"
@@ -12,8 +13,59 @@
 #include <wx/bitmap.h>
 #include "TimerHelper.h"
 
-// Static member definition - single instance with persistent cache
-GermanTextAnalyzer MainWindow::s_textAnalyzer;
+// Static member definitions - analyzers for different languages
+GermanTextAnalyzer MainWindow::s_germanAnalyzer;
+EnglishTextAnalyzer MainWindow::s_englishAnalyzer;
+bool MainWindow::s_useGerman = true; // Default to German
+
+// Helper method implementations - dispatch to correct analyzer based on language
+StemVector MainWindow::createCurrentStemVector(std::wstring word) {
+  if (s_useGerman) {
+    return s_germanAnalyzer.createStemVector(std::move(word));
+  } else {
+    return s_englishAnalyzer.createStemVector(std::move(word));
+  }
+}
+
+StemVector MainWindow::createCurrentMultiWordStemVector(std::wstring firstWord, std::wstring secondWord) {
+  if (s_useGerman) {
+    return s_germanAnalyzer.createMultiWordStemVector(std::move(firstWord), std::move(secondWord));
+  } else {
+    return s_englishAnalyzer.createMultiWordStemVector(std::move(firstWord), std::move(secondWord));
+  }
+}
+
+bool MainWindow::isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems) {
+  if (s_useGerman) {
+    return s_germanAnalyzer.isMultiWordBase(std::move(word), multiWordBaseStems);
+  } else {
+    return s_englishAnalyzer.isMultiWordBase(std::move(word), multiWordBaseStems);
+  }
+}
+
+bool MainWindow::isCurrentIndefiniteArticle(const std::wstring& word) {
+  if (s_useGerman) {
+    return GermanTextAnalyzer::isIndefiniteArticle(word);
+  } else {
+    return EnglishTextAnalyzer::isIndefiniteArticle(word);
+  }
+}
+
+bool MainWindow::isCurrentDefiniteArticle(const std::wstring& word) {
+  if (s_useGerman) {
+    return GermanTextAnalyzer::isDefiniteArticle(word);
+  } else {
+    return EnglishTextAnalyzer::isDefiniteArticle(word);
+  }
+}
+
+std::pair<std::wstring, size_t> MainWindow::findCurrentPrecedingWord(const std::wstring& text, size_t pos) {
+  if (s_useGerman) {
+    return GermanTextAnalyzer::findPrecedingWord(text, pos);
+  } else {
+    return EnglishTextAnalyzer::findPrecedingWord(text, pos);
+  }
+}
 
 
 MainWindow::MainWindow()
@@ -96,7 +148,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
       // Check if word2's stem is marked for multi-word matching
       // Note: isMultiWordBase copies word2 and stems it (cached lookup)
-      if (s_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+      if (isCurrentMultiWordBase(word2, m_multiWordBaseStems)) {
         if (!overlapsExisting(pos, endPos)) {
           matchedRanges.emplace_back(pos, endPos);
 
@@ -107,7 +159,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
           // Create stem vector with both words (move to avoid copies)
           StemVector stemVec =
-              s_textAnalyzer.createMultiWordStemVector(std::move(word1), std::move(word2));
+              createCurrentMultiWordStemVector(std::move(word1), std::move(word2));
 
           // Store mappings
           m_bzToStems[bz].insert(stemVec);
@@ -144,7 +196,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
         std::wstring bz = match[2];
 
         // Create single-element stem vector (word gets moved)
-        StemVector stemVec = s_textAnalyzer.createStemVector(std::move(word));
+        StemVector stemVec = createCurrentStemVector(std::move(word));
 
         // Store mappings
         m_bzToStems[bz].insert(stemVec);
@@ -363,8 +415,8 @@ void MainWindow::findUnnumberedWords() {
 
     // Only flag if this is a known multi-word combination
     // Note: isMultiWordBase stems internally, no need to stem here
-    if (s_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
-      StemVector stemVec = s_textAnalyzer.createMultiWordStemVector(word1, word2);
+    if (isCurrentMultiWordBase(word2, m_multiWordBaseStems)) {
+      StemVector stemVec = createCurrentMultiWordStemVector(word1, word2);
 
       if (m_stemToBz.count(stemVec)) {
         size_t startPos = word1Match.position;
@@ -380,7 +432,7 @@ void MainWindow::findUnnumberedWords() {
 
   // Check for single words without numbers
   for (const auto& wordMatch : wordsWithoutNumbers) {
-    StemVector stemVec = s_textAnalyzer.createStemVector(wordMatch.word);
+    StemVector stemVec = createCurrentStemVector(wordMatch.word);
 
     // Check if this stem is known from valid references
     if (m_stemToBz.count(stemVec)) {
@@ -434,7 +486,7 @@ void MainWindow::checkArticleUsage() {
 
   for (const auto &occ : allOccurrences) {
     auto [precedingWord, precedingPos] =
-        GermanTextAnalyzer::findPrecedingWord(m_fullText, occ.position);
+        findCurrentPrecedingWord(m_fullText, occ.position);
 
     if (precedingWord.empty()) {
       // No preceding word found - might be at start of text
@@ -448,7 +500,7 @@ void MainWindow::checkArticleUsage() {
 
     if (isFirstOccurrence) {
       // First occurrence: should not be definite article
-      if (GermanTextAnalyzer::isDefiniteArticle(precedingWord)) {
+      if (isCurrentDefiniteArticle(precedingWord)) {
         if (!isPositionCleared(precedingPos, articleEnd)) {
           m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
           m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
@@ -458,7 +510,7 @@ void MainWindow::checkArticleUsage() {
       seenStems.insert(occ.stem);
     } else {
       // Subsequent occurrence: should have definite article
-      if (GermanTextAnalyzer::isIndefiniteArticle(precedingWord)) {
+      if (isCurrentIndefiniteArticle(precedingWord)) {
         if (!isPositionCleared(precedingPos, articleEnd)) {
           m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
           m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
@@ -558,7 +610,6 @@ void MainWindow::setupUi() {
   wxPanel *panel = new wxPanel(this, wxID_ANY);
 
   wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
-  panel->SetSizer(viewSizer);
 
   wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
   wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
@@ -570,12 +621,27 @@ void MainWindow::setupUi() {
 
   m_notebookList = new wxNotebook(panel, wxID_ANY);
 
+  // Language selector
+  wxArrayString languages;
+  languages.Add("German");
+  languages.Add("English");
+  m_languageSelector = new wxRadioBox(panel, wxID_ANY, "Language",
+                                      wxDefaultPosition, wxDefaultSize,
+                                      languages, 1, wxRA_SPECIFY_COLS);
+  m_languageSelector->SetSelection(0); // Default to German
+  
   // Main text editor
   m_textBox = new wxRichTextCtrl(panel);
   m_bzList =
       std::make_shared<wxRichTextCtrl>(m_notebookList, wxID_ANY, wxEmptyString,
                                        wxDefaultPosition, wxSize(350, -1));
 
+  // Add language selector at the top
+  wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
+  mainSizer->Add(m_languageSelector, 0, wxALL | wxALIGN_CENTER, 5);
+  mainSizer->Add(viewSizer, 1, wxEXPAND);
+  panel->SetSizer(mainSizer);
+  
   viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
 
@@ -733,6 +799,9 @@ void MainWindow::setupBindings() {
   Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 20);
   Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 21);
   Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 22);
+  
+  // Language selector
+  m_languageSelector->Bind(wxEVT_RADIOBOX, &MainWindow::onLanguageChanged, this);
 }
 
 void MainWindow::fillBzList() {
@@ -982,5 +1051,14 @@ void MainWindow::onRestoreOverviewErrors(wxCommandEvent &event) {
 void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
   m_clearedTextPositions.clear();
   m_clearedErrors.clear();
+  m_debounceTimer.Start(1, true);
+}
+
+
+void MainWindow::onLanguageChanged(wxCommandEvent &event) {
+  // Update language selection
+  s_useGerman = (m_languageSelector->GetSelection() == 0);
+  
+  // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
 }
