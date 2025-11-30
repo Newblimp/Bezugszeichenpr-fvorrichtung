@@ -1,6 +1,6 @@
 #pragma once
 #include "english_stem.h"
-#include "utils.h"
+#include "utils_core.h"
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
