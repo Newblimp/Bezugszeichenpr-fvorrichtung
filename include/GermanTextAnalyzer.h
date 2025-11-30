@@ -19,10 +19,12 @@ public:
 
     // Stemming operations
     void stemWord(std::wstring& word);
-    StemVector createStemVector(const std::wstring& word);
-    StemVector createMultiWordStemVector(const std::wstring& firstWord,
-                                         const std::wstring& secondWord);
-    bool isMultiWordBase(const std::wstring& word,
+    
+    // Optimized: accepts by value to enable move semantics
+    StemVector createStemVector(std::wstring word);
+    StemVector createMultiWordStemVector(std::wstring firstWord,
+                                         std::wstring secondWord);
+    bool isMultiWordBase(std::wstring word,
                         const std::unordered_set<std::wstring>& multiWordBaseStems);
 
     // Article checking

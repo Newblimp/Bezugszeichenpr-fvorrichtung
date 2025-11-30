@@ -2,14 +2,15 @@
 #include <codecvt>
 #include <locale>
 
+// Thread-local cached converter to avoid repeated allocation
+static thread_local std::wstring_convert<std::codecvt_utf8<wchar_t>> t_converter;
+
 std::string RE2RegexHelper::wstringToUtf8(const std::wstring& wstr) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.to_bytes(wstr);
+    return t_converter.to_bytes(wstr);
 }
 
 std::wstring RE2RegexHelper::utf8ToWstring(const std::string& str) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.from_bytes(str);
+    return t_converter.from_bytes(str);
 }
 
 RE2RegexHelper::MatchIterator::MatchIterator(const std::wstring& text, const RE2& pattern)
@@ -26,21 +27,37 @@ RE2RegexHelper::MatchIterator::MatchIterator(const std::wstring& text, const RE2
 
 void RE2RegexHelper::MatchIterator::buildPositionMap(const std::wstring& text) {
     // Build a map from UTF-8 byte position to wchar position
+    // Optimized: do single-pass conversion instead of per-character
     m_wcharPositions.clear();
     m_wcharPositions.reserve(m_utf8Text.size() + 1);
 
     size_t wcharPos = 0;
     size_t utf8Pos = 0;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 
+    // Process text in chunks for better performance
     for (size_t i = 0; i < text.length(); ++i) {
+        wchar_t wc = text[i];
+        
+        // Determine UTF-8 byte length for this character
+        size_t utf8Len;
+        if (wc <= 0x7F) {
+            utf8Len = 1;
+        } else if (wc <= 0x7FF) {
+            utf8Len = 2;
+        } else if (wc <= 0xFFFF) {
+            utf8Len = 3;
+        } else {
+            utf8Len = 4;
+        }
+        
         // Map each UTF-8 byte position to the current wchar position
-        std::string charUtf8 = converter.to_bytes(text[i]);
-        for (size_t j = 0; j < charUtf8.size(); ++j) {
+        for (size_t j = 0; j < utf8Len; ++j) {
             m_wcharPositions.push_back(wcharPos);
         }
+        
         wcharPos++;
     }
+    
     // Add final position
     m_wcharPositions.push_back(wcharPos);
 }
@@ -85,13 +102,17 @@ RE2RegexHelper::MatchResult RE2RegexHelper::MatchIterator::next() {
     result.length = utf8PosToWcharPos(matchEndUtf8) - result.position;
 
     // Convert captured groups to wstring
+    // Optimization: reserve capacity and convert directly from StringPiece
     result.groups.reserve(numGroups);
     for (int i = 0; i < numGroups; ++i) {
         if (!groups[i].empty()) {
-            std::string utf8Str(groups[i].data(), groups[i].size());
-            result.groups.push_back(utf8ToWstring(utf8Str));
+            // Direct conversion from StringPiece to avoid temporary std::string
+            result.groups.push_back(t_converter.from_bytes(
+                groups[i].data(), 
+                groups[i].data() + groups[i].size()
+            ));
         } else {
-            result.groups.push_back(L"");
+            result.groups.emplace_back();  // Use emplace_back for empty strings
         }
     }
 

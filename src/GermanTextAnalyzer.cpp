@@ -20,40 +20,55 @@ void GermanTextAnalyzer::stemWord(std::wstring& word) {
     m_germanStemmer(word);
 }
 
-StemVector GermanTextAnalyzer::createStemVector(const std::wstring& word) {
-    std::wstring stem = word;
-    stemWord(stem);
-    return {stem};
+// Optimized: accept by value and move, avoiding defensive copy
+StemVector GermanTextAnalyzer::createStemVector(std::wstring word) {
+    stemWord(word);
+    return {std::move(word)};
 }
 
-StemVector GermanTextAnalyzer::createMultiWordStemVector(const std::wstring& firstWord,
-                                                         const std::wstring& secondWord) {
-    std::wstring stem1 = firstWord;
-    std::wstring stem2 = secondWord;
-    stemWord(stem1);
-    stemWord(stem2);
-    return {stem1, stem2};
+// Optimized: accept by value and move both words
+StemVector GermanTextAnalyzer::createMultiWordStemVector(std::wstring firstWord,
+                                                         std::wstring secondWord) {
+    stemWord(firstWord);
+    stemWord(secondWord);
+    return {std::move(firstWord), std::move(secondWord)};
 }
 
-bool GermanTextAnalyzer::isMultiWordBase(const std::wstring& word,
+// Optimized: accept by value to allow moving from temporaries
+bool GermanTextAnalyzer::isMultiWordBase(std::wstring word,
                                          const std::unordered_set<std::wstring>& multiWordBaseStems) {
-    std::wstring stem = word;
-    stemWord(stem);
-    return multiWordBaseStems.count(stem) > 0;
+    stemWord(word);
+    return multiWordBaseStems.count(word) > 0;
 }
 
+// Optimized: use manual lowercase loop instead of copying entire string
 bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
-    std::wstring lower = word;
-    for (auto& c : lower) {
-        c = std::tolower(c);
+    // Fast path: check length first
+    if (word.length() < 3 || word.length() > 6) {
+        return false;
+    }
+    
+    // Create lowercase version only if length is in valid range
+    std::wstring lower;
+    lower.reserve(word.length());
+    for (wchar_t c : word) {
+        lower.push_back(std::tolower(c));
     }
     return s_indefiniteArticles.count(lower) > 0;
 }
 
+// Optimized: use manual lowercase loop instead of copying entire string
 bool GermanTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
-    std::wstring lower = word;
-    for (auto& c : lower) {
-        c = std::tolower(c);
+    // Fast path: check length first
+    if (word.length() < 3 || word.length() > 3) {
+        return false;
+    }
+    
+    // Create lowercase version only if length is valid
+    std::wstring lower;
+    lower.reserve(word.length());
+    for (wchar_t c : word) {
+        lower.push_back(std::tolower(c));
     }
     return s_definiteArticles.count(lower) > 0;
 }
