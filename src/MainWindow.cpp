@@ -568,9 +568,9 @@ void MainWindow::setupUi() {
   allErrorsSizer->Add(m_buttonBackwardAllErrors.get());
   allErrorsSizer->Add(m_buttonForwardAllErrors.get());
   auto allErrorsDescription =
-      new wxStaticText(panel, wxID_ANY, "errors", wxDefaultPosition,
+      new wxStaticText(panel, wxID_ANY, "all errors", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(80, -1));
+  m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(45, -1));
   allErrorsSizer->Add(m_allErrorsLabel.get(), 0,
                       wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
   allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
@@ -582,7 +582,7 @@ void MainWindow::setupUi() {
   auto noNumberDescription =
       new wxStaticText(panel, wxID_ANY, "unnumbered", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(80, -1));
+  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
   noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
                      10);
   noNumberSizer->Add(noNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
@@ -594,7 +594,7 @@ void MainWindow::setupUi() {
   auto wrongNumberDescription =
       new wxStaticText(panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(80, -1));
+  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
   wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0,
                         wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
   wrongNumberSizer->Add(wrongNumberDescription, 0,
@@ -606,7 +606,7 @@ void MainWindow::setupUi() {
   auto splitNumberDescription = new wxStaticText(
       panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(80, -1));
+  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
   splitNumberSizer->Add(m_splitNumberLabel.get(), 0,
                         wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
   splitNumberSizer->Add(splitNumberDescription, 0,
@@ -619,7 +619,7 @@ void MainWindow::setupUi() {
       panel, wxID_ANY, "inconsistent article", wxDefaultPosition,
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_wrongArticleLabel =
-      std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(80, -1));
+      std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
   wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0,
                          wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
   wrongArticleSizer->Add(wrongArticleDescription, 0,
