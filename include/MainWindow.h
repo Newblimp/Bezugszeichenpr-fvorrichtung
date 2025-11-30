@@ -39,6 +39,8 @@ private:
   void highlightConflicts();
 
   // Navigation methods
+  void selectNextAllError(wxCommandEvent &event);
+  void selectPreviousAllError(wxCommandEvent &event);
   void selectNextNoNumber(wxCommandEvent &event);
   void selectPreviousNoNumber(wxCommandEvent &event);
   void selectNextWrongNumber(wxCommandEvent &event);
