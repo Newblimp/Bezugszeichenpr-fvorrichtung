@@ -18,8 +18,7 @@ MainWindow::MainWindow()
       // Initialize RE2 patterns (case-insensitive matching with (?i) prefix)
       m_singleWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
       m_twoWordRegex("(?i)(\\b\\p{L}+\\b)\\s+(\\b\\p{L}+\\b)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
-      m_wordRegex("(?i)\\b\\p{L}+\\b"),
-      m_twoWordNoNumberRegex("(?i)(\\b\\p{L}+\\b)(?!\\s+\\d)") {
+      m_wordRegex("(?i)\\b\\p{L}+\\b") {
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
@@ -39,11 +38,6 @@ MainWindow::MainWindow()
   if (!m_wordRegex.ok()) {
     wxMessageBox("Failed to compile wordRegex: " +
                  wxString::FromUTF8(m_wordRegex.error().c_str()),
-                 "Regex Error", wxOK | wxICON_ERROR);
-  }
-  if (!m_twoWordNoNumberRegex.ok()) {
-    wxMessageBox("Failed to compile twoWordNoNumberRegex: " +
-                 wxString::FromUTF8(m_twoWordNoNumberRegex.error().c_str()),
                  "Regex Error", wxOK | wxICON_ERROR);
   }
 
@@ -255,66 +249,83 @@ void MainWindow::findUnnumberedWords() {
     }
   }
 
-  // Check for two-word patterns without numbers (if they match known multi-word
-  // stems)
-  {
-    RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordNoNumberRegex);
-
-    if (iter.hasNext()) {
-      // Store the previous match manually
-      auto prev = iter.next();
-      while (iter.hasNext()) {
-        auto current = iter.next();
-        size_t pos1 = prev.position;
-        size_t pos2 = current.position;
-
-        // Skip if already part of a valid reference
-        if (validStarts.count(pos1)) {
-          prev = current;
-          continue;
-        }
-
-        std::wstring word1 = prev[1];
-        std::wstring word2 = current[1];
-        m_textAnalyzer.stemWord(word2);
-
-        // Only flag if this is a known multi-word combination
-        if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
-          StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
-
-          if (m_stemToBz.count(stemVec)) {
-            size_t len2 = current.length;
-            m_noNumberPositions.emplace_back(pos1, pos2 + len2);
-            m_textBox->SetStyle(pos1, pos2 + len2, m_warningStyle);
-          }
-        }
-        prev = current;
-      }
+  // Helper to check if a position is followed by whitespace + number
+  auto isFollowedByNumber = [this](size_t wordEnd) -> bool {
+    // Skip whitespace after the word
+    size_t pos = wordEnd;
+    while (pos < m_fullText.length() && std::iswspace(m_fullText[pos])) {
+      pos++;
     }
-  }
+    // Check if next character is a digit
+    return pos < m_fullText.length() && std::iswdigit(m_fullText[pos]);
+  };
 
-  // Check for single words without numbers
+  // Collect all words NOT followed by numbers
+  struct WordMatch {
+    std::wstring word;
+    size_t position;
+    size_t length;
+  };
+  std::vector<WordMatch> wordsWithoutNumbers;
+
   {
     RE2RegexHelper::MatchIterator iter(m_fullText, m_wordRegex);
-
     while (iter.hasNext()) {
       auto match = iter.next();
       size_t pos = match.position;
+      size_t len = match.length;
 
       // Skip if already part of a valid reference
       if (validStarts.count(pos)) {
         continue;
       }
 
-      std::wstring word = match[0];  // Full match for wordRegex (no capture groups)
-      StemVector stemVec = m_textAnalyzer.createStemVector(word);
-
-      // Check if this stem is known from valid references
-      if (m_stemToBz.count(stemVec)) {
-        size_t len = match.length;
-        m_noNumberPositions.emplace_back(pos, pos + len);
-        m_textBox->SetStyle(pos, pos + len, m_warningStyle);
+      // Skip if followed by a number
+      if (isFollowedByNumber(pos + len)) {
+        continue;
       }
+
+      wordsWithoutNumbers.push_back({match[0], pos, len});
+    }
+  }
+
+  // Check for two-word patterns (consecutive words without numbers)
+  for (size_t i = 0; i + 1 < wordsWithoutNumbers.size(); ++i) {
+    const auto& word1Match = wordsWithoutNumbers[i];
+    const auto& word2Match = wordsWithoutNumbers[i + 1];
+
+    // Check if these words are actually adjacent in the text
+    // (word1 end + whitespace should be close to word2 start)
+    size_t expectedGap = word2Match.position - (word1Match.position + word1Match.length);
+    if (expectedGap > 10) {
+      continue; // Too far apart, not a consecutive pair
+    }
+
+    std::wstring word1 = word1Match.word;
+    std::wstring word2 = word2Match.word;
+    m_textAnalyzer.stemWord(word2);
+
+    // Only flag if this is a known multi-word combination
+    if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
+      StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+
+      if (m_stemToBz.count(stemVec)) {
+        size_t startPos = word1Match.position;
+        size_t endPos = word2Match.position + word2Match.length;
+        m_noNumberPositions.emplace_back(startPos, endPos);
+        m_textBox->SetStyle(startPos, endPos, m_warningStyle);
+      }
+    }
+  }
+
+  // Check for single words without numbers
+  for (const auto& wordMatch : wordsWithoutNumbers) {
+    StemVector stemVec = m_textAnalyzer.createStemVector(wordMatch.word);
+
+    // Check if this stem is known from valid references
+    if (m_stemToBz.count(stemVec)) {
+      m_noNumberPositions.emplace_back(wordMatch.position, wordMatch.position + wordMatch.length);
+      m_textBox->SetStyle(wordMatch.position, wordMatch.position + wordMatch.length, m_warningStyle);
     }
   }
 }
