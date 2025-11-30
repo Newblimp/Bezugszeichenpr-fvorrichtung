@@ -712,9 +712,14 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
 
     // Create context menu
     wxMenu menu;
+    
+    // Use proper wxWidgets menu IDs (avoid conflicts with system IDs on Windows)
+    const int ID_MULTIWORD = wxID_HIGHEST + 1;
+    const int ID_CLEAR_ERROR = wxID_HIGHEST + 2;
+    
     bool isMultiWord = m_multiWordBaseStems.count(baseStem) > 0;
-    menu.Append(1, isMultiWord ? "Disable multi-word mode"
-                               : "Enable multi-word mode");
+    menu.Append(ID_MULTIWORD, isMultiWord ? "Disable multi-word mode"
+                                          : "Enable multi-word mode");
 
     // Check if this BZ actually has an error (ignoring cleared status)
     const auto &stems = m_bzToStems[bz];
@@ -738,13 +743,13 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     // Only show clear/restore error option if there's an actual error
     if (hasError) {
       bool isCleared = m_clearedErrors.count(bz) > 0;
-      menu.Append(2, isCleared ? "Restore error" : "Clear error");
+      menu.Append(ID_CLEAR_ERROR, isCleared ? "Restore error" : "Clear error");
     }
 
     int selection = GetPopupMenuSelectionFromUser(menu);
-    if (selection == 1) {
+    if (selection == ID_MULTIWORD) {
       toggleMultiWordTerm(baseStem);
-    } else if (selection == 2) {
+    } else if (selection == ID_CLEAR_ERROR) {
       clearError(bz);
     }
   }
