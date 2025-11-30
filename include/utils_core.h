@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <cwctype>
 
 // Type alias for a stemmed term (vector of stemmed words)
 // Single-word term: {"vorricht"}
@@ -26,21 +27,43 @@ struct StemVectorHash {
 // Comparator for BZ strings - sorts numerically, then by suffix
 struct BZComparatorForMap {
     bool operator()(const std::wstring& a, const std::wstring& b) const {
+        if (a.empty() && b.empty()) {
+            return false;
+        }
+
         if (a == b) {
             return false;
         }
 
-        int int1 = std::stoi(a);
-        int int2 = std::stoi(b);
+        // Check if first character is numeric before calling std::stoi
+        bool a_starts_with_digit = !a.empty() && std::iswdigit(a[0]);
+        bool b_starts_with_digit = !b.empty() && std::iswdigit(b[0]);
 
-        if (int1 != int2) {
-            return int1 < int2;
+        // If one starts with a digit and the other doesn't, digit-starting comes first
+        if (a_starts_with_digit && !b_starts_with_digit) {
+            return false;
+        }
+        if (!a_starts_with_digit && b_starts_with_digit) {
+            return true;
         }
 
-        // Same numeric value, compare by length then lexicographically
-        if (a.length() != b.length()) {
-            return a.length() < b.length();
+        // Both start with digits - compare numerically
+        if (a_starts_with_digit && b_starts_with_digit) {
+            int int1 = std::stoi(a);
+            int int2 = std::stoi(b);
+
+            if (int1 != int2) {
+                return int1 < int2;
+            }
+
+            // Same numeric value, compare by length then lexicographically
+            if (a.length() != b.length()) {
+                return a.length() < b.length();
+            }
+            return a < b;
         }
+
+        // Neither starts with a digit - compare lexicographically
         return a < b;
     }
 };
