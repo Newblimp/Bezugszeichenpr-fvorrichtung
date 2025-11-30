@@ -169,7 +169,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
       L"0/" + std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
 
   // Refresh layout to accommodate label size changes
-  GetSizer()->Layout();
+  Layout();
 
   fillBzList();
 }
