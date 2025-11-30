@@ -69,8 +69,9 @@ private:
     // Single word (for finding unnumbered references)
     re2::RE2 m_wordRegex;
 
-  // German text analyzer for stemming and article checking
-  GermanTextAnalyzer m_textAnalyzer;
+  // Static German text analyzer for stemming and article checking
+  // Static ensures single instance with persistent cache across all scans
+  static GermanTextAnalyzer s_textAnalyzer;
   std::wstring m_fullText;
 
   // Text styles
