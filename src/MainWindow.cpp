@@ -125,6 +125,12 @@ void MainWindow::scanText(wxTimerEvent &event) {
   findUnnumberedWords();
   checkArticleUsage();
 
+  // sort the positions of all the errors and remove any duplicate entries
+  std::sort(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
+  auto last =
+      std::unique(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
+  m_allErrorsPositions.erase(last, m_allErrorsPositions.end());
+
   // Update navigation labels
   m_allErrorsLabel->SetLabel(
       L"0/" + std::to_wstring(m_allErrorsPositions.size()) + L"\t");
@@ -138,7 +144,6 @@ void MainWindow::scanText(wxTimerEvent &event) {
       L"0/" + std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
 
   fillBzList();
-  std::sort(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
 }
 
 void MainWindow::fillListTree() {
@@ -362,6 +367,7 @@ void MainWindow::checkArticleUsage() {
       // First occurrence: should not be definite article
       if (GermanTextAnalyzer::isDefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
+        m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
       seenStems.insert(occ.stem);
