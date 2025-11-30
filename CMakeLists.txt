@@ -8,6 +8,8 @@ set(wxBUILD_SHARED OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
 
+# Tell Abseil's CMake to generate install and export targets
+set(ABSL_ENABLE_INSTALL ON CACHE BOOL "Enable installation and export of Abseil targets." FORCE)
 # Fetch abseil library (required by RE2)
 include(FetchContent)
 FetchContent_Declare(
@@ -32,14 +34,14 @@ FetchContent_MakeAvailable(re2)
 
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if(NOT MSVC)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
-    endif()
+  if(NOT MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
+  endif()
 endif()
 
 # Enable dead code elimination (GCC/Clang only)
 if(NOT MSVC)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
 endif()
 
 # Disable unused wxWidgets features to reduce binary size
@@ -66,8 +68,8 @@ include_directories(include img)
 if(WIN32)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1)
   if(MSVC)
-	add_compile_options(/Zc:strictStrings-)
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
+    add_compile_options(/Zc:strictStrings-)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
