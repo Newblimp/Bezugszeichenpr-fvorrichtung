@@ -1,0 +1,126 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(gdb) Debug Tests - Linux",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/unit_tests",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "Build Tests",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "linux": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"
+      }
+    },
+    {
+      "name": "(lldb) Debug Tests - Linux",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/unit_tests",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "Build Tests"
+    },
+    {
+      "name": "(msvc) Debug Tests - Windows",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/Debug/unit_tests.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests/Debug",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build Tests"
+    },
+    {
+      "name": "(gdb) Debug Tests - Windows MinGW",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/unit_tests.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb.exe",
+      "preLaunchTask": "Build Tests"
+    },
+    {
+      "name": "(gdb) Debug Specific Test",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/unit_tests",
+      "args": [
+        "--gtest_filter=${input:testFilter}",
+        "--gtest_break_on_failure",
+        "--gtest_catch_exceptions=0"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "Build Tests",
+      "linux": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"
+      }
+    },
+    {
+      "name": "(msvc) Debug Specific Test - Windows",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/tests/Debug/unit_tests.exe",
+      "args": [
+        "--gtest_filter=${input:testFilter}",
+        "--gtest_break_on_failure",
+        "--gtest_catch_exceptions=0"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/tests/Debug",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build Tests"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testFilter",
+      "type": "promptString",
+      "description": "Enter test filter (e.g., GermanTextAnalyzerTest.* or *Umlaut*)",
+      "default": "*"
+    }
+  ]
+}
