@@ -82,14 +82,19 @@ void MainWindow::scanText(wxTimerEvent &event) {
       std::wstring bz = match[3];
 
       // Check if word2's stem is marked for multi-word matching
+      // Note: isMultiWordBase now accepts by value, copy happens here
       if (m_textAnalyzer.isMultiWordBase(word2, m_multiWordBaseStems)) {
         if (!overlapsExisting(pos, endPos)) {
           matchedRanges.emplace_back(pos, endPos);
 
-          // Create stem vector with both words stemmed separately
+          // Build original phrase first (before moving words)
+          std::wstring originalPhrase;
+          originalPhrase.reserve(word1.length() + 1 + word2.length());
+          originalPhrase = word1 + L" " + word2;
+
+          // Create stem vector with both words (move to avoid copies)
           StemVector stemVec =
-              m_textAnalyzer.createMultiWordStemVector(word1, word2);
-          std::wstring originalPhrase = word1 + L" " + word2;
+              m_textAnalyzer.createMultiWordStemVector(std::move(word1), std::move(word2));
 
           // Store mappings
           m_bzToStems[bz].insert(stemVec);
@@ -119,15 +124,16 @@ void MainWindow::scanText(wxTimerEvent &event) {
         matchedRanges.emplace_back(pos, endPos);
 
         std::wstring word = match[1];
+        std::wstring originalWord = word;  // Keep copy for storage
         std::wstring bz = match[2];
 
-        // Create single-element stem vector
-        StemVector stemVec = m_textAnalyzer.createStemVector(word);
+        // Create single-element stem vector (word gets moved)
+        StemVector stemVec = m_textAnalyzer.createStemVector(std::move(word));
 
         // Store mappings
         m_bzToStems[bz].insert(stemVec);
         m_stemToBz[stemVec].insert(bz);
-        m_bzToOriginalWords[bz].insert(word);
+        m_bzToOriginalWords[bz].insert(std::move(originalWord));
 
         // Track positions
         m_bzToPositions[bz].push_back({pos, len});
@@ -276,6 +282,7 @@ void MainWindow::findUnnumberedWords() {
     size_t length;
   };
   std::vector<WordMatch> wordsWithoutNumbers;
+  wordsWithoutNumbers.reserve(1000);  // Reserve capacity to reduce allocations
 
   {
     RE2RegexHelper::MatchIterator iter(m_fullText, m_wordRegex);
@@ -294,7 +301,8 @@ void MainWindow::findUnnumberedWords() {
         continue;
       }
 
-      wordsWithoutNumbers.push_back({match[0], pos, len});
+      // Move string from match to avoid copy
+      wordsWithoutNumbers.push_back({std::move(match.groups[0]), pos, len});
     }
   }
 
@@ -355,6 +363,13 @@ void MainWindow::checkArticleUsage() {
   };
 
   std::vector<OccurrenceInfo> allOccurrences;
+  
+  // Reserve capacity to reduce allocations
+  size_t totalOccurrences = 0;
+  for (const auto &[stem, positions] : m_stemToPositions) {
+    totalOccurrences += positions.size();
+  }
+  allOccurrences.reserve(totalOccurrences);
 
   for (const auto &[stem, positions] : m_stemToPositions) {
     for (const auto [start, len] : positions) {
