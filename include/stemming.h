@@ -1,16 +1,19 @@
 /** @addtogroup Stemming
     @brief Library for stemming words down to their root words.
-    @date 2004-2023
+    @date 2004-2025
     @copyright Oleander Software, Ltd.
     @author Blake Madden
     @details This program is free software; you can redistribute it and/or modify
     it under the terms of the BSD License.
+
+    SPDX-License-Identifier: BSD-3-Clause
 * @{*/
 
-#ifndef __STEM_H__
-#define __STEM_H__
+#ifndef OLEAN_STEM_H
+#define OLEAN_STEM_H
 
 #include <algorithm>
+#include <string_view>
 #include <array>
 #include <cassert>
 #include "common_lang_constants.h"
@@ -18,6 +21,28 @@
 /// @brief Namespace for stemming classes.
 namespace stemming
     {
+    /// @brief The library's major version.
+    constexpr int OLEANDER_STEM_MAJOR_VERSION = 2025;
+    /// @brief The library's minor version.
+    constexpr int OLEANDER_STEM_MINOR_VERSION = 0;
+    /// @brief The library's patch version.
+    constexpr int OLEANDER_STEM_PATCH_VERSION = 1;
+    /// @brief The library's tweak version.
+    constexpr int OLEANDER_STEM_TWEAK_VERSION = 1;
+
+    /// @brief The library's copyright notice.
+    constexpr wchar_t OLEANDER_STEM_COPYRIGHT[] = L"Copyright (c) 2004-2025 Blake Madden";
+
+    /// @brief The Snowball standard implemented by the library
+    ///     (major version).
+    constexpr int SNOWBALL_MAJOR_VERSION = 3;
+    /// @brief The Snowball standard implemented by the library
+    ///     (minor version).
+    constexpr int SNOWBALL_MINOR_VERSION = 0;
+    /// @brief The Snowball standard implemented by the library
+    ///     (minor version).
+    constexpr int SNOWBALL_PATCH_VERSION = 1;
+
     /// @brief Languages available for stemming.
     enum class stemming_type
         {
@@ -27,6 +52,9 @@ namespace stemming
         danish,
         /// @brief Dutch
         dutch,
+        /// @private
+        /// @internal Use Porter's Dutch algorithm for now.
+        dutch_porter = dutch,
         /// @brief English
         english,
         /// @brief Finnish
@@ -104,9 +132,10 @@ namespace stemming
     static const wchar_t DUTCH_S_ENDING[] = { 97, 101, 0xE8, 105, 111, 117, 121, 106, 65, 69,
         0xC8, 73, 79, 85, 89, 74, 0 };
 
-    static const wchar_t NORWEGIAN_VOWELS[] = { 97, 101, 105, 111, 0xF8, 117, 121, 0xE5,
-        0xE6, 0xC5, 65, 0xC6, 69, 73, 79,
-        0xD8, 85, 89, 0 };
+    static const wchar_t NORWEGIAN_VOWELS[] = { L'a', L'e', L'ê', L'i', L'o', L'ò', L'ó',
+        L'ô', L'u', L'y', L'æ', L'å', L'ø',
+        L'A', L'E', L'Ê', L'I', L'O', L'Ò', L'Ó',
+        L'Ô', L'U', L'Y', L'Æ', L'Å', L'Ø', 0 };
     static const wchar_t PORTUGUESE_VOWELS[] = { 97, 101, 105, 111, 117, 0xE1, 0xE9,
         0xED, 0xF3, 0xFA, 0xE2,
         0xEA, 0xF4, 65, 69, 73, 79, 85, 0xC1,
@@ -138,7 +167,7 @@ namespace stemming
     [[nodiscard]]
     inline constexpr wchar_t full_width_to_narrow(const wchar_t ch) noexcept
         {
-        return 
+        return
             // lower area of Unicode, most likely branch
             (ch < 65'000) ? ch :
             (ch >= 65'281 && ch <= 65'374) ? (ch - 65'248) :
@@ -179,6 +208,7 @@ namespace stemming
         /// @brief The string type that this class will accept.
         using string_type = string_typeT;
         /// @brief The main interface for stemming a word.
+        /// @param[in,out] text The text to stem.
         virtual void operator()(string_typeT& text) = 0;
         /// @returns The stemmer's language.
         [[nodiscard]]
@@ -311,8 +341,8 @@ namespace stemming
            @note If the word begins with two vowels, RV is the region after the third letter,
             otherwise the region after the first vowel not at the beginning of the word,
             or the end of the word if these positions cannot be found.
-            (Exceptionally, par, col or tap, at the beginning of a word is also taken
-            to be the region before RV.)*/
+            (Exceptionally, par, col, tap, or ni[vowel] at the beginning of a word is also taken
+             to be the region before RV.)*/
         void find_french_rv(const string_typeT& text,
                             const wchar_t* vowel_list)
             {
@@ -330,21 +360,27 @@ namespace stemming
                 stem<string_typeT>::is_either(text[1], common_lang_constants::LOWER_A,
                                               common_lang_constants::UPPER_A) &&
                 stem<string_typeT>::is_either(text[2], common_lang_constants::LOWER_R,
-                                              common_lang_constants::UPPER_R) ) || // par
+                                              common_lang_constants::UPPER_R)) || // par
 
                 (stem<string_typeT>::is_either(text[0], common_lang_constants::LOWER_C,
                                                common_lang_constants::UPPER_C) &&
                 stem<string_typeT>::is_either(text[1], common_lang_constants::LOWER_O,
                                               common_lang_constants::UPPER_O) &&
                 stem<string_typeT>::is_either(text[2], common_lang_constants::LOWER_L,
-                                              common_lang_constants::UPPER_L) ) || // col
+                                              common_lang_constants::UPPER_L)) || // col
 
                 (stem<string_typeT>::is_either(text[0], common_lang_constants::LOWER_T,
                                                common_lang_constants::UPPER_T) &&
                 stem<string_typeT>::is_either(text[1], common_lang_constants::LOWER_A,
                                               common_lang_constants::UPPER_A) &&
                 stem<string_typeT>::is_either(text[2], common_lang_constants::LOWER_P,
-                                              common_lang_constants::UPPER_P) )) // tap
+                                              common_lang_constants::UPPER_P)) ||
+
+                (stem<string_typeT>::is_either(text[0], common_lang_constants::LOWER_N,
+                                               common_lang_constants::UPPER_N) &&
+                 stem<string_typeT>::is_either(text[1], common_lang_constants::LOWER_I,
+                                              common_lang_constants::UPPER_I) &&
+                 stem<string_typeT>::is_one_of(text[2], vowel_list))) // ni[vowel]
                 )
                 {
                 m_rv = 3;
@@ -423,6 +459,13 @@ namespace stemming
         /// @param[in,out] text The string to trim.
         void remove_possessive_suffix(string_typeT& text) const
             {
+            // handle trash like "there's'"
+            while (text.length() >= 1 &&
+                is_apostrophe(text.back()))
+                {
+                text.pop_back();
+                }
+
             if (text.length() >= 2 &&
                 is_apostrophe(text[text.length()-2]) &&
                 stem<string_typeT>::is_either(text.back(), common_lang_constants::LOWER_S,
@@ -434,7 +477,7 @@ namespace stemming
                 { text.pop_back(); }
             }
 
-        //  suffix determinant functions
+        // suffix determinant functions
         //------------------------------------
         /// @brief is_suffix for one character.
         /// @param text The string being reviewed.
@@ -742,7 +785,7 @@ namespace stemming
                     stem<string_typeT>::is_either(text[start_index+2], suffix3L, suffix3U));
             }
 
-        //  RV suffix functions
+        // RV suffix functions
         //-------------------------------------------------
         /// @brief RV suffix comparison for one character.
         /// @param text The string being reviewed.
@@ -969,7 +1012,7 @@ namespace stemming
                     (get_rv() <= text.length()-8) );
             }
 
-        //  R1 suffix functions
+        // R1 suffix functions
         //-------------------------------------------------
         /// @brief R1 suffix comparison for one character.
         /// @param text The string being reviewed.
@@ -1116,7 +1159,7 @@ namespace stemming
                     (get_r1() <= text.length()-6) );
             }
 
-        //  R2 suffix functions
+        // R2 suffix functions
         //-------------------------------------------------
         /// @brief R2 suffix comparison for one character.
         /// @param text The string being reviewed.
@@ -1301,7 +1344,7 @@ namespace stemming
                     (get_r2() <= text.length()-7) );
             }
 
-        //  suffix removal functions
+        // Suffix removal functions
         //---------------------------
         /// @brief R1 deletion for one character suffix
         /// @param text The string being reviewed.
@@ -1592,7 +1635,7 @@ namespace stemming
                 }
             }
 
-        //  R2 deletion functions
+        // R2 deletion functions
         //------------------------
         /// @brief R2 deletion for one character suffix.
         /// @param text The string being reviewed.
@@ -1934,8 +1977,8 @@ namespace stemming
                 return false;
                 }
             }
-        
-        //  RV deletion functions
+
+        // RV deletion functions
         //---------------------------
         /// @brief RV deletion for one character suffix.
         /// @param text The string being reviewed.
@@ -2559,7 +2602,7 @@ namespace stemming
             ennuie       ->         ennuIe
             yeux         ->         Yeux
             quand        ->         qUand
-        @param text[in,out] The string to update.
+        @param[in,out] text The string to update.
         @param vowel_string The list of vowels used by the stemmer's language.*/
         void hash_french_yui(string_typeT& text,
                     const wchar_t* vowel_string)
@@ -3031,7 +3074,8 @@ namespace stemming
             }
 
         /// @returns The position of R1.
-        [[nodiscard]] inline size_t get_r1() const noexcept
+        [[nodiscard]]
+        inline size_t get_r1() const noexcept
             { return m_r1; }
         /// Sets the position of R1.
         /// @param pos The position.
@@ -3039,7 +3083,8 @@ namespace stemming
             { m_r1 = pos; }
 
         /// @returns The position of R2.
-        [[nodiscard]] inline size_t get_r2() const noexcept
+        [[nodiscard]]
+        inline size_t get_r2() const noexcept
             { return m_r2; }
         /// @brief Sets the position of R2.
         /// @param pos The position.
@@ -3047,7 +3092,8 @@ namespace stemming
             { m_r2 = pos; }
 
         /// @returns The position of RV.
-        [[nodiscard]] inline size_t get_rv() const noexcept
+        [[nodiscard]]
+        inline size_t get_rv() const noexcept
             { return m_rv; }
         /// @brief Sets the position of RV.
         /// @param pos The position.
@@ -3096,7 +3142,7 @@ namespace stemming
                 // German eszett
                 (ch == 0xDF));
             }
-        
+
         /** @brief Determines if a character is one of a list of characters.
             @param character The character to review.
             @param char_string The list of characters to compare against.
@@ -3192,6 +3238,7 @@ namespace stemming
         /// @brief The string type that this class will accept.
         using string_type = string_typeT;
         /// @brief No-op stemming of declared string type.
+        /// @param[in,out] text The text to stem.
         void operator()([[maybe_unused]] string_typeT&  text) final
             {}
         /// @returns The stemmer's language.
