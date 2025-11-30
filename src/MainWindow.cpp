@@ -533,33 +533,33 @@ void MainWindow::setupUi() {
 
   // Navigation buttons for all errors
   m_buttonBackwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(30, -1));
   m_buttonForwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(30, -1));
 
   // Navigation buttons for unnumbered references
   m_buttonBackwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
   m_buttonForwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
 
   // Navigation buttons for wrong number errors
   m_buttonBackwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
   m_buttonForwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
 
   // Navigation buttons for split number errors
   m_buttonBackwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
   m_buttonForwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
 
   // Navigation buttons for wrong article errors
   m_buttonBackwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
   m_buttonForwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
 
   // Layout for all errors row
   allErrorsSizer->Add(m_buttonBackwardAllErrors.get());
@@ -623,7 +623,7 @@ void MainWindow::setupUi() {
                          wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   numberSizer->Add(allErrorsSizer, wxLEFT);
-  numberSizer->AddSpacer(10); // Vertical spacing between errors and unnumbered
+  numberSizer->AddSpacer(5); // Vertical spacing between errors and unnumbered
   numberSizer->Add(noNumberSizer, wxLEFT);
   numberSizer->Add(wrongNumberSizer, wxLEFT);
   numberSizer->Add(splitNumberSizer, wxLEFT);
