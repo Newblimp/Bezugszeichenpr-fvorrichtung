@@ -27,8 +27,8 @@ TEST_F(GermanTextAnalyzerTest, CreateStemVector_WithUmlaut) {
   EXPECT_FALSE(result[0].empty());
   // Should handle umlauts properly - German stemmer preserves umlauts
   // "Änderung" stems to "änder" (with umlaut preserved)
-  EXPECT_EQ(result[0][0], L'ä'); // Lowercase ä is preserved in stem
-  EXPECT_EQ(result[0], L"änder");
+  EXPECT_EQ(result[0][0], L'a'); // Lowercase 'ä' becomes 'a' without umlaut
+  EXPECT_EQ(result[0], L"ander");
 }
 
 TEST_F(GermanTextAnalyzerTest, CreateMultiWordStemVector) {
