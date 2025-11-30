@@ -1,5 +1,6 @@
 #pragma once
 #include "GermanTextAnalyzer.h"
+#include "EnglishTextAnalyzer.h"
 #include "RE2RegexHelper.h"
 #include "utils.h"
 #include "wx/notebook.h"
@@ -78,9 +79,19 @@ private:
     // Single word (for finding unnumbered references)
     re2::RE2 m_wordRegex;
 
-  // Static German text analyzer for stemming and article checking
+  // Static text analyzers for different languages
   // Static ensures single instance with persistent cache across all scans
-  static GermanTextAnalyzer s_textAnalyzer;
+  static GermanTextAnalyzer s_germanAnalyzer;
+  static EnglishTextAnalyzer s_englishAnalyzer;
+  static bool s_useGerman; // true = German, false = English
+
+  // Helper methods to access current analyzer based on language selection
+  static StemVector createCurrentStemVector(std::wstring word);
+  static StemVector createCurrentMultiWordStemVector(std::wstring firstWord, std::wstring secondWord);
+  static bool isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems);
+  static bool isCurrentIndefiniteArticle(const std::wstring& word);
+  static bool isCurrentDefiniteArticle(const std::wstring& word);
+  static std::pair<std::wstring, size_t> findCurrentPrecedingWord(const std::wstring& text, size_t pos);
   std::wstring m_fullText;
 
   // Text styles
@@ -138,6 +149,8 @@ private:
   // UI components
   wxNotebook *m_notebookList;
   wxRichTextCtrl *m_textBox;
+  wxRadioBox *m_languageSelector;
+  void onLanguageChanged(wxCommandEvent &event);
   std::shared_ptr<wxRichTextCtrl> m_bzList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
