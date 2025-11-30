@@ -13,6 +13,7 @@
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
 #include <wx/wx.h>
+#include <set>
 
 class MainWindow : public wxFrame {
 public:

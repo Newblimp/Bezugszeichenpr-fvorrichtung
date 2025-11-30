@@ -928,11 +928,8 @@ void MainWindow::onTextRightClick(wxMouseEvent &event) {
     return false;
   };
   
-  if (checkPositions(m_allErrorsPositions) ||
-      checkPositions(m_noNumberPositions) ||
-      checkPositions(m_wrongNumberPositions) ||
-      checkPositions(m_splitNumberPositions) ||
-      checkPositions(m_wrongArticlePositions)) {
+  // all errors should be in m_allErrorsPositions so we don't need to check others separately
+  if (checkPositions(m_allErrorsPositions)) {
     foundError = true;
   }
   
