@@ -1,6 +1,7 @@
 #include "GermanTextAnalyzer.h"
 #include <algorithm>
 #include <locale>
+#include <iostream>
 
 // Static member initialization
 const std::unordered_set<std::wstring> GermanTextAnalyzer::s_indefiniteArticles = {
@@ -26,8 +27,10 @@ void GermanTextAnalyzer::stemWord(std::wstring& word) {
     if (word.empty())
         return;
     
+    std::cout << "Before tolower" << word << std::endl;
     // Normalize first character to lowercase using German locale (proper handling of Ä, Ö, Ü, etc.)
     word[0] = m_ctypeFacet->tolower(word[0]);
+    std::cout << "After tolower" << word << std::endl;
     
     // Check cache first
     auto it = m_stemCache.find(word);
