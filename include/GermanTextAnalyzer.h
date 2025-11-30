@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <utility>
+#include <locale>
 
 /**
  * @brief German language text analysis utilities
@@ -13,6 +14,7 @@
  * - Stemming (using Oleander library with caching)
  * - Article detection (definite/indefinite)
  * - Word extraction and validation
+ * - Proper German locale handling for case conversion
  */
 class GermanTextAnalyzer {
 public:
@@ -41,6 +43,10 @@ public:
 
 private:
     stemming::german_stem<> m_germanStemmer;
+    
+    // German locale for proper character handling (ä, ö, ü, ß)
+    std::locale m_germanLocale;
+    const std::ctype<wchar_t>* m_ctypeFacet;
     
     // Cache for stemming results to avoid repeated expensive operations
     // Key: normalized word (first char lowercased), Value: stemmed word
