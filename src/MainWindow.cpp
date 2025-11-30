@@ -1,7 +1,7 @@
 #include "MainWindow.h"
-#include "ErrorNavigator.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
+#include "ErrorNavigator.h"
 #include "utils.h"
 #include "wx/event.h"
 #include "wx/gdicmn.h"
@@ -87,7 +87,8 @@ void MainWindow::scanText(wxTimerEvent &event) {
           matchedRanges.emplace_back(pos, endPos);
 
           // Create stem vector with both words stemmed separately
-          StemVector stemVec = m_textAnalyzer.createMultiWordStemVector(word1, word2);
+          StemVector stemVec =
+              m_textAnalyzer.createMultiWordStemVector(word1, word2);
           std::wstring originalPhrase = word1 + L" " + word2;
 
           // Store mappings
@@ -135,15 +136,20 @@ void MainWindow::scanText(wxTimerEvent &event) {
     }
   }
 
-  // Collect all unique stems
-  collectAllStems(m_stemToBz, m_allStems);
-
   // Update display
   fillListTree();
   findUnnumberedWords();
   checkArticleUsage();
 
+  // sort the positions of all the errors and remove any duplicate entries
+  std::sort(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
+  auto last =
+      std::unique(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
+  m_allErrorsPositions.erase(last, m_allErrorsPositions.end());
+
   // Update navigation labels
+  m_allErrorsLabel->SetLabel(
+      L"0/" + std::to_wstring(m_allErrorsPositions.size()) + L"\t");
   m_noNumberLabel->SetLabel(
       L"0/" + std::to_wstring(m_noNumberPositions.size()) + L"\t");
   m_wrongNumberLabel->SetLabel(
@@ -194,6 +200,7 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
       size_t start = i.first;
       size_t len = i.second;
       m_wrongNumberPositions.emplace_back(start, start + len);
+      m_allErrorsPositions.emplace_back(start, start + len);
       m_textBox->SetStyle(start, start + len, m_warningStyle);
     }
     return false;
@@ -210,11 +217,13 @@ bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
         size_t len = i.second;
 
         // Avoid duplicates in the split number list
-        auto pos_pair = std::make_pair(static_cast<int>(start), static_cast<int>(start + len));
+        auto pos_pair = std::make_pair(static_cast<int>(start),
+                                       static_cast<int>(start + len));
         if (std::find(m_splitNumberPositions.begin(),
                       m_splitNumberPositions.end(),
                       pos_pair) == m_splitNumberPositions.end()) {
           m_splitNumberPositions.emplace_back(start, start + len);
+          m_allErrorsPositions.emplace_back(start, start + len);
           m_textBox->SetStyle(start, start + len, m_warningStyle);
         }
       }
@@ -313,6 +322,7 @@ void MainWindow::findUnnumberedWords() {
         size_t startPos = word1Match.position;
         size_t endPos = word2Match.position + word2Match.length;
         m_noNumberPositions.emplace_back(startPos, endPos);
+        m_allErrorsPositions.emplace_back(startPos, endPos);
         m_textBox->SetStyle(startPos, endPos, m_warningStyle);
       }
     }
@@ -325,6 +335,7 @@ void MainWindow::findUnnumberedWords() {
     // Check if this stem is known from valid references
     if (m_stemToBz.count(stemVec)) {
       m_noNumberPositions.emplace_back(wordMatch.position, wordMatch.position + wordMatch.length);
+      m_allErrorsPositions.emplace_back(wordMatch.position, wordMatch.position + wordMatch.length);
       m_textBox->SetStyle(wordMatch.position, wordMatch.position + wordMatch.length, m_warningStyle);
     }
   }
@@ -378,6 +389,7 @@ void MainWindow::checkArticleUsage() {
       // First occurrence: should not be definite article
       if (GermanTextAnalyzer::isDefiniteArticle(precedingWord)) {
         m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
+        m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
         m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
       }
       seenStems.insert(occ.stem);
@@ -400,10 +412,11 @@ void MainWindow::setupAndClear() {
   m_bzToOriginalWords.clear();
   m_bzToPositions.clear();
   m_stemToPositions.clear();
-  m_allStems.clear();
+  // m_allStems.clear();
 
   m_treeList->DeleteAllItems();
 
+  m_allErrorsPositions.clear();
   m_noNumberPositions.clear();
   m_wrongNumberPositions.clear();
   m_splitNumberPositions.clear();
@@ -414,36 +427,55 @@ void MainWindow::setupAndClear() {
   m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
 }
 
+void MainWindow::selectNextAllError(wxCommandEvent &event) {
+  ErrorNavigator::selectNext(m_allErrorsPositions, m_allErrorsSelected,
+                             m_textBox, m_allErrorsLabel.get());
+}
+
+void MainWindow::selectPreviousAllError(wxCommandEvent &event) {
+  ErrorNavigator::selectPrevious(m_allErrorsPositions, m_allErrorsSelected,
+                                 m_textBox, m_allErrorsLabel.get());
+}
+
 void MainWindow::selectNextNoNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
+  ErrorNavigator::selectNext(m_noNumberPositions, m_noNumberSelected, m_textBox,
+                             m_noNumberLabel.get());
 }
 
 void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_noNumberPositions, m_noNumberSelected, m_textBox, m_noNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_noNumberPositions, m_noNumberSelected,
+                                 m_textBox, m_noNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
+  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected,
+                             m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected, m_textBox, m_wrongNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected,
+                                 m_textBox, m_wrongNumberLabel.get());
 }
 
 void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
+  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected,
+                             m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected, m_textBox, m_splitNumberLabel.get());
+  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected,
+                                 m_textBox, m_splitNumberLabel.get());
 }
 
 void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
+  ErrorNavigator::selectNext(m_wrongArticlePositions, m_wrongArticleSelected,
+                             m_textBox, m_wrongArticleLabel.get());
 }
 
 void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_wrongArticlePositions, m_wrongArticleSelected, m_textBox, m_wrongArticleLabel.get());
+  ErrorNavigator::selectPrevious(m_wrongArticlePositions,
+                                 m_wrongArticleSelected, m_textBox,
+                                 m_wrongArticleLabel.get());
 }
 
 void MainWindow::setupUi() {
@@ -454,6 +486,7 @@ void MainWindow::setupUi() {
 
   wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
   wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
+  wxBoxSizer *allErrorsSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *noNumberSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
   wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -480,29 +513,47 @@ void MainWindow::setupUi() {
   m_notebookList->AddPage(m_treeList.get(), "overview");
   m_notebookList->AddPage(m_bzList.get(), "reference sign list");
 
+  // Navigation buttons for all errors
+  m_buttonBackwardAllErrors = std::make_shared<wxButton>(
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+  m_buttonForwardAllErrors = std::make_shared<wxButton>(
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+
   // Navigation buttons for unnumbered references
   m_buttonBackwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for wrong number errors
   m_buttonBackwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for split number errors
   m_buttonBackwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
 
   // Navigation buttons for wrong article errors
   m_buttonBackwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
   m_buttonForwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(50, -1));
+      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
+
+  // Layout for all errors row
+  allErrorsSizer->Add(m_buttonBackwardAllErrors.get());
+  allErrorsSizer->Add(m_buttonForwardAllErrors.get());
+  auto allErrorsDescription =
+      new wxStaticText(panel, wxID_ANY, "errors", wxDefaultPosition,
+                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
+  m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
+  allErrorsSizer->Add(m_allErrorsLabel.get(), 0,
+                      wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
+                      0);
 
   // Layout for unnumbered references row
   noNumberSizer->Add(m_buttonBackwardNoNumber.get());
@@ -511,8 +562,10 @@ void MainWindow::setupUi() {
       new wxStaticText(panel, wxID_ANY, "unnumbered", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT, 10);
-  noNumberSizer->Add(noNumberDescription, 0, wxLEFT, 0);
+  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
+                     10);
+  noNumberSizer->Add(noNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
+                     0);
 
   // Layout for wrong number row
   wrongNumberSizer->Add(m_buttonBackwardWrongNumber.get());
@@ -521,8 +574,10 @@ void MainWindow::setupUi() {
       new wxStaticText(panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
                        wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0, wxLEFT, 10);
-  wrongNumberSizer->Add(wrongNumberDescription, 0, wxLEFT, 0);
+  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0,
+                        wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  wrongNumberSizer->Add(wrongNumberDescription, 0,
+                        wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for split number row
   splitNumberSizer->Add(m_buttonBackwardSplitNumber.get());
@@ -531,8 +586,10 @@ void MainWindow::setupUi() {
       panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  splitNumberSizer->Add(m_splitNumberLabel.get(), 0, wxLEFT, 10);
-  splitNumberSizer->Add(splitNumberDescription, 0, wxLEFT, 0);
+  splitNumberSizer->Add(m_splitNumberLabel.get(), 0,
+                        wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  splitNumberSizer->Add(splitNumberDescription, 0,
+                        wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
   // Layout for wrong article row
   wrongArticleSizer->Add(m_buttonBackwardWrongArticle.get());
@@ -542,9 +599,13 @@ void MainWindow::setupUi() {
       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
   m_wrongArticleLabel =
       std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t");
-  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0, wxLEFT, 10);
-  wrongArticleSizer->Add(wrongArticleDescription, 0, wxLEFT, 0);
+  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0,
+                         wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+  wrongArticleSizer->Add(wrongArticleDescription, 0,
+                         wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
 
+  numberSizer->Add(allErrorsSizer, wxLEFT);
+  numberSizer->AddSpacer(10); // Vertical spacing between errors and unnumbered
   numberSizer->Add(noNumberSizer, wxLEFT);
   numberSizer->Add(wrongNumberSizer, wxLEFT);
   numberSizer->Add(splitNumberSizer, wxLEFT);
@@ -563,6 +624,10 @@ void MainWindow::setupBindings() {
   m_textBox->Bind(wxEVT_TEXT, &MainWindow::debounceFunc, this);
   m_debounceTimer.Bind(wxEVT_TIMER, &MainWindow::scanText, this);
 
+  m_buttonBackwardAllErrors->Bind(wxEVT_BUTTON,
+                                  &MainWindow::selectPreviousAllError, this);
+  m_buttonForwardAllErrors->Bind(wxEVT_BUTTON, &MainWindow::selectNextAllError,
+                                 this);
   m_buttonBackwardNoNumber->Bind(wxEVT_BUTTON,
                                  &MainWindow::selectPreviousNoNumber, this);
   m_buttonForwardNoNumber->Bind(wxEVT_BUTTON, &MainWindow::selectNextNoNumber,
@@ -707,7 +772,8 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
     const auto &positions = m_bzToPositions[bz];
 
-    // Get current occurrence index for this BZ (or initialize based on cursor position)
+    // Get current occurrence index for this BZ (or initialize based on cursor
+    // position)
     if (!m_bzCurrentOccurrence.count(bz)) {
       // Get current cursor position in the text
       long cursorPos = m_textBox->GetInsertionPoint();
@@ -716,7 +782,8 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
       int closestIdx = 0;
 
       // If cursor is past all occurrences, start from the beginning
-      if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
+      if (cursorPos >
+          static_cast<long>(positions[positions.size() - 1].second)) {
         closestIdx = 0;
       }
       // If cursor is before all occurrences, start from the first one
