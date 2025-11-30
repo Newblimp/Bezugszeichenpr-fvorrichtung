@@ -56,6 +56,11 @@ void MainWindow::debounceFunc(wxCommandEvent &event) {
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
+  // Freeze text control to prevent redraws during style updates
+  // This dramatically improves performance by batching all visual updates
+  m_textBox->Freeze();
+  m_textBox->BeginSuppressUndo();
+  
   Timer t_setup;
   setupAndClear();
   std::cout << "Time for setup and clearing: " << t_setup.elapsed() << " milliseconds\n";
@@ -193,6 +198,10 @@ void MainWindow::scanText(wxTimerEvent &event) {
   Timer t_fillBzList;
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
+  
+  // Thaw text control to apply all batched updates at once
+  m_textBox->EndSuppressUndo();
+  m_textBox->Thaw();
 }
 
 void MainWindow::fillListTree() {
