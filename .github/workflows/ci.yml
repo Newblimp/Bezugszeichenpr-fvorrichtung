@@ -69,6 +69,18 @@ jobs:
       run: |
         cmake --build build --config Release --parallel
 
+    - name: Install UPX
+      run: |
+        $upxVersion = "4.2.4"
+        $upxUrl = "https://github.com/upx/upx/releases/download/v$upxVersion/upx-$upxVersion-win64.zip"
+        Invoke-WebRequest -Uri $upxUrl -OutFile upx.zip
+        Expand-Archive -Path upx.zip -DestinationPath .
+        Move-Item "upx-$upxVersion-win64/upx.exe" upx.exe
+
+    - name: Compress executable with UPX
+      run: |
+        ./upx.exe --best --lzma build/Release/Bezugszeichenvorrichtung.exe
+
     - name: Upload Windows executable
       uses: actions/upload-artifact@v4
       with:
