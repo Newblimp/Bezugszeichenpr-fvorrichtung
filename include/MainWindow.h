@@ -16,6 +16,10 @@
 #include <wx/wx.h>
 #include <set>
 
+#ifdef ENABLE_PDF_PROCESSING
+#include "PDFPanel.h"
+#endif
+
 class MainWindow : public wxFrame {
 public:
   MainWindow();
@@ -35,6 +39,7 @@ private:
   void fillListTree();
   void fillBzList();
   bool isUniquelyAssigned(const std::wstring &bz);
+  void updatePDFPanel();
 
   // Error detection
   void findUnnumberedWords();
@@ -154,6 +159,10 @@ private:
   std::shared_ptr<wxRichTextCtrl> m_bzList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
+
+#ifdef ENABLE_PDF_PROCESSING
+  std::shared_ptr<PDFPanel> m_pdfPanel;
+#endif
 
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;

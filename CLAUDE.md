@@ -11,6 +11,11 @@
 - Validates German article usage (definite/indefinite)
 - Supports multi-word term matching (e.g., "zweites Lager")
 - Uses Oleander stemming library for German language morphology (handles plurals, cases)
+- **PDF Processing (Optional)**:
+  - Drag-and-drop PDF files containing patent figures
+  - OCR-based automatic detection of reference signs in images
+  - Visual comparison: green boxes for signs found in text, red boxes for signs not found
+  - Multi-page PDF support with progress indication
 
 ## Technology Stack
 
@@ -20,6 +25,11 @@
 - **NLP**: Oleander stemming library (header-only, German language support)
 - **Platform**: Cross-platform (Linux, Windows)
 - **Standard Library**: STL with modern C++ features
+- **PDF Processing (Optional)**:
+  - **MuPDF**: PDF rendering engine
+  - **Tesseract**: OCR engine for text recognition
+  - **Leptonica**: Image processing (required by Tesseract)
+  - Installation: See [PDF_SETUP.md](PDF_SETUP.md) for detailed instructions
 
 ## Project Structure
 
@@ -28,16 +38,19 @@ Bezugszeichenprüfvorrichtung/
 ├── CMakeLists.txt           # Build configuration
 ├── main.cpp                 # Application entry point
 ├── res.rc                   # Windows resource file (icons)
+├── PDF_SETUP.md             # PDF processing setup instructions
 ├── .gitmodules              # Git submodules (wxWidgets)
 ├── include/                 # Header files
 │   ├── MainWindow.h         # Main window class declaration
+│   ├── PDFPanel.h           # PDF viewer/processor (optional)
 │   ├── utils.h              # Utility types and functions
 │   ├── stem_collector.h     # Stem collection utilities
 │   ├── german_stem.h        # German stemming (Oleander)
 │   ├── stemming.h           # General stemming library
 │   └── common_lang_constants.h  # Language constants
 ├── src/                     # Source files
-│   ├── MainWindow.cpp       # Main window implementation (~900 lines)
+│   ├── MainWindow.cpp       # Main window implementation (~1000 lines)
+│   ├── PDFPanel.cpp         # PDF processing implementation (optional)
 │   ├── utils.cpp            # Utility function implementations
 │   └── stem_collector.cpp   # Stem collection logic
 ├── img/                     # Image assets
@@ -58,12 +71,20 @@ Bezugszeichenprüfvorrichtung/
    - Implements debounced text scanning (500ms delay)
    - Handles error detection and navigation
 
-2. **Data Structures** (see `include/utils.h`)
+2. **PDFPanel** (`include/PDFPanel.h`, `src/PDFPanel.cpp`) - Optional
+   - PDF viewer and OCR processor
+   - Renders PDF pages using MuPDF
+   - Performs OCR using Tesseract
+   - Compares detected reference signs with text analysis
+   - Draws colored bounding boxes (green=found, red=not found)
+   - Only compiled if MuPDF, Tesseract, and Leptonica are available
+
+3. **Data Structures** (see `include/utils.h`)
    - `StemVector`: Vector of stemmed word(s) representing a term
    - `StemVectorHash`: Custom hash function for unordered containers
    - `BZComparatorForMap`: Custom comparator for reference numbers (sorts numerically)
 
-3. **Key Mappings** (in MainWindow class)
+4. **Key Mappings** (in MainWindow class)
    ```cpp
    // Reference number -> stemmed terms
    std::map<std::wstring, std::unordered_set<StemVector>, BZComparatorForMap> m_bzToStems;
@@ -100,12 +121,39 @@ Bezugszeichenprüfvorrichtung/
    - `highlightConflicts()`: Detects conflicting number assignments
    - `checkArticleUsage()`: Validates definite/indefinite articles
 
+### PDF Processing Pipeline (Optional)
+
+1. **PDF Drop** → `PDFPanel::LoadPDF()` → File validation
+2. **Page Rendering**: MuPDF renders each page to high-resolution image (2x zoom for better OCR)
+   - Uses `fz_new_pixmap_from_page()` to convert PDF pages to RGB images
+   - Converts to wxImage format for display
+3. **OCR Processing**: Tesseract analyzes each rendered page
+   - Language: German (`deu.traineddata`)
+   - Mode: `PSM_SPARSE_TEXT` (optimized for finding scattered numbers)
+   - Character whitelist: digits and letters commonly found in reference signs
+4. **Reference Sign Extraction**:
+   - Validates detected text matches pattern: `^\d+[a-zA-Z']*$`
+   - Stores bounding box coordinates for each detection
+5. **Comparison**:
+   - Compares OCR results with `m_bzToStems` map from text analysis
+   - Sets `existsInText` flag for each detected sign
+6. **Annotation**:
+   - Draws colored rectangles on images:
+     - Green (RGB 0,255,0): Reference sign found in text
+     - Red (RGB 255,0,0): Reference sign NOT found in text
+   - Thickness: 3 pixels for visibility
+7. **Display**: Scrollable view of all annotated pages
+
 ### UI Components
 
-- **Main Text Box**: `wxRichTextCtrl` for input text with syntax highlighting
-- **Notebook Tabs**:
+- **Main Text Box** (Left): `wxRichTextCtrl` for input text with syntax highlighting
+- **Notebook Tabs** (Middle):
   - Reference Number List (`m_bzList`): Shows all BZ → terms mappings
   - Term Tree (`m_treeList`): Hierarchical view of terms and assignments
+- **PDF Panel** (Right, optional): `PDFPanel` for drag-and-drop PDF processing
+  - Visible only when compiled with PDF support (`ENABLE_PDF_PROCESSING`)
+  - Displays annotated pages with color-coded bounding boxes
+  - Shows progress dialog during OCR processing
 - **Navigation Buttons**: Jump to next/previous errors
   - No number errors (yellow highlight)
   - Wrong number errors (split assignments)
@@ -397,6 +445,40 @@ For each reference number:
 - **Key Classes**: `wxFrame`, `wxRichTextCtrl`, `wxTreeListCtrl`, `wxNotebook`, `wxTimer`
 - **Build**: Static linking enabled (wxBUILD_SHARED OFF)
 
+### PDF Processing Libraries (Optional)
+
+These libraries are optional and enable the PDF comparison feature when installed:
+
+#### MuPDF
+- **Purpose**: PDF rendering to images
+- **Version**: Any recent version compatible with vcpkg
+- **Installation**: `vcpkg install mupdf:x64-windows` (Windows) or `apt-get install libmupdf-dev` (Linux)
+- **Key Functions Used**:
+  - `fz_new_context()`: Initialize MuPDF context
+  - `fz_open_document()`: Open PDF file
+  - `fz_load_page()`: Load individual pages
+  - `fz_new_pixmap_from_page()`: Render page to image
+- **See**: [PDF_SETUP.md](PDF_SETUP.md) for detailed instructions
+
+#### Tesseract OCR
+- **Purpose**: Optical Character Recognition for finding reference signs in images
+- **Version**: 5.x (with LSTM engine)
+- **Installation**: `vcpkg install tesseract:x64-windows` (Windows) or `apt-get install libtesseract-dev` (Linux)
+- **Language Data Required**: German (`deu.traineddata`) must be installed
+- **Configuration**:
+  - Page Segmentation Mode: `PSM_SPARSE_TEXT` (best for scattered numbers)
+  - Character Whitelist: `0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+  - OEM Mode: `OEM_LSTM_ONLY` (uses neural network engine)
+- **Key Classes**: `TessBaseAPI`, `ResultIterator`
+
+#### Leptonica
+- **Purpose**: Image processing library (required by Tesseract)
+- **Version**: Compatible with Tesseract version
+- **Installation**: Usually installed automatically with Tesseract via vcpkg
+- **Usage**: Image format conversion (wxImage ↔ PIX format)
+
+**Compilation Note**: If any of these libraries are missing, CMake will automatically disable PDF processing and compile without the PDFPanel. The application will still function normally for text-only analysis.
+
 ## Performance Considerations
 
 1. **Debouncing**: 500ms delay prevents excessive rescanning during typing
@@ -404,6 +486,11 @@ For each reference number:
 3. **Build Optimizations**: O3, LTO (on MSVC), dead code elimination
 4. **Static Linking**: No runtime dependencies, larger binary but better performance
 5. **Text Size**: Designed for patent applications (~10-50 pages), may slow with very large texts
+6. **PDF Processing** (if enabled):
+   - **OCR Speed**: ~3-6 seconds per page depending on CPU
+   - **Memory**: Each page rendered at 2x resolution (~4-8MB per page)
+   - **Progress Dialog**: Keeps UI responsive during long OCR operations
+   - **Recommendation**: For large PDFs (>20 pages), expect 1-2 minutes processing time
 
 ## Known Issues & Limitations
 
@@ -412,6 +499,12 @@ For each reference number:
 3. **Article Detection**: May have false positives with complex grammar
 4. **Reference Number Format**: Assumes digits followed by optional letters (10, 10a, 10')
 5. **Text Encoding**: Requires Unicode (UTF-8/UTF-16), issues with legacy encodings
+6. **PDF Processing** (if enabled):
+   - **OCR Accuracy**: Depends on image quality; low-resolution PDFs may have poor detection
+   - **Handwritten Numbers**: OCR may struggle with handwritten annotations
+   - **Protected PDFs**: Encrypted/password-protected PDFs may not open
+   - **Language**: OCR configured for German; change language in `PDFPanel.cpp` if needed
+   - **Reference Sign Format**: Only detects pattern `\d+[a-zA-Z']*` (e.g., "10", "12a", "10'")
 
 ## Future Enhancement Ideas
 
@@ -437,6 +530,8 @@ When working on this codebase:
 - Follow the member variable naming convention (`m_prefix`)
 - Consider both Windows and Linux when modifying build files
 - Check that regex patterns use wide string types (`std::wregex`)
+- Use `#ifdef ENABLE_PDF_PROCESSING` guards when adding PDF-related code
+- Install PDF dependencies via vcpkg for Windows builds
 
 ❌ **DON'T**:
 - Mix narrow strings (`std::string`) with wide strings
@@ -445,17 +540,24 @@ When working on this codebase:
 - Break the debounce pattern (performance will suffer)
 - Change data structure types without updating hash/comparator functions
 - Forget to update both CMakeLists.txt sections (Windows/Linux)
+- Assume PDF libraries are always available (check ENABLE_PDF_PROCESSING)
+- Modify MuPDF, Tesseract, or Leptonica dependencies directly
 
 🔧 **Key Files**:
-- Core logic: `src/MainWindow.cpp` (~900 lines)
+- Core logic: `src/MainWindow.cpp` (~1000 lines)
+- PDF processing: `src/PDFPanel.cpp` (optional, ~400 lines)
 - Data structures: `include/MainWindow.h`, `include/utils.h`
 - Build config: `CMakeLists.txt`
 - Entry point: `main.cpp` (minimal, just creates MainWindow)
+- Setup guide: `PDF_SETUP.md` (vcpkg installation instructions)
 
 📊 **Architecture Summary**:
 ```
-User Input → Debounce Timer → Regex Scan → Stemming →
-Data Structure Update → Error Detection → UI Update (Highlighting + Lists)
+Text: User Input → Debounce Timer → Regex Scan → Stemming →
+      Data Structure Update → Error Detection → UI Update (Highlighting + Lists)
+
+PDF:  PDF Drop → Page Rendering (MuPDF) → OCR (Tesseract) →
+      Reference Sign Extraction → Comparison with Text → Annotation → Display
 ```
 
-Last updated: 2025-11-29
+Last updated: 2025-12-01

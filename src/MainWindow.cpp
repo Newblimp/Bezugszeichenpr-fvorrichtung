@@ -250,7 +250,10 @@ void MainWindow::scanText(wxTimerEvent &event) {
   Timer t_fillBzList;
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
-  
+
+  // Update PDF panel with detected reference signs
+  updatePDFPanel();
+
   // Thaw text control to apply all batched updates at once
   m_textBox->EndSuppressUndo();
   m_textBox->Thaw();
@@ -642,6 +645,12 @@ void MainWindow::setupUi() {
   
   viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
+
+#ifdef ENABLE_PDF_PROCESSING
+  // Add PDF panel as third section
+  m_pdfPanel = std::make_shared<PDFPanel>(panel);
+  viewSizer->Add(m_pdfPanel.get(), 1, wxEXPAND | wxALL, 10);
+#endif
 
   // Tree list for displaying BZ-term mappings
   m_treeList = std::make_shared<wxTreeListCtrl>(
@@ -1056,6 +1065,23 @@ void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
   m_clearedTextPositions.clear();
   m_clearedErrors.clear();
   m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::updatePDFPanel() {
+#ifdef ENABLE_PDF_PROCESSING
+  if (!m_pdfPanel) {
+    return;
+  }
+
+  // Collect all reference signs from m_bzToStems
+  std::set<std::wstring> refSigns;
+  for (const auto& [bz, stems] : m_bzToStems) {
+    refSigns.insert(bz);
+  }
+
+  // Update the PDF panel with the reference signs for comparison
+  m_pdfPanel->SetTextReferenceSignsForComparison(refSigns);
+#endif
 }
 
 
