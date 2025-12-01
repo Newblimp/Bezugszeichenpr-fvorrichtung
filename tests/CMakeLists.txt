@@ -30,3 +30,9 @@ target_link_libraries(
 # Discover tests for CTest
 include(GoogleTest)
 gtest_discover_tests(unit_tests)
+
+# Add coverage flags to test executable if coverage is enabled
+if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+  target_compile_options(unit_tests PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+  target_link_options(unit_tests PRIVATE --coverage)
+endif()

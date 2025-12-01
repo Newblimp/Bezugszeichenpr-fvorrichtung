@@ -15,8 +15,14 @@ else()
   add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+# MSVC optimization flags
+if(MSVC)
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
+else()
+# Optimization and linker flags (GCC/Clang only, MSVC uses different syntax)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+endif()
 
 # Tell Abseil's CMake to generate install and export targets
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "Enable installation and export of Abseil targets." FORCE)
@@ -54,6 +60,13 @@ FetchContent_MakeAvailable(googletest)
 
 # Enable testing
 enable_testing()
+
+# Handle code coverage flags
+# If --coverage is in CXX_FLAGS, we need to add it to linker flags too
+if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+  message(STATUS "Code coverage enabled")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+endif()
 
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
