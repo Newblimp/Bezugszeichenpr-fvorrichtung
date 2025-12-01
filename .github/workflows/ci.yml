@@ -79,7 +79,7 @@ jobs:
 
     - name: Compress executable with UPX
       run: |
-        ./upx.exe --best --lzma build/Release/Bezugszeichenvorrichtung.exe
+        ./upx.exe --ultra-brute --lzma build/Release/Bezugszeichenvorrichtung.exe
 
     - name: Upload Windows executable
       uses: actions/upload-artifact@v4
