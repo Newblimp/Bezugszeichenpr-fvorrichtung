@@ -55,15 +55,56 @@ FetchContent_MakeAvailable(googletest)
 # Enable testing
 enable_testing()
 
-# Find Tesseract OCR library
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(TESSERACT REQUIRED tesseract)
-pkg_check_modules(LEPTONICA REQUIRED lept)
+# Optional PDF analysis feature (requires Tesseract OCR and MuPDF)
+option(ENABLE_PDF_ANALYSIS "Enable PDF patent figure analysis with OCR" OFF)
 
-# Find MuPDF library for PDF rendering
-find_library(MUPDF_LIB mupdf REQUIRED)
-find_library(MUPDF_THIRD_LIB mupdf-third REQUIRED)
-find_path(MUPDF_INCLUDE_DIR mupdf/fitz.h REQUIRED)
+if(ENABLE_PDF_ANALYSIS)
+  if(WIN32)
+    # Windows: Manual library configuration
+    # Users should set these variables or install vcpkg packages
+    find_path(TESSERACT_INCLUDE_DIR tesseract/baseapi.h)
+    find_library(TESSERACT_LIB tesseract)
+    find_path(LEPTONICA_INCLUDE_DIR leptonica/allheaders.h)
+    find_library(LEPTONICA_LIB lept)
+    find_path(MUPDF_INCLUDE_DIR mupdf/fitz.h)
+    find_library(MUPDF_LIB mupdf)
+    find_library(MUPDF_THIRD_LIB mupdf-third)
+
+    if(TESSERACT_INCLUDE_DIR AND TESSERACT_LIB AND LEPTONICA_INCLUDE_DIR AND
+       LEPTONICA_LIB AND MUPDF_INCLUDE_DIR AND MUPDF_LIB)
+      set(PDF_ANALYSIS_AVAILABLE TRUE)
+      set(TESSERACT_INCLUDE_DIRS ${TESSERACT_INCLUDE_DIR})
+      set(LEPTONICA_INCLUDE_DIRS ${LEPTONICA_INCLUDE_DIR})
+      set(TESSERACT_LIBRARIES ${TESSERACT_LIB})
+      set(LEPTONICA_LIBRARIES ${LEPTONICA_LIB})
+      message(STATUS "PDF Analysis: ENABLED (Windows)")
+    else()
+      set(PDF_ANALYSIS_AVAILABLE FALSE)
+      message(WARNING "PDF Analysis: Dependencies not found. Feature will be disabled.")
+      message(STATUS "  Install via vcpkg: vcpkg install tesseract leptonica mupdf")
+    endif()
+  else()
+    # Linux/Unix: Use pkg-config
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(TESSERACT tesseract)
+    pkg_check_modules(LEPTONICA lept)
+    find_library(MUPDF_LIB mupdf)
+    find_library(MUPDF_THIRD_LIB mupdf-third)
+    find_path(MUPDF_INCLUDE_DIR mupdf/fitz.h)
+
+    if(TESSERACT_FOUND AND LEPTONICA_FOUND AND MUPDF_LIB AND MUPDF_INCLUDE_DIR)
+      set(PDF_ANALYSIS_AVAILABLE TRUE)
+      message(STATUS "PDF Analysis: ENABLED (Unix)")
+    else()
+      set(PDF_ANALYSIS_AVAILABLE FALSE)
+      message(WARNING "PDF Analysis: Dependencies not found. Feature will be disabled.")
+      message(STATUS "  Install: sudo apt-get install tesseract-ocr libtesseract-dev libleptonica-dev libmupdf-dev")
+    endif()
+  endif()
+else()
+  set(PDF_ANALYSIS_AVAILABLE FALSE)
+  message(STATUS "PDF Analysis: DISABLED (use -DENABLE_PDF_ANALYSIS=ON to enable)")
+endif()
 
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -95,7 +136,34 @@ set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/wxWidgets)
-include_directories(include img ${TESSERACT_INCLUDE_DIRS} ${LEPTONICA_INCLUDE_DIRS} ${MUPDF_INCLUDE_DIR})
+
+# Base include directories
+include_directories(include img)
+
+# Add PDF analysis includes if available
+if(PDF_ANALYSIS_AVAILABLE)
+  include_directories(${TESSERACT_INCLUDE_DIRS} ${LEPTONICA_INCLUDE_DIRS} ${MUPDF_INCLUDE_DIR})
+  add_definitions(-DHAVE_PDF_ANALYSIS=1)
+endif()
+
+# Common source files
+set(COMMON_SOURCES
+  main.cpp
+  src/MainWindow.cpp
+  src/utils.cpp
+  src/utils_core.cpp
+  src/GermanTextAnalyzer.cpp
+  src/EnglishTextAnalyzer.cpp
+  src/ErrorNavigator.cpp
+  src/RE2RegexHelper.cpp
+  src/stem_collector.cpp
+  img/check_16.xpm
+)
+
+# Add PDF analysis source if available
+if(PDF_ANALYSIS_AVAILABLE)
+  list(APPEND COMMON_SOURCES src/PDFPanel.cpp)
+endif()
 
 # Add executable target
 if(WIN32)
@@ -106,18 +174,28 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/PDFPanel.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 ${COMMON_SOURCES} img/app_icon.ico res.rc)
 else()
   add_compile_options(-Wno-write-strings)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/PDFPanel.cpp img/check_16.xpm src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung ${COMMON_SOURCES})
 endif()
-# Link against wxWidgets, RE2, Tesseract, and MuPDF libraries
+# Link against wxWidgets and RE2 (always required)
 target_link_libraries(Bezugszeichenvorrichtung
     wx::core wx::base wx::richtext re2
-    ${TESSERACT_LIBRARIES} ${LEPTONICA_LIBRARIES}
-    ${MUPDF_LIB} ${MUPDF_THIRD_LIB}
 )
+
+# Link PDF analysis libraries if available
+if(PDF_ANALYSIS_AVAILABLE)
+  target_link_libraries(Bezugszeichenvorrichtung
+    ${TESSERACT_LIBRARIES}
+    ${LEPTONICA_LIBRARIES}
+    ${MUPDF_LIB}
+  )
+  if(MUPDF_THIRD_LIB)
+    target_link_libraries(Bezugszeichenvorrichtung ${MUPDF_THIRD_LIB})
+  endif()
+endif()
 
 # Add tests subdirectory
 add_subdirectory(tests)

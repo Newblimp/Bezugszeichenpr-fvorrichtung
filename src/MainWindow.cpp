@@ -251,8 +251,10 @@ void MainWindow::scanText(wxTimerEvent &event) {
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
 
+#ifdef HAVE_PDF_ANALYSIS
   // Sync reference numbers with PDF panel
   syncPDFReferences();
+#endif
 
   // Thaw text control to apply all batched updates at once
   m_textBox->EndSuppressUndo();
@@ -646,9 +648,11 @@ void MainWindow::setupUi() {
   viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
 
+#ifdef HAVE_PDF_ANALYSIS
   // Add PDF panel on the right
   m_pdfPanel = std::make_shared<PDFPanel>(panel);
   viewSizer->Add(m_pdfPanel.get(), 1, wxEXPAND | wxALL, 10);
+#endif
 
   // Tree list for displaying BZ-term mappings
   m_treeList = std::make_shared<wxTreeListCtrl>(
@@ -1074,6 +1078,7 @@ void MainWindow::onLanguageChanged(wxCommandEvent &event) {
   m_debounceTimer.Start(1, true);
 }
 
+#ifdef HAVE_PDF_ANALYSIS
 void MainWindow::syncPDFReferences() {
   if (!m_pdfPanel) return;
 
@@ -1086,3 +1091,4 @@ void MainWindow::syncPDFReferences() {
   // Update the PDF panel with the new reference numbers
   m_pdfPanel->setTextReferences(textReferences);
 }
+#endif

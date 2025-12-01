@@ -3,7 +3,9 @@
 #include "EnglishTextAnalyzer.h"
 #include "RE2RegexHelper.h"
 #include "utils.h"
+#ifdef HAVE_PDF_ANALYSIS
 #include "PDFPanel.h"
+#endif
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
 #include "wx/textctrl.h"
@@ -36,7 +38,9 @@ private:
   void fillListTree();
   void fillBzList();
   bool isUniquelyAssigned(const std::wstring &bz);
+#ifdef HAVE_PDF_ANALYSIS
   void syncPDFReferences();
+#endif
 
   // Error detection
   void findUnnumberedWords();
@@ -156,7 +160,9 @@ private:
   std::shared_ptr<wxRichTextCtrl> m_bzList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
+#ifdef HAVE_PDF_ANALYSIS
   std::shared_ptr<PDFPanel> m_pdfPanel;
+#endif
 
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;
