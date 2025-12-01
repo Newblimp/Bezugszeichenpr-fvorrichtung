@@ -250,7 +250,10 @@ void MainWindow::scanText(wxTimerEvent &event) {
   Timer t_fillBzList;
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
-  
+
+  // Sync reference numbers with PDF panel
+  syncPDFReferences();
+
   // Thaw text control to apply all batched updates at once
   m_textBox->EndSuppressUndo();
   m_textBox->Thaw();
@@ -639,9 +642,13 @@ void MainWindow::setupUi() {
   wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
   mainSizer->Add(viewSizer, 1, wxEXPAND);
   panel->SetSizer(mainSizer);
-  
+
   viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
+
+  // Add PDF panel on the right
+  m_pdfPanel = std::make_shared<PDFPanel>(panel);
+  viewSizer->Add(m_pdfPanel.get(), 1, wxEXPAND | wxALL, 10);
 
   // Tree list for displaying BZ-term mappings
   m_treeList = std::make_shared<wxTreeListCtrl>(
@@ -1062,7 +1069,20 @@ void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
 void MainWindow::onLanguageChanged(wxCommandEvent &event) {
   // Update language selection
   s_useGerman = (m_languageSelector->GetSelection() == 0);
-  
+
   // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::syncPDFReferences() {
+  if (!m_pdfPanel) return;
+
+  // Collect all reference numbers from the text
+  std::unordered_set<std::wstring> textReferences;
+  for (const auto& [bz, stems] : m_bzToStems) {
+    textReferences.insert(bz);
+  }
+
+  // Update the PDF panel with the new reference numbers
+  m_pdfPanel->setTextReferences(textReferences);
 }

@@ -55,6 +55,16 @@ FetchContent_MakeAvailable(googletest)
 # Enable testing
 enable_testing()
 
+# Find Tesseract OCR library
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(TESSERACT REQUIRED tesseract)
+pkg_check_modules(LEPTONICA REQUIRED lept)
+
+# Find MuPDF library for PDF rendering
+find_library(MUPDF_LIB mupdf REQUIRED)
+find_library(MUPDF_THIRD_LIB mupdf-third REQUIRED)
+find_path(MUPDF_INCLUDE_DIR mupdf/fitz.h REQUIRED)
+
 # Strip symbols in release builds for smaller binary size
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   if(NOT MSVC)
@@ -85,7 +95,7 @@ set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/wxWidgets)
-include_directories(include img)
+include_directories(include img ${TESSERACT_INCLUDE_DIRS} ${LEPTONICA_INCLUDE_DIRS} ${MUPDF_INCLUDE_DIR})
 
 # Add executable target
 if(WIN32)
@@ -96,14 +106,18 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/PDFPanel.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_compile_options(-Wno-write-strings)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/PDFPanel.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
-# Link against wxWidgets and RE2 libraries
-target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
+# Link against wxWidgets, RE2, Tesseract, and MuPDF libraries
+target_link_libraries(Bezugszeichenvorrichtung
+    wx::core wx::base wx::richtext re2
+    ${TESSERACT_LIBRARIES} ${LEPTONICA_LIBRARIES}
+    ${MUPDF_LIB} ${MUPDF_THIRD_LIB}
+)
 
 # Add tests subdirectory
 add_subdirectory(tests)
