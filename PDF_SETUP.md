@@ -1,15 +1,15 @@
 # PDF Processing Setup Guide
 
-This guide explains how to enable PDF processing features in Bezugszeichenprüfvorrichtung. The PDF processing feature allows you to:
+This guide explains how to install the required dependencies for Bezugszeichenprüfvorrichtung. The PDF processing feature allows you to:
 
 - Drag and drop multi-page PDF files containing patent figures
 - Automatically detect reference signs using OCR (Optical Character Recognition)
 - Compare detected reference signs with those found in the text
 - View annotated PDFs with green boxes (sign found in text) and red boxes (sign not found in text)
 
-## Prerequisites
+## Required Dependencies
 
-The PDF processing feature requires three external libraries:
+The application requires three external libraries to compile and run:
 
 1. **MuPDF** - For PDF rendering
 2. **Tesseract** - For OCR (text recognition from images)
@@ -134,21 +134,17 @@ When you run CMake, you should see messages indicating the libraries were found:
 -- MuPDF found via vcpkg
 -- Tesseract found via vcpkg
 -- Leptonica found via vcpkg
--- PDF processing will be ENABLED (MuPDF + Tesseract + Leptonica)
+-- PDF processing libraries found - feature will be enabled
 ```
 
-If libraries are missing, you'll see:
+If any library is missing, CMake will fail with an error message:
 
 ```
--- PDF processing will be DISABLED. Missing libraries:
---   - MuPDF not found
---   - Tesseract not found
---   - Leptonica not found
--- To enable PDF processing, install via vcpkg:
---   vcpkg install mupdf tesseract leptonica
+CMake Error at CMakeLists.txt:108 (message):
+  MuPDF not found. Install via vcpkg: vcpkg install mupdf
 ```
 
-The application will still build successfully without PDF processing - you just won't see the third PDF panel in the UI.
+**Note**: All three libraries (MuPDF, Tesseract, and Leptonica) are required. The application will not build without them.
 
 ## Using the PDF Feature
 

@@ -646,11 +646,9 @@ void MainWindow::setupUi() {
   viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
   viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
 
-#ifdef ENABLE_PDF_PROCESSING
   // Add PDF panel as third section
   m_pdfPanel = std::make_shared<PDFPanel>(panel);
   viewSizer->Add(m_pdfPanel.get(), 1, wxEXPAND | wxALL, 10);
-#endif
 
   // Tree list for displaying BZ-term mappings
   m_treeList = std::make_shared<wxTreeListCtrl>(
@@ -1068,7 +1066,6 @@ void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
 }
 
 void MainWindow::updatePDFPanel() {
-#ifdef ENABLE_PDF_PROCESSING
   if (!m_pdfPanel) {
     return;
   }
@@ -1081,7 +1078,6 @@ void MainWindow::updatePDFPanel() {
 
   // Update the PDF panel with the reference signs for comparison
   m_pdfPanel->SetTextReferenceSignsForComparison(refSigns);
-#endif
 }
 
 

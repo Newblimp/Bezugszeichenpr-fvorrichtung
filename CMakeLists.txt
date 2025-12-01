@@ -87,11 +87,10 @@ set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/wxWidgets)
 include_directories(include img)
 
-# Find MuPDF library
+# Find MuPDF library (REQUIRED)
 find_package(unofficial-mupdf CONFIG)
 if(unofficial-mupdf_FOUND)
     set(MUPDF_LIBRARIES unofficial::mupdf unofficial::mupdf-third)
-    add_definitions(-DHAVE_MUPDF=1)
     message(STATUS "MuPDF found via vcpkg")
 else()
     # Try pkg-config as fallback
@@ -99,19 +98,21 @@ else()
     if(PkgConfig_FOUND)
         pkg_check_modules(MUPDF mupdf)
         if(MUPDF_FOUND)
-            add_definitions(-DHAVE_MUPDF=1)
             include_directories(${MUPDF_INCLUDE_DIRS})
             link_directories(${MUPDF_LIBRARY_DIRS})
             message(STATUS "MuPDF found via pkg-config")
         endif()
     endif()
+
+    if(NOT MUPDF_FOUND)
+        message(FATAL_ERROR "MuPDF not found. Install via vcpkg: vcpkg install mupdf")
+    endif()
 endif()
 
-# Find Tesseract and Leptonica libraries
+# Find Tesseract library (REQUIRED)
 find_package(Tesseract CONFIG)
 if(Tesseract_FOUND)
     set(TESSERACT_LIBRARIES libtesseract)
-    add_definitions(-DHAVE_TESSERACT=1)
     message(STATUS "Tesseract found via vcpkg")
 else()
     # Try pkg-config as fallback
@@ -119,15 +120,19 @@ else()
     if(PkgConfig_FOUND)
         pkg_check_modules(TESSERACT tesseract)
         if(TESSERACT_FOUND)
-            add_definitions(-DHAVE_TESSERACT=1)
             include_directories(${TESSERACT_INCLUDE_DIRS})
             link_directories(${TESSERACT_LIBRARY_DIRS})
             set(TESSERACT_LIBRARIES ${TESSERACT_LIBRARIES})
             message(STATUS "Tesseract found via pkg-config")
         endif()
     endif()
+
+    if(NOT TESSERACT_FOUND)
+        message(FATAL_ERROR "Tesseract not found. Install via vcpkg: vcpkg install tesseract")
+    endif()
 endif()
 
+# Find Leptonica library (REQUIRED)
 find_package(Leptonica CONFIG)
 if(Leptonica_FOUND)
     set(LEPTONICA_LIBRARIES leptonica)
@@ -143,26 +148,13 @@ else()
             message(STATUS "Leptonica found via pkg-config")
         endif()
     endif()
+
+    if(NOT LEPTONICA_FOUND)
+        message(FATAL_ERROR "Leptonica not found. Install via vcpkg: vcpkg install leptonica")
+    endif()
 endif()
 
-# Check if PDF processing is available
-if(MUPDF_LIBRARIES AND TESSERACT_LIBRARIES AND LEPTONICA_LIBRARIES)
-    message(STATUS "PDF processing will be ENABLED (MuPDF + Tesseract + Leptonica)")
-    add_definitions(-DENABLE_PDF_PROCESSING=1)
-else()
-    message(WARNING "PDF processing will be DISABLED. Missing libraries:")
-    if(NOT MUPDF_LIBRARIES)
-        message(WARNING "  - MuPDF not found")
-    endif()
-    if(NOT TESSERACT_LIBRARIES)
-        message(WARNING "  - Tesseract not found")
-    endif()
-    if(NOT LEPTONICA_LIBRARIES)
-        message(WARNING "  - Leptonica not found")
-    endif()
-    message(WARNING "To enable PDF processing, install via vcpkg:")
-    message(WARNING "  vcpkg install mupdf tesseract leptonica")
-endif()
+message(STATUS "PDF processing libraries found - feature will be enabled")
 
 # Add executable target
 if(WIN32)
@@ -173,34 +165,23 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  # Windows executable with conditional PDFPanel
-  if(ENABLE_PDF_PROCESSING)
-    add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp src/PDFPanel.cpp res.rc)
-  else()
-    add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc)
-  endif()
+  # Windows executable
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp src/PDFPanel.cpp res.rc)
 else()
   add_compile_options(-Wno-write-strings)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
-  # Linux executable with conditional PDFPanel
-  if(ENABLE_PDF_PROCESSING)
-    add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm src/stem_collector.cpp src/PDFPanel.cpp)
-  else()
-    add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm src/stem_collector.cpp)
-  endif()
+  # Linux executable
+  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp img/check_16.xpm src/stem_collector.cpp src/PDFPanel.cpp)
 endif()
 
-# Link against wxWidgets and RE2 libraries
-target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
-
-# Link PDF processing libraries if available
-if(ENABLE_PDF_PROCESSING)
-    target_link_libraries(Bezugszeichenvorrichtung
-        ${MUPDF_LIBRARIES}
-        ${TESSERACT_LIBRARIES}
-        ${LEPTONICA_LIBRARIES}
-    )
-endif()
+# Link against wxWidgets, RE2, and PDF processing libraries
+target_link_libraries(Bezugszeichenvorrichtung
+    wx::core wx::base wx::richtext
+    re2
+    ${MUPDF_LIBRARIES}
+    ${TESSERACT_LIBRARIES}
+    ${LEPTONICA_LIBRARIES}
+)
 
 # Add tests subdirectory
 add_subdirectory(tests)

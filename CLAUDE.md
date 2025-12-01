@@ -11,7 +11,7 @@
 - Validates German article usage (definite/indefinite)
 - Supports multi-word term matching (e.g., "zweites Lager")
 - Uses Oleander stemming library for German language morphology (handles plurals, cases)
-- **PDF Processing (Optional)**:
+- **PDF Processing**:
   - Drag-and-drop PDF files containing patent figures
   - OCR-based automatic detection of reference signs in images
   - Visual comparison: green boxes for signs found in text, red boxes for signs not found
@@ -22,10 +22,10 @@
 - **Language**: C++20
 - **GUI Framework**: wxWidgets 3.x (statically linked)
 - **Build System**: CMake 3.10+
-- **NLP**: Oleander stemming library (header-only, German language support)
+- **NLP**: Oleander stemming library for German language morphology (header-only)
 - **Platform**: Cross-platform (Linux, Windows)
 - **Standard Library**: STL with modern C++ features
-- **PDF Processing (Optional)**:
+- **PDF Processing Libraries** (Required):
   - **MuPDF**: PDF rendering engine
   - **Tesseract**: OCR engine for text recognition
   - **Leptonica**: Image processing (required by Tesseract)
@@ -42,7 +42,7 @@ Bezugszeichenprüfvorrichtung/
 ├── .gitmodules              # Git submodules (wxWidgets)
 ├── include/                 # Header files
 │   ├── MainWindow.h         # Main window class declaration
-│   ├── PDFPanel.h           # PDF viewer/processor (optional)
+│   ├── PDFPanel.h           # PDF viewer/processor
 │   ├── utils.h              # Utility types and functions
 │   ├── stem_collector.h     # Stem collection utilities
 │   ├── german_stem.h        # German stemming (Oleander)
@@ -50,7 +50,7 @@ Bezugszeichenprüfvorrichtung/
 │   └── common_lang_constants.h  # Language constants
 ├── src/                     # Source files
 │   ├── MainWindow.cpp       # Main window implementation (~1000 lines)
-│   ├── PDFPanel.cpp         # PDF processing implementation (optional)
+│   ├── PDFPanel.cpp         # PDF processing implementation
 │   ├── utils.cpp            # Utility function implementations
 │   └── stem_collector.cpp   # Stem collection logic
 ├── img/                     # Image assets
@@ -71,13 +71,12 @@ Bezugszeichenprüfvorrichtung/
    - Implements debounced text scanning (500ms delay)
    - Handles error detection and navigation
 
-2. **PDFPanel** (`include/PDFPanel.h`, `src/PDFPanel.cpp`) - Optional
+2. **PDFPanel** (`include/PDFPanel.h`, `src/PDFPanel.cpp`)
    - PDF viewer and OCR processor
    - Renders PDF pages using MuPDF
    - Performs OCR using Tesseract
    - Compares detected reference signs with text analysis
    - Draws colored bounding boxes (green=found, red=not found)
-   - Only compiled if MuPDF, Tesseract, and Leptonica are available
 
 3. **Data Structures** (see `include/utils.h`)
    - `StemVector`: Vector of stemmed word(s) representing a term
@@ -121,7 +120,7 @@ Bezugszeichenprüfvorrichtung/
    - `highlightConflicts()`: Detects conflicting number assignments
    - `checkArticleUsage()`: Validates definite/indefinite articles
 
-### PDF Processing Pipeline (Optional)
+### PDF Processing Pipeline
 
 1. **PDF Drop** → `PDFPanel::LoadPDF()` → File validation
 2. **Page Rendering**: MuPDF renders each page to high-resolution image (2x zoom for better OCR)
@@ -150,8 +149,7 @@ Bezugszeichenprüfvorrichtung/
 - **Notebook Tabs** (Middle):
   - Reference Number List (`m_bzList`): Shows all BZ → terms mappings
   - Term Tree (`m_treeList`): Hierarchical view of terms and assignments
-- **PDF Panel** (Right, optional): `PDFPanel` for drag-and-drop PDF processing
-  - Visible only when compiled with PDF support (`ENABLE_PDF_PROCESSING`)
+- **PDF Panel** (Right): `PDFPanel` for drag-and-drop PDF processing
   - Displays annotated pages with color-coded bounding boxes
   - Shows progress dialog during OCR processing
 - **Navigation Buttons**: Jump to next/previous errors
@@ -445,9 +443,9 @@ For each reference number:
 - **Key Classes**: `wxFrame`, `wxRichTextCtrl`, `wxTreeListCtrl`, `wxNotebook`, `wxTimer`
 - **Build**: Static linking enabled (wxBUILD_SHARED OFF)
 
-### PDF Processing Libraries (Optional)
+### PDF Processing Libraries (Required)
 
-These libraries are optional and enable the PDF comparison feature when installed:
+These libraries are required for the PDF comparison feature:
 
 #### MuPDF
 - **Purpose**: PDF rendering to images
@@ -477,7 +475,7 @@ These libraries are optional and enable the PDF comparison feature when installe
 - **Installation**: Usually installed automatically with Tesseract via vcpkg
 - **Usage**: Image format conversion (wxImage ↔ PIX format)
 
-**Compilation Note**: If any of these libraries are missing, CMake will automatically disable PDF processing and compile without the PDFPanel. The application will still function normally for text-only analysis.
+**Important**: All three PDF libraries (MuPDF, Tesseract, Leptonica) are required. CMake will fail with an error if any are missing. See [PDF_SETUP.md](PDF_SETUP.md) for installation instructions.
 
 ## Performance Considerations
 
@@ -530,7 +528,7 @@ When working on this codebase:
 - Follow the member variable naming convention (`m_prefix`)
 - Consider both Windows and Linux when modifying build files
 - Check that regex patterns use wide string types (`std::wregex`)
-- Use `#ifdef ENABLE_PDF_PROCESSING` guards when adding PDF-related code
+- Ensure PDF dependencies are installed (MuPDF, Tesseract, Leptonica)
 - Install PDF dependencies via vcpkg for Windows builds
 
 ❌ **DON'T**:
@@ -540,12 +538,11 @@ When working on this codebase:
 - Break the debounce pattern (performance will suffer)
 - Change data structure types without updating hash/comparator functions
 - Forget to update both CMakeLists.txt sections (Windows/Linux)
-- Assume PDF libraries are always available (check ENABLE_PDF_PROCESSING)
 - Modify MuPDF, Tesseract, or Leptonica dependencies directly
 
 🔧 **Key Files**:
 - Core logic: `src/MainWindow.cpp` (~1000 lines)
-- PDF processing: `src/PDFPanel.cpp` (optional, ~400 lines)
+- PDF processing: `src/PDFPanel.cpp` (~400 lines)
 - Data structures: `include/MainWindow.h`, `include/utils.h`
 - Build config: `CMakeLists.txt`
 - Entry point: `main.cpp` (minimal, just creates MainWindow)

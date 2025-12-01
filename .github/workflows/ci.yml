@@ -61,13 +61,32 @@ jobs:
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
 
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: '01f602195983451bc83e72f4214af2cbc495aa94'
+
+    - name: Install PDF dependencies
+      run: |
+        vcpkg install mupdf:x64-windows tesseract:x64-windows leptonica:x64-windows
+
+    - name: Download Tesseract language data
+      run: |
+        New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\tessdata"
+        Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata/raw/main/deu.traineddata" -OutFile "$env:GITHUB_WORKSPACE\tessdata\deu.traineddata"
+      shell: pwsh
+
     - name: Configure CMake
       run: |
-        cmake -B build -G "Visual Studio 17 2022" -A x64
+        $env:TESSDATA_PREFIX = "$env:GITHUB_WORKSPACE\tessdata"
+        cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+      shell: pwsh
 
     - name: Build
       run: |
+        $env:TESSDATA_PREFIX = "$env:GITHUB_WORKSPACE\tessdata"
         cmake --build build --config Release --parallel
+      shell: pwsh
 
     - name: Install UPX
       run: |
