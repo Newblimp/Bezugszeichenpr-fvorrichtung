@@ -6,3 +6,9 @@ multi term words are also supported for terms composed with two words (right cli
 
 Wrong definite/indefinite articles are highlighted cyan, wrong reference signs yellow
 
+# TODO
+
+- ignore "Figure", "Figur", "Figuren" etc. when scanning for terms
+- ignore der, die, das, dem, und, and other short connectors when scanning for terms
+- separate scanning and GUI thread
+- clearing errors in the textbox should clear errors in the list if applicable
