@@ -133,3 +133,56 @@ jobs:
       with:
         name: coverage-report
         path: coverage.info
+# ------------------------------------------------------------------
+# NEW JOB: Builds Release EXE, Compresses with UPX, and Publishes
+# ------------------------------------------------------------------
+  release-nightly:
+    name: Release Nightly (Windows)
+    # Only run this on the main branch, and only on push (not PRs)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Wait for tests to pass before releasing
+    needs: [test-windows, test-linux]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    # Install UPX using Chocolatey (pre-installed on GitHub Windows runners)
+    - name: Install UPX
+      run: choco install upx
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Configure CMake
+      # Ensure we are building for Release
+      run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Compress with UPX
+      # Finds all .exe files in the Release folder and compresses them.
+      # Excludes unit_tests.exe if it happens to be there.
+      # Note: Adjust 'build/Release/*.exe' if your binary is in 'build/src/Release/'
+      run: |
+        Get-ChildItem -Path build/Release/*.exe -Exclude "*unit_tests*" | ForEach-Object {
+            Write-Host "Compressing $_..."
+            upx --best $_.FullName
+        }
+
+    - name: Upload Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: nightly
+        name: Nightly Build (Latest Main)
+        draft: false
+        prerelease: true
+        # This uploads any .exe found in the Release folder (excluding tests ideally)
+        # If your CMake puts the main exe in 'build/src/Release', change this path below.
+        files: build/Release/*.exe
