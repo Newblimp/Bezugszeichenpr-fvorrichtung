@@ -62,10 +62,25 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 # Handle code coverage flags
-# If --coverage is in CXX_FLAGS, we need to add it to linker flags too
-if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+# Enable code coverage if requested via CMAKE_CXX_FLAGS or ENABLE_COVERAGE option
+option(ENABLE_COVERAGE "Enable code coverage reporting" OFF)
+if(ENABLE_COVERAGE)
   message(STATUS "Code coverage enabled")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+  if(MSVC)
+    # MSVC coverage instrumentation
+    add_compile_options(/d2cgsummary)
+  else()
+    # GCC/Clang coverage instrumentation
+    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+  endif()
+endif()
+# Also handle if --coverage is already in CXX_FLAGS
+if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+  message(STATUS "Code coverage enabled via CMAKE_CXX_FLAGS")
+  if(NOT MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+  endif()
 endif()
 
 # Strip symbols in release builds for smaller binary size
