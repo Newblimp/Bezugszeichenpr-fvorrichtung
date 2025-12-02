@@ -8,7 +8,16 @@ Wrong definite/indefinite articles are highlighted cyan, wrong reference signs y
 
 # TODO
 
+- separate scanning and GUI thread
+- ~~clearing errors in the textbox should clear errors in the list if applicable~~
+- ~~ignore "Figure", "Figur", "Figuren" etc. when scanning for terms~~
+- ~~ignore der, die, das, dem, und, and other short connectors when scanning for terms~~
+
+# Changelog
+__version 0.3 (Dec. 02, 2025)__
+- clearing errors in the textbox should clear errors in the list if applicable
+
+__version 0.2 (Nov. 30, 2025)__
 - ignore "Figure", "Figur", "Figuren" etc. when scanning for terms
 - ignore der, die, das, dem, und, and other short connectors when scanning for terms
-- separate scanning and GUI thread
-- clearing errors in the textbox should clear errors in the list if applicable
+
