@@ -68,6 +68,15 @@ std::pair<std::wstring, size_t> MainWindow::findCurrentPrecedingWord(const std::
   }
 }
 
+bool MainWindow::isCurrentIgnoredWord(const std::wstring& word) {
+  if (s_useGerman) {
+    return GermanTextAnalyzer::isIgnoredWord(word);
+  } else {
+    return EnglishTextAnalyzer::isIgnoredWord(word);
+  }
+}
+
+
 
 MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY,
@@ -185,6 +194,9 @@ void MainWindow::scanText(wxTimerEvent &event) {
 
     while (iter.hasNext()) {
       auto match = iter.next();
+      if (isCurrentIgnoredWord(match[1])) {
+        continue; // Skip ignored words
+      } 
       size_t pos = match.position;
       size_t len = match.length;
       size_t endPos = pos + len;

@@ -91,6 +91,7 @@ private:
   static bool isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems);
   static bool isCurrentIndefiniteArticle(const std::wstring& word);
   static bool isCurrentDefiniteArticle(const std::wstring& word);
+  static bool isCurrentIgnoredWord(const std::wstring& word);
   static std::pair<std::wstring, size_t> findCurrentPrecedingWord(const std::wstring& text, size_t pos);
   std::wstring m_fullText;
 
