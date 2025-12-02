@@ -159,7 +159,8 @@ void MainWindow::scanText(wxTimerEvent &event) {
       // Check if word2's stem is marked for multi-word matching
       // Note: isMultiWordBase copies word2 and stems it (cached lookup)
       if (isCurrentMultiWordBase(word2, m_multiWordBaseStems)) {
-        if (!overlapsExisting(pos, endPos)) {
+        //check that word is not cleared
+        if (!overlapsExisting(pos, endPos) && !m_clearedTextPositions.count({pos, endPos})) {
           matchedRanges.emplace_back(pos, endPos);
 
           // Build original phrase first (before moving words)
@@ -201,7 +202,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
       size_t len = match.length;
       size_t endPos = pos + len;
 
-      if (!overlapsExisting(pos, endPos)) {
+      if (!overlapsExisting(pos, endPos) && !m_clearedTextPositions.count({pos, endPos})) {
         matchedRanges.emplace_back(pos, endPos);
 
         std::wstring word = match[1];
@@ -813,9 +814,10 @@ void MainWindow::setupBindings() {
   m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
   
   // Menu bar handlers
-  Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 20);
-  Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 21);
-  Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 22);
+  Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 20);
+  Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 21);
+  Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 22);
+  
   
   // Language selector
   m_languageSelector->Bind(wxEVT_RADIOBOX, &MainWindow::onLanguageChanged, this);
