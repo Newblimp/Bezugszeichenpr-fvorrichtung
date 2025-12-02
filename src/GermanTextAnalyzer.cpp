@@ -129,3 +129,28 @@ std::pair<std::wstring, size_t> GermanTextAnalyzer::findPrecedingWord(const std:
 
     return {text.substr(start, end - start), start};
 }
+
+// Static member initialization - ignored words
+const std::unordered_set<std::wstring> GermanTextAnalyzer::s_ignoredWords = {
+    // Definite articles
+    L"der", L"die", L"das", L"den", L"dem", L"des",
+    // Indefinite articles
+    L"ein", L"eine", L"eines", L"einen", L"einer", L"einem",
+    // Figure references
+    L"figur", L"figuren"
+};
+
+bool GermanTextAnalyzer::isIgnoredWord(const std::wstring& word) {
+    // Words shorter than 3 characters should be ignored
+    if (word.length() < 3) {
+        return true;
+    }
+    
+    // Create lowercase version
+    std::wstring lower;
+    lower.reserve(word.length());
+    for (wchar_t c : word) {
+        lower.push_back(std::tolower(c));
+    }
+    return s_ignoredWords.count(lower) > 0;
+}

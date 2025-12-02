@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "RegexPatterns.h"
 #include "EnglishTextAnalyzer.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
@@ -72,10 +73,10 @@ MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY,
               wxString::FromUTF8("Bezugszeichenprüfvorrichtung"),
               wxDefaultPosition, wxSize(1200, 800)),
-      // Initialize RE2 patterns (case-insensitive matching with (?i) prefix)
-      m_singleWordRegex("(?i)(\\p{L}+)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
-      m_twoWordRegex("(?i)(\\p{L}+)\\s+(\\p{L}+)\\s+(\\b\\d+[a-zA-Z']*\\b)"),
-      m_wordRegex("(?i)\\p{L}+") {
+      // Initialize RE2 patterns using shared constants
+      m_singleWordRegex(RegexPatterns::SINGLE_WORD_PATTERN),
+      m_twoWordRegex(RegexPatterns::TWO_WORD_PATTERN),
+      m_wordRegex(RegexPatterns::WORD_PATTERN) {
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));

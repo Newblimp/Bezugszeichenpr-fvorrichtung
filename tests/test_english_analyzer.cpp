@@ -164,3 +164,60 @@ TEST_F(EnglishTextAnalyzerTest, PorterStemmer_ED_Removal) {
   StemVector result = analyzer.createStemVector(L"agreed");
   EXPECT_EQ(result[0], L"agre");
 }
+
+// Test isIgnoredWord functionality
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_DefiniteArticle) {
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"the"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"The"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"THE"));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles) {
+  // Note: "a" is only 1 character, so it's ignored due to length
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"a"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"A"));
+  // "an" is only 2 characters, so it's ignored due to length
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"an"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"An"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"AN"));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_Figure) {
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"figure"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"Figure"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"FIGURE"));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_Figures) {
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"figures"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"Figures"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"FIGURES"));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_NotIgnored) {
+  // Regular words should not be ignored
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"bearing"));
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"motor"));
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"shaft"));
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"housing"));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_ShortWords) {
+  // Words shorter than 3 characters should always be ignored
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"at"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"in"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"to"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"a"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"is"));
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L""));
+}
+
+TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_ExactlyThreeCharacters) {
+  // 3-character articles should be ignored
+  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"the"));
+  
+  // 3-character non-articles should NOT be ignored
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"rod"));
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"box"));
+  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"pin"));
+}

@@ -181,3 +181,80 @@ TEST_F(GermanTextAnalyzerTest, CreateStemVector_Numbers) {
   // Numbers should pass through or be handled consistently
   EXPECT_FALSE(result[0].empty());
 }
+
+// Test isIgnoredWord functionality
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_DefiniteArticles) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"der"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"die"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"das"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"den"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"dem"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"des"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_DefiniteArticles_CaseInsensitive) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Der"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Die"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Das"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DER"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DIE"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DAS"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ein"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"eine"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"eines"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einen"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einer"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einem"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles_CaseInsensitive) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Ein"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Eine"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"EIN"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"EINE"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_Figur) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"figur"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Figur"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"FIGUR"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_Figuren) {
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"figuren"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Figuren"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"FIGUREN"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_NotIgnored) {
+  // Regular words should not be ignored
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Lager"));
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Motor"));
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Welle"));
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Gehäuse"));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_ShortWords) {
+  // Words shorter than 3 characters should always be ignored
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ab"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"in"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"zu"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"a"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"am"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L""));
+}
+
+TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_ExactlyThreeCharacters) {
+  // 3-character articles should be ignored
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"der"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"die"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"das"));
+  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ein"));
+  
+  // 3-character non-articles should NOT be ignored
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Rad"));
+  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Bad"));
+}
