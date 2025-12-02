@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "RE2RegexHelper.h"
+#include "RegexPatterns.h"
 #include <re2/re2.h>
 
 class RE2RegexHelperTest : public ::testing::Test {
@@ -227,4 +228,105 @@ TEST_F(RE2RegexHelperTest, MatchIterator_ConsecutiveWords) {
   }
 
   EXPECT_EQ(count, 3);
+}
+
+// Test 3-character minimum word matching using actual MainWindow patterns
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_SingleWord) {
+  std::wstring text = L"ab 10 abc 20 abcd 30";
+  re2::RE2 pattern(RegexPatterns::SINGLE_WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  std::vector<std::wstring> words;
+  while (iter.hasNext()) {
+    auto match = iter.next();
+    words.push_back(match[1]);
+  }
+
+  ASSERT_EQ(words.size(), 2);
+  EXPECT_EQ(words[0], L"abc");
+  EXPECT_EQ(words[1], L"abcd");
+}
+
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_ExactlyThree) {
+  std::wstring text = L"rod 10";
+  re2::RE2 pattern(RegexPatterns::SINGLE_WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  ASSERT_TRUE(iter.hasNext());
+  auto match = iter.next();
+  EXPECT_EQ(match[1], L"rod");
+}
+
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_TwoWords) {
+  std::wstring text = L"ab cd 10 abc def 20 abcd efgh 30";
+  re2::RE2 pattern(RegexPatterns::TWO_WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  std::vector<std::pair<std::wstring, std::wstring>> wordPairs;
+  while (iter.hasNext()) {
+    auto match = iter.next();
+    wordPairs.push_back({match[1], match[2]});
+  }
+
+  ASSERT_EQ(wordPairs.size(), 2);
+  EXPECT_EQ(wordPairs[0].first, L"abc");
+  EXPECT_EQ(wordPairs[0].second, L"def");
+  EXPECT_EQ(wordPairs[1].first, L"abcd");
+  EXPECT_EQ(wordPairs[1].second, L"efgh");
+}
+
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_GermanArticlesIgnored) {
+  std::wstring text = L"der 10 die 20 das 30 Lager 40";
+  re2::RE2 pattern(RegexPatterns::SINGLE_WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  std::vector<std::wstring> words;
+  while (iter.hasNext()) {
+    auto match = iter.next();
+    words.push_back(match[1]);
+  }
+
+  // Should match all: "der", "die", "das", and "Lager" all have 3+ chars
+  // But the isIgnoredWord function will filter out articles separately
+  ASSERT_EQ(words.size(), 4);
+  EXPECT_EQ(words[0], L"der");
+  EXPECT_EQ(words[1], L"die");
+  EXPECT_EQ(words[2], L"das");
+  EXPECT_EQ(words[3], L"Lager");
+}
+
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_OnlyWords) {
+  std::wstring text = L"Lager Motor Welle";
+  re2::RE2 pattern(RegexPatterns::WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  int count = 0;
+  while (iter.hasNext()) {
+    iter.next();
+    count++;
+  }
+
+  EXPECT_EQ(count, 3);
+}
+
+TEST_F(RE2RegexHelperTest, ThreeCharMinimum_NoShortWords) {
+  std::wstring text = L"a ab abc abcd";
+  re2::RE2 pattern(RegexPatterns::WORD_PATTERN);
+
+  RE2RegexHelper::MatchIterator iter(text, pattern);
+
+  std::vector<std::wstring> words;
+  while (iter.hasNext()) {
+    auto match = iter.next();
+    words.push_back(match[0]);
+  }
+
+  ASSERT_EQ(words.size(), 2);
+  EXPECT_EQ(words[0], L"abc");
+  EXPECT_EQ(words[1], L"abcd");
 }

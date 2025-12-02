@@ -127,3 +127,28 @@ std::pair<std::wstring, size_t> EnglishTextAnalyzer::findPrecedingWord(const std
 
     return {text.substr(start, end - start), start};
 }
+
+// Static member initialization - ignored words
+const std::unordered_set<std::wstring> EnglishTextAnalyzer::s_ignoredWords = {
+    // Definite article
+    L"the",
+    // Indefinite articles
+    L"a", L"an",
+    // Figure references
+    L"figure", L"figures"
+};
+
+bool EnglishTextAnalyzer::isIgnoredWord(const std::wstring& word) {
+    // Words shorter than 3 characters should be ignored
+    if (word.length() < 3) {
+        return true;
+    }
+    
+    // Create lowercase version
+    std::wstring lower;
+    lower.reserve(word.length());
+    for (wchar_t c : word) {
+        lower.push_back(std::tolower(c));
+    }
+    return s_ignoredWords.count(lower) > 0;
+}

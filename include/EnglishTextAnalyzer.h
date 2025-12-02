@@ -34,6 +34,9 @@ public:
     static bool isIndefiniteArticle(const std::wstring& word);
     static bool isDefiniteArticle(const std::wstring& word);
 
+    // Word filtering
+    static bool isIgnoredWord(const std::wstring& word);
+
     // Text utilities
     static std::pair<std::wstring, size_t> findPrecedingWord(const std::wstring& text, size_t pos);
 
@@ -54,4 +57,7 @@ private:
     // Static sets for fast article lookup
     static const std::unordered_set<std::wstring> s_indefiniteArticles;
     static const std::unordered_set<std::wstring> s_definiteArticles;
+    
+    // Static set for ignored words
+    static const std::unordered_set<std::wstring> s_ignoredWords;
 };
