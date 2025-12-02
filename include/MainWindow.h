@@ -79,6 +79,7 @@ private:
     // Single word (for finding unnumbered references)
     re2::RE2 m_wordRegex;
 
+public:
   // Static text analyzers for different languages
   // Static ensures single instance with persistent cache across all scans
   static GermanTextAnalyzer s_germanAnalyzer;
@@ -86,6 +87,7 @@ private:
   static bool s_useGerman; // true = German, false = English
 
   // Helper methods to access current analyzer based on language selection
+  // These are public to allow TextScanner and ErrorDetectorHelper to use them
   static StemVector createCurrentStemVector(std::wstring word);
   static StemVector createCurrentMultiWordStemVector(std::wstring firstWord, std::wstring secondWord);
   static bool isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems);
@@ -93,6 +95,8 @@ private:
   static bool isCurrentDefiniteArticle(const std::wstring& word);
   static bool isCurrentIgnoredWord(const std::wstring& word);
   static std::pair<std::wstring, size_t> findCurrentPrecedingWord(const std::wstring& text, size_t pos);
+
+private:
   std::wstring m_fullText;
 
   // Text styles

@@ -4,6 +4,9 @@
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
 #include "ErrorNavigator.h"
+#include "TextScanner.h"
+#include "ErrorDetectorHelper.h"
+#include "UIBuilder.h"
 #include "utils.h"
 #include "wx/event.h"
 #include "wx/gdicmn.h"
@@ -122,108 +125,16 @@ void MainWindow::scanText(wxTimerEvent &event) {
   // This dramatically improves performance by batching all visual updates
   m_textBox->Freeze();
   m_textBox->BeginSuppressUndo();
-  
+
   Timer t_setup;
   setupAndClear();
   std::cout << "Time for setup and clearing: " << t_setup.elapsed() << " milliseconds\n";
 
-  // Track matched positions to avoid duplicate processing
-  std::vector<std::pair<size_t, size_t>> matchedRanges;
-
-  auto overlapsExisting = [&matchedRanges](size_t start, size_t end) {
-    for (const auto &range : matchedRanges) {
-      if (!(end <= range.first || start >= range.second)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  // First pass: scan for two-word patterns
-  // Match "[word1] [word2] [number]" and check if word2's stem is in multi-word
-  // set
-  Timer t_twoWordScan;
-  {
-    RE2RegexHelper::MatchIterator iter(m_fullText, m_twoWordRegex);
-
-    while (iter.hasNext()) {
-      auto match = iter.next();
-      size_t pos = match.position;
-      size_t len = match.length;
-      size_t endPos = pos + len;
-
-      std::wstring word1 = match[1];
-      std::wstring word2 = match[2];
-      std::wstring bz = match[3];
-
-      // Check if word2's stem is marked for multi-word matching
-      // Note: isMultiWordBase copies word2 and stems it (cached lookup)
-      if (isCurrentMultiWordBase(word2, m_multiWordBaseStems)) {
-        //check that word is not cleared
-        if (!overlapsExisting(pos, endPos) && !m_clearedTextPositions.count({pos, endPos})) {
-          matchedRanges.emplace_back(pos, endPos);
-
-          // Build original phrase first (before moving words)
-          std::wstring originalPhrase;
-          originalPhrase.reserve(word1.length() + 1 + word2.length());
-          originalPhrase = word1 + L" " + word2;
-
-          // Create stem vector with both words (move to avoid copies)
-          StemVector stemVec =
-              createCurrentMultiWordStemVector(std::move(word1), std::move(word2));
-
-          // Store mappings
-          m_bzToStems[bz].insert(stemVec);
-          m_stemToBz[stemVec].insert(bz);
-          m_bzToOriginalWords[bz].insert(originalPhrase);
-
-          // Track positions
-          m_bzToPositions[bz].push_back({pos, len});
-          m_stemToPositions[stemVec].push_back({pos, len});
-        }
-      }
-    }
-  }
-  std::cout << "Time for two word scan: " << t_twoWordScan.elapsed() << " milliseconds\n";
-
-
-  // Second pass: scan for single-word patterns (excluding already matched
-  // positions)
-    Timer t_oneWordScan;
-  {
-    RE2RegexHelper::MatchIterator iter(m_fullText, m_singleWordRegex);
-
-    while (iter.hasNext()) {
-      auto match = iter.next();
-      if (isCurrentIgnoredWord(match[1])) {
-        continue; // Skip ignored words
-      } 
-      size_t pos = match.position;
-      size_t len = match.length;
-      size_t endPos = pos + len;
-
-      if (!overlapsExisting(pos, endPos) && !m_clearedTextPositions.count({pos, endPos})) {
-        matchedRanges.emplace_back(pos, endPos);
-
-        std::wstring word = match[1];
-        std::wstring originalWord = word;  // Keep copy for storage
-        std::wstring bz = match[2];
-
-        // Create single-element stem vector (word gets moved)
-        StemVector stemVec = createCurrentStemVector(std::move(word));
-
-        // Store mappings
-        m_bzToStems[bz].insert(stemVec);
-        m_stemToBz[stemVec].insert(bz);
-        m_bzToOriginalWords[bz].insert(std::move(originalWord));
-
-        // Track positions
-        m_bzToPositions[bz].push_back({pos, len});
-        m_stemToPositions[stemVec].push_back({pos, len});
-      }
-    }
-  }
-  std::cout << "Time for one word scan: " << t_oneWordScan.elapsed() << " milliseconds\n";
+  // Scan text for patterns using TextScanner
+  TextScanner::scanText(m_fullText, m_singleWordRegex, m_twoWordRegex,
+                        m_multiWordBaseStems, m_clearedTextPositions,
+                        m_bzToStems, m_stemToBz, m_bzToOriginalWords,
+                        m_bzToPositions, m_stemToPositions);
 
   // Update display
   Timer t_fillListTree;
@@ -264,7 +175,7 @@ void MainWindow::scanText(wxTimerEvent &event) {
   Timer t_fillBzList;
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
-  
+
   // Thaw text control to apply all batched updates at once
   m_textBox->EndSuppressUndo();
   m_textBox->Thaw();
@@ -292,58 +203,10 @@ void MainWindow::fillListTree() {
 }
 
 bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
-  // Check if this error has been cleared by user
-  if (m_clearedErrors.count(bz) > 0) {
-    return true; // Treat as no error
-  }
-
-  const auto &stems = m_bzToStems.at(bz);
-
-  // Check if multiple different stems are assigned to this BZ
-  if (stems.size() > 1) {
-    // Highlight all occurrences of this BZ
-    const auto &positions = m_bzToPositions[bz];
-    // for (size_t i = 0; i < positions.size(); i += 2) {
-    for (const auto i : positions) {
-      size_t start = i.first;
-      size_t len = i.second;
-      // Skip if this position has been manually cleared
-      if (!isPositionCleared(start, start + len)) {
-        m_wrongNumberPositions.emplace_back(start, start + len);
-        m_allErrorsPositions.emplace_back(start, start + len);
-        m_textBox->SetStyle(start, start + len, m_warningStyle);
-      }
-    }
-    return false;
-  }
-
-  // Check if the stem is also used with other BZs
-  for (const auto &stem : stems) {
-    if (m_stemToBz.at(stem).size() > 1) {
-      // This stem maps to multiple BZs - highlight occurrences
-      const auto &positions = m_stemToPositions[stem];
-      // for (size_t i = 0; i < positions.size(); i += 2) {
-      for (const auto i : positions) {
-        size_t start = i.first;
-        size_t len = i.second;
-
-        // Avoid duplicates in the split number list
-        auto pos_pair = std::make_pair(static_cast<int>(start),
-                                       static_cast<int>(start + len));
-        if (std::find(m_splitNumberPositions.begin(),
-                      m_splitNumberPositions.end(),
-                      pos_pair) == m_splitNumberPositions.end() &&
-            !isPositionCleared(start, start + len)) {
-          m_splitNumberPositions.emplace_back(start, start + len);
-          m_allErrorsPositions.emplace_back(start, start + len);
-          m_textBox->SetStyle(start, start + len, m_warningStyle);
-        }
-      }
-      return false;
-    }
-  }
-
-  return true;
+  return ErrorDetectorHelper::isUniquelyAssigned(
+      bz, m_bzToStems, m_stemToBz, m_bzToPositions, m_stemToPositions,
+      m_clearedErrors, m_clearedTextPositions, m_textBox, m_warningStyle,
+      m_wrongNumberPositions, m_splitNumberPositions, m_allErrorsPositions);
 }
 
 void MainWindow::loadIcons() {
@@ -362,176 +225,16 @@ void MainWindow::loadIcons() {
 }
 
 void MainWindow::findUnnumberedWords() {
-  // Collect start positions of all valid references
-  std::unordered_set<size_t> validStarts;
-  for (const auto &[stem, positions] : m_stemToPositions) {
-    for (const auto [start, len] : positions) {
-      validStarts.insert(start);
-    }
-  }
-
-  // Helper to check if a position is followed by whitespace + number
-  auto isFollowedByNumber = [this](size_t wordEnd) -> bool {
-    // Skip whitespace after the word
-    size_t pos = wordEnd;
-    while (pos < m_fullText.length() && std::iswspace(m_fullText[pos])) {
-      pos++;
-    }
-    // Check if next character is a digit
-    return pos < m_fullText.length() && std::iswdigit(m_fullText[pos]);
-  };
-
-  // Collect all words NOT followed by numbers
-  struct WordMatch {
-    std::wstring word;
-    size_t position;
-    size_t length;
-  };
-  std::vector<WordMatch> wordsWithoutNumbers;
-  wordsWithoutNumbers.reserve(1000);  // Reserve capacity to reduce allocations
-
-  {
-    RE2RegexHelper::MatchIterator iter(m_fullText, m_wordRegex);
-    while (iter.hasNext()) {
-      auto match = iter.next();
-      size_t pos = match.position;
-      size_t len = match.length;
-
-      // Skip if already part of a valid reference
-      if (validStarts.count(pos)) {
-        continue;
-      }
-
-      // Skip if followed by a number
-      if (isFollowedByNumber(pos + len)) {
-        continue;
-      }
-
-      // Move string from match to avoid copy
-      wordsWithoutNumbers.push_back({std::move(match.groups[0]), pos, len});
-    }
-  }
-
-  // Check for two-word patterns (consecutive words without numbers)
-  for (size_t i = 0; i + 1 < wordsWithoutNumbers.size(); ++i) {
-    const auto& word1Match = wordsWithoutNumbers[i];
-    const auto& word2Match = wordsWithoutNumbers[i + 1];
-
-    // Check if these words are actually adjacent in the text
-    // (word1 end + whitespace should be close to word2 start)
-    size_t expectedGap = word2Match.position - (word1Match.position + word1Match.length);
-    if (expectedGap > 10) {
-      continue; // Too far apart, not a consecutive pair
-    }
-
-    std::wstring word1 = word1Match.word;
-    std::wstring word2 = word2Match.word;
-
-    // Only flag if this is a known multi-word combination
-    // Note: isMultiWordBase stems internally, no need to stem here
-    if (isCurrentMultiWordBase(word2, m_multiWordBaseStems)) {
-      StemVector stemVec = createCurrentMultiWordStemVector(word1, word2);
-
-      if (m_stemToBz.count(stemVec)) {
-        size_t startPos = word1Match.position;
-        size_t endPos = word2Match.position + word2Match.length;
-        if (!isPositionCleared(startPos, endPos)) {
-          m_noNumberPositions.emplace_back(startPos, endPos);
-          m_allErrorsPositions.emplace_back(startPos, endPos);
-          m_textBox->SetStyle(startPos, endPos, m_warningStyle);
-        }
-      }
-    }
-  }
-
-  // Check for single words without numbers
-  for (const auto& wordMatch : wordsWithoutNumbers) {
-    StemVector stemVec = createCurrentStemVector(wordMatch.word);
-
-    // Check if this stem is known from valid references
-    if (m_stemToBz.count(stemVec)) {
-      size_t start = wordMatch.position;
-      size_t end = wordMatch.position + wordMatch.length;
-      if (!isPositionCleared(start, end)) {
-        m_noNumberPositions.emplace_back(start, end);
-        m_allErrorsPositions.emplace_back(start, end);
-        m_textBox->SetStyle(start, end, m_warningStyle);
-      }
-    }
-  }
+  ErrorDetectorHelper::findUnnumberedWords(
+      m_fullText, m_wordRegex, m_multiWordBaseStems, m_stemToPositions,
+      m_stemToBz, m_clearedTextPositions, m_textBox, m_warningStyle,
+      m_noNumberPositions, m_allErrorsPositions);
 }
 
 void MainWindow::checkArticleUsage() {
-  // We need to check each stem's occurrences in order of position
-  // First occurrence should have indefinite article, subsequent should have
-  // definite To avoid unnecessary errors, we only highlight the word if the
-  // first article IS definite or the followings are indefinite
-
-  // Build a map of stem -> sorted positions (by position in text)
-  struct OccurrenceInfo {
-    size_t position;
-    size_t length;
-    StemVector stem;
-  };
-
-  std::vector<OccurrenceInfo> allOccurrences;
-  
-  // Reserve capacity to reduce allocations
-  size_t totalOccurrences = 0;
-  for (const auto &[stem, positions] : m_stemToPositions) {
-    totalOccurrences += positions.size();
-  }
-  allOccurrences.reserve(totalOccurrences);
-
-  for (const auto &[stem, positions] : m_stemToPositions) {
-    for (const auto [start, len] : positions) {
-      allOccurrences.push_back({start, len, stem});
-    }
-  }
-
-  // Sort by position
-  std::sort(allOccurrences.begin(), allOccurrences.end(),
-            [](const OccurrenceInfo &a, const OccurrenceInfo &b) {
-              return a.position < b.position;
-            });
-
-  // Track which stems we've seen (first occurrence needs indefinite article)
-  std::unordered_set<StemVector, StemVectorHash> seenStems;
-
-  for (const auto &occ : allOccurrences) {
-    auto [precedingWord, precedingPos] =
-        findCurrentPrecedingWord(m_fullText, occ.position);
-
-    if (precedingWord.empty()) {
-      // No preceding word found - might be at start of text
-      // Mark the stem as seen but we can't highlight an article
-      seenStems.insert(occ.stem);
-      continue;
-    }
-
-    bool isFirstOccurrence = (seenStems.count(occ.stem) == 0);
-    size_t articleEnd = precedingPos + precedingWord.length();
-
-    if (isFirstOccurrence) {
-      // First occurrence: should not be definite article
-      if (isCurrentDefiniteArticle(precedingWord)) {
-        if (!isPositionCleared(precedingPos, articleEnd)) {
-          m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
-          m_allErrorsPositions.emplace_back(precedingPos, articleEnd);
-          m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
-        }
-      }
-      seenStems.insert(occ.stem);
-    } else {
-      // Subsequent occurrence: should have definite article
-      if (isCurrentIndefiniteArticle(precedingWord)) {
-        if (!isPositionCleared(precedingPos, articleEnd)) {
-          m_wrongArticlePositions.emplace_back(precedingPos, articleEnd);
-          m_textBox->SetStyle(precedingPos, articleEnd, m_articleWarningStyle);
-        }
-      }
-    }
-  }
+  ErrorDetectorHelper::checkArticleUsage(
+      m_fullText, m_stemToPositions, m_clearedTextPositions, m_textBox,
+      m_articleWarningStyle, m_wrongArticlePositions, m_allErrorsPositions);
 }
 
 void MainWindow::setupAndClear() {
@@ -610,168 +313,35 @@ void MainWindow::selectPreviousWrongArticle(wxCommandEvent &event) {
 }
 
 void MainWindow::setupUi() {
-  // Create menu bar
-  wxMenuBar *menuBar = new wxMenuBar();
-  wxMenu *toolsMenu = new wxMenu();
-  
-  toolsMenu->Append(wxID_HIGHEST + 20, "Restore all errors");
-  toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared textbox errors");
-  toolsMenu->Append(wxID_HIGHEST + 22, "Restore cleared overview errors");
-  
-  menuBar->Append(toolsMenu, "Tools");
-  SetMenuBar(menuBar);
-  
-  wxPanel *panel = new wxPanel(this, wxID_ANY);
+  // Build UI using UIBuilder
+  auto components = UIBuilder::buildUI(this);
 
-  wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
+  // Assign components to member variables
+  m_notebookList = components.notebookList;
+  m_textBox = components.textBox;
+  m_languageSelector = components.languageSelector;
+  m_bzList = components.bzList;
+  m_treeList = components.treeList;
 
-  wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
-  wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
-  wxBoxSizer *allErrorsSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *noNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-  wxBoxSizer *wrongArticleSizer = new wxBoxSizer(wxHORIZONTAL);
+  m_buttonForwardAllErrors = components.buttonForwardAllErrors;
+  m_buttonBackwardAllErrors = components.buttonBackwardAllErrors;
+  m_allErrorsLabel = components.allErrorsLabel;
 
-  m_notebookList = new wxNotebook(panel, wxID_ANY);
+  m_buttonForwardNoNumber = components.buttonForwardNoNumber;
+  m_buttonBackwardNoNumber = components.buttonBackwardNoNumber;
+  m_noNumberLabel = components.noNumberLabel;
 
-  // Language selector
-  wxArrayString languages;
-  languages.Add("German");
-  languages.Add("English");
-  m_languageSelector = new wxRadioBox(panel, wxID_ANY, "Language",
-                                      wxDefaultPosition, wxDefaultSize,
-                                      languages, 1, wxRA_SPECIFY_COLS);
-  m_languageSelector->SetSelection(0); // Default to German
-  
-  // Main text editor
-  m_textBox = new wxRichTextCtrl(panel);
-  m_bzList =
-      std::make_shared<wxRichTextCtrl>(m_notebookList, wxID_ANY, wxEmptyString,
-                                       wxDefaultPosition, wxSize(350, -1));
+  m_buttonForwardWrongNumber = components.buttonForwardWrongNumber;
+  m_buttonBackwardWrongNumber = components.buttonBackwardWrongNumber;
+  m_wrongNumberLabel = components.wrongNumberLabel;
 
-  wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-  mainSizer->Add(viewSizer, 1, wxEXPAND);
-  panel->SetSizer(mainSizer);
-  
-  viewSizer->Add(m_textBox, 1, wxEXPAND | wxALL, 10);
-  viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
+  m_buttonForwardSplitNumber = components.buttonForwardSplitNumber;
+  m_buttonBackwardSplitNumber = components.buttonBackwardSplitNumber;
+  m_splitNumberLabel = components.splitNumberLabel;
 
-  // Tree list for displaying BZ-term mappings
-  m_treeList = std::make_shared<wxTreeListCtrl>(
-      m_notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-  m_treeList->AppendColumn("reference sign");
-  m_treeList->AppendColumn("feature");
-
-  outputSizer->Add(m_notebookList, 2, wxEXPAND | wxALL, 10);
-  m_notebookList->AddPage(m_treeList.get(), "overview");
-  m_notebookList->AddPage(m_bzList.get(), "reference sign list");
-
-  // Navigation buttons for all errors
-  m_buttonBackwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(30, -1));
-  m_buttonForwardAllErrors = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(30, -1));
-
-  // Navigation buttons for unnumbered references
-  m_buttonBackwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
-  m_buttonForwardNoNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
-
-  // Navigation buttons for wrong number errors
-  m_buttonBackwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
-  m_buttonForwardWrongNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
-
-  // Navigation buttons for split number errors
-  m_buttonBackwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
-  m_buttonForwardSplitNumber = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
-
-  // Navigation buttons for wrong article errors
-  m_buttonBackwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
-  m_buttonForwardWrongArticle = std::make_shared<wxButton>(
-      panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
-
-  // Layout for all errors row
-  allErrorsSizer->Add(m_buttonBackwardAllErrors.get());
-  allErrorsSizer->Add(m_buttonForwardAllErrors.get());
-  auto allErrorsDescription =
-      new wxStaticText(panel, wxID_ANY, "all errors", wxDefaultPosition,
-                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_allErrorsLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(45, -1));
-  allErrorsSizer->Add(m_allErrorsLabel.get(), 0,
-                      wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
-  allErrorsSizer->Add(allErrorsDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
-                      0);
-
-  // Layout for unnumbered references row
-  noNumberSizer->Add(m_buttonBackwardNoNumber.get());
-  noNumberSizer->Add(m_buttonForwardNoNumber.get());
-  auto noNumberDescription =
-      new wxStaticText(panel, wxID_ANY, "unnumbered", wxDefaultPosition,
-                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_noNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
-  noNumberSizer->Add(m_noNumberLabel.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
-                     10);
-  noNumberSizer->Add(noNumberDescription, 0, wxLEFT | wxALIGN_CENTER_VERTICAL,
-                     0);
-
-  // Layout for wrong number row
-  wrongNumberSizer->Add(m_buttonBackwardWrongNumber.get());
-  wrongNumberSizer->Add(m_buttonForwardWrongNumber.get());
-  auto wrongNumberDescription =
-      new wxStaticText(panel, wxID_ANY, "inconsistent terms", wxDefaultPosition,
-                       wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_wrongNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
-  wrongNumberSizer->Add(m_wrongNumberLabel.get(), 0,
-                        wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
-  wrongNumberSizer->Add(wrongNumberDescription, 0,
-                        wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
-
-  // Layout for split number row
-  splitNumberSizer->Add(m_buttonBackwardSplitNumber.get());
-  splitNumberSizer->Add(m_buttonForwardSplitNumber.get());
-  auto splitNumberDescription = new wxStaticText(
-      panel, wxID_ANY, "inconsistent reference signs", wxDefaultPosition,
-      wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_splitNumberLabel = std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
-  splitNumberSizer->Add(m_splitNumberLabel.get(), 0,
-                        wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
-  splitNumberSizer->Add(splitNumberDescription, 0,
-                        wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
-
-  // Layout for wrong article row
-  wrongArticleSizer->Add(m_buttonBackwardWrongArticle.get());
-  wrongArticleSizer->Add(m_buttonForwardWrongArticle.get());
-  auto wrongArticleDescription = new wxStaticText(
-      panel, wxID_ANY, "inconsistent article", wxDefaultPosition,
-      wxSize(150, -1), wxST_ELLIPSIZE_END | wxALIGN_LEFT);
-  m_wrongArticleLabel =
-      std::make_shared<wxStaticText>(panel, wxID_ANY, "0/0\t", wxDefaultPosition, wxSize(55, -1));
-  wrongArticleSizer->Add(m_wrongArticleLabel.get(), 0,
-                         wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
-  wrongArticleSizer->Add(wrongArticleDescription, 0,
-                         wxLEFT | wxALIGN_CENTER_VERTICAL, 0);
-
-  numberSizer->Add(allErrorsSizer, wxLEFT);
-  numberSizer->AddSpacer(5); // Vertical spacing between errors and unnumbered
-  numberSizer->Add(noNumberSizer, wxLEFT);
-  numberSizer->Add(wrongNumberSizer, wxLEFT);
-  numberSizer->Add(splitNumberSizer, wxLEFT);
-  numberSizer->Add(wrongArticleSizer, wxLEFT);
-
-  // Create horizontal sizer for error navigation and language selector
-  wxBoxSizer *bottomSizer = new wxBoxSizer(wxHORIZONTAL);
-  bottomSizer->Add(numberSizer, 0, wxALL, 0);
-  bottomSizer->AddStretchSpacer(1); // Push language selector to the right
-  bottomSizer->Add(m_languageSelector, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
-
-  outputSizer->Add(bottomSizer, 0, wxALL | wxEXPAND, 10);
+  m_buttonForwardWrongArticle = components.buttonForwardWrongArticle;
+  m_buttonBackwardWrongArticle = components.buttonBackwardWrongArticle;
+  m_wrongArticleLabel = components.wrongArticleLabel;
 
   // Set up text styles
   m_neutralStyle.SetBackgroundColour(
@@ -1054,7 +624,7 @@ void MainWindow::clearTextError(size_t start, size_t end) {
 }
 
 bool MainWindow::isPositionCleared(size_t start, size_t end) const {
-  return m_clearedTextPositions.count({start, end}) > 0;
+  return ErrorDetectorHelper::isPositionCleared(m_clearedTextPositions, start, end);
 }
 
 void MainWindow::onRestoreTextboxErrors(wxCommandEvent &event) {
