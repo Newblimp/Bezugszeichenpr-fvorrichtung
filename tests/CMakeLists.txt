@@ -11,20 +11,31 @@ add_executable(
   test_english_analyzer.cpp
   test_re2_regex_helper.cpp
   test_utils.cpp
+  test_text_scanner.cpp
+  test_error_detector.cpp
   # Source files needed for testing (non-UI components)
   ${CMAKE_SOURCE_DIR}/src/GermanTextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/EnglishTextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/RE2RegexHelper.cpp
   ${CMAKE_SOURCE_DIR}/src/utils_core.cpp
   ${CMAKE_SOURCE_DIR}/src/stem_collector.cpp
+  ${CMAKE_SOURCE_DIR}/src/utils.cpp
+  ${CMAKE_SOURCE_DIR}/src/TextScanner.cpp
+  ${CMAKE_SOURCE_DIR}/src/ErrorDetectorHelper.cpp
+  ${CMAKE_SOURCE_DIR}/src/ErrorNavigator.cpp
+  ${CMAKE_SOURCE_DIR}/src/MainWindow.cpp
+  ${CMAKE_SOURCE_DIR}/src/UIBuilder.cpp
 )
 
-# Link against Google Test and RE2
+# Link against Google Test, RE2, and wxWidgets
 target_link_libraries(
   unit_tests
   GTest::gtest_main
   GTest::gmock
   re2
+  wx::core
+  wx::base
+  wx::richtext
 )
 
 # Discover tests for CTest
