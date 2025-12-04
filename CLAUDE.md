@@ -5,19 +5,25 @@
 **Bezugszeichenprüfvorrichtung** (Reference Number Verification Tool) is a desktop GUI application for validating reference numbers in German patent applications. It automatically checks that technical terms are consistently numbered throughout a patent document, highlighting errors such as missing numbers, conflicting assignments, or incorrect article usage.
 
 ### Key Features
-- Scans text for terms paired with reference numbers (e.g., "Lager 10")
+- Scans text for terms paired with reference numbers (e.g., "Lager 10" or "bearing 10")
+- **Bilingual Support**: Both German and English language analysis with selectable UI
 - Detects missing reference numbers for previously defined terms
 - Identifies conflicting number assignments (same term with different numbers)
-- Validates German article usage (definite/indefinite)
-- Supports multi-word term matching (e.g., "zweites Lager")
-- Uses Oleander stemming library for German language morphology (handles plurals, cases)
+- Validates article usage (definite/indefinite) for both languages
+- Supports multi-word term matching (e.g., "zweites Lager" or "second bearing")
+- Uses Oleander stemming library for language morphology (handles plurals, cases)
+- Stemming cache for improved performance on large documents
+- Minimum word length filtering (3+ characters) to reduce noise
+- User-configurable error clearing and restoration
 
 ## Technology Stack
 
 - **Language**: C++20
 - **GUI Framework**: wxWidgets 3.x (statically linked)
-- **Build System**: CMake 3.10+
-- **NLP**: Oleander stemming library (header-only, German language support)
+- **Build System**: CMake 3.14+
+- **Regex Engine**: Google RE2 (for performance and safety)
+- **NLP**: Oleander stemming library (header-only, German and English support)
+- **Testing**: Google Test framework with ~30 unit tests
 - **Platform**: Cross-platform (Linux, Windows)
 - **Standard Library**: STL with modern C++ features
 
@@ -26,24 +32,49 @@
 ```
 Bezugszeichenprüfvorrichtung/
 ├── CMakeLists.txt           # Build configuration
-├── main.cpp                 # Application entry point
+├── main.cpp                 # Application entry point (minimal)
 ├── res.rc                   # Windows resource file (icons)
 ├── .gitmodules              # Git submodules (wxWidgets)
-├── include/                 # Header files
+├── include/                 # Header files (~17 headers)
 │   ├── MainWindow.h         # Main window class declaration
-│   ├── utils.h              # Utility types and functions
-│   ├── stem_collector.h     # Stem collection utilities
+│   ├── GermanTextAnalyzer.h # German language analysis
+│   ├── EnglishTextAnalyzer.h# English language analysis
+│   ├── TextScanner.h        # Text scanning logic (separated)
+│   ├── ErrorDetectorHelper.h# Error detection logic (separated)
+│   ├── ErrorNavigator.h     # Navigation through errors
+│   ├── UIBuilder.h          # UI construction (separated)
+│   ├── RegexPatterns.h      # Shared regex pattern constants
+│   ├── RE2RegexHelper.h     # RE2/wstring conversion utilities
+│   ├── TimerHelper.h        # Performance timing utilities
+│   ├── utils.h              # Display utility functions
+│   ├── utils_core.h         # Core types (StemVector, hash functions)
 │   ├── german_stem.h        # German stemming (Oleander)
+│   ├── english_stem.h       # English stemming (Oleander)
+│   ├── german_stem_umlaut_preserving.h  # Specialized stemmer
 │   ├── stemming.h           # General stemming library
+│   ├── stem_collector.h     # Stem collection utilities
 │   └── common_lang_constants.h  # Language constants
-├── src/                     # Source files
-│   ├── MainWindow.cpp       # Main window implementation (~900 lines)
-│   ├── utils.cpp            # Utility function implementations
-│   └── stem_collector.cpp   # Stem collection logic
+├── src/                     # Source files (~11 implementations)
+│   ├── MainWindow.cpp       # Main window (~650 lines, refactored)
+│   ├── GermanTextAnalyzer.cpp  # German language implementation
+│   ├── EnglishTextAnalyzer.cpp # English language implementation
+│   ├── TextScanner.cpp      # Text scanning implementation
+│   ├── ErrorDetectorHelper.cpp # Error detection implementation
+│   ├── ErrorNavigator.cpp   # Navigation implementation
+│   ├── UIBuilder.cpp        # UI construction implementation
+│   ├── RE2RegexHelper.cpp   # RE2 helper implementation
+│   ├── utils.cpp            # Display utilities
+│   ├── utils_core.cpp       # Core utilities
+│   └── stem_collector.cpp   # Stem collection implementation
 ├── img/                     # Image assets
 │   ├── app_icon.ico         # Application icon
 │   ├── check_16.xpm/.png    # Success icon
 │   └── warning_16.xpm/.png  # Warning icon
+├── tests/                   # Unit tests (~4 test files, 30+ tests)
+│   ├── test_german_analyzer.cpp
+│   ├── test_english_analyzer.cpp
+│   ├── test_re2_regex_helper.cpp
+│   └── test_utils.cpp
 └── libs/                    # Third-party libraries
     └── wxWidgets/           # Git submodule
 ```
@@ -54,11 +85,45 @@ Bezugszeichenprüfvorrichtung/
 
 1. **MainWindow** (`include/MainWindow.h`, `src/MainWindow.cpp`)
    - Central GUI class extending `wxFrame`
-   - Manages all UI components and application logic
-   - Implements debounced text scanning (500ms delay)
-   - Handles error detection and navigation
+   - Coordinates between language analyzers, scanners, and error detectors
+   - Implements debounced text scanning (200ms delay)
+   - Manages static analyzers for German and English
+   - Delegates to specialized helper classes (TextScanner, ErrorDetectorHelper, UIBuilder)
 
-2. **Data Structures** (see `include/utils.h`)
+2. **Language Analyzers** (`GermanTextAnalyzer`, `EnglishTextAnalyzer`)
+   - Encapsulate language-specific logic (stemming, articles, ignored words)
+   - Implement caching for stemming operations (significant performance boost)
+   - Use Oleander stemming library internally
+   - Provide static methods for article detection and word filtering
+
+3. **TextScanner** (`include/TextScanner.h`, `src/TextScanner.cpp`)
+   - Separated scanning logic from MainWindow
+   - Handles regex matching for single-word and two-word patterns
+   - Builds data structures mapping BZ ↔ stems
+   - Prevents overlapping matches
+
+4. **ErrorDetectorHelper** (`include/ErrorDetectorHelper.h`, `src/ErrorDetectorHelper.cpp`)
+   - Separated error detection logic from MainWindow
+   - Detects unnumbered words, article errors, conflicting assignments
+   - Handles text highlighting with wxRichTextCtrl
+   - Respects user-cleared error positions
+
+5. **ErrorNavigator** (`include/ErrorNavigator.h`, `src/ErrorNavigator.cpp`)
+   - Generic navigation through error lists
+   - Reduces code duplication (used by all 5 error types)
+   - Updates labels and text selection
+
+6. **UIBuilder** (`include/UIBuilder.h`, `src/UIBuilder.cpp`)
+   - Separated UI construction from MainWindow
+   - Creates all widgets, layouts, and navigation buttons
+   - Returns structured component bundle
+
+7. **RE2RegexHelper** (`include/RE2RegexHelper.h`, `src/RE2RegexHelper.cpp`)
+   - Bridges RE2 (UTF-8) and wxWidgets/STL (wstring)
+   - Provides MatchIterator for convenient iteration
+   - Handles position mapping between encodings
+
+8. **Data Structures** (see `include/utils_core.h`)
    - `StemVector`: Vector of stemmed word(s) representing a term
    - `StemVectorHash`: Custom hash function for unordered containers
    - `BZComparatorForMap`: Custom comparator for reference numbers (sorts numerically)
@@ -84,21 +149,28 @@ Bezugszeichenprüfvorrichtung/
 
 ### Text Processing Pipeline
 
-1. **Text Input** → `debounceFunc()` → 500ms timer → `scanText()`
-2. **Regex Matching**: Three regex patterns
-   - `m_singleWordRegex`: Matches "word number" (e.g., "Lager 10")
-   - `m_twoWordRegex`: Matches "word word number" (e.g., "erstes Lager 10")
-   - `m_wordRegex`: Matches isolated words (for finding unnumbered terms)
-3. **Stemming**: German stemmer from Oleander library
-   - Converts words to lowercase stems
-   - Handles German morphology (umlauts, cases, plurals)
-4. **Multi-word Detection**: Context-sensitive matching
+1. **Text Input** → `debounceFunc()` → 200ms timer → `scanText()`
+2. **Language Selection**: Static `s_useGerman` flag determines which analyzer to use
+3. **Regex Matching**: Three RE2 regex patterns (defined in `RegexPatterns.h`)
+   - `SINGLE_WORD_PATTERN`: Matches "word number" (e.g., "Lager 10", min 3 chars)
+   - `TWO_WORD_PATTERN`: Matches "word word number" (e.g., "erstes Lager 10")
+   - `WORD_PATTERN`: Matches isolated words (for finding unnumbered terms)
+4. **Stemming**: Language-specific stemmer with caching
+   - German: `german_stem<>` from Oleander library
+   - English: `english_stem<>` from Oleander library
+   - Cache prevents redundant stemming of same words
+   - Handles morphology (umlauts, cases, plurals)
+5. **Multi-word Detection**: Context-sensitive matching
    - If base word is in `m_multiWordBaseStems`, match two-word patterns
    - Example: "lager" in set → "erstes Lager 10" → StemVector{"erst", "lager"}
-5. **Error Detection**:
+   - User can toggle via context menu in tree view
+6. **Error Detection** (delegated to `ErrorDetectorHelper`):
    - `findUnnumberedWords()`: Finds terms missing reference numbers
-   - `highlightConflicts()`: Detects conflicting number assignments
+   - `isUniquelyAssigned()`: Detects conflicting/split number assignments
    - `checkArticleUsage()`: Validates definite/indefinite articles
+7. **Word Filtering**:
+   - Minimum 3-character words (filters out articles, prepositions)
+   - Ignored words list (e.g., "Figure", "Figur" for German/English)
 
 ### UI Components
 
@@ -176,18 +248,34 @@ cmake --build . -j$(nproc)
    - Raw pointers acceptable for wxWidgets parent-child relationships
 
 4. **Regex**:
-   - Use `std::wregex` for wide string patterns
-   - Compile with flags: `ECMAScript | optimize | icase`
-   - German characters: `[[:alpha:]äöüÄÖÜß]+`
+   - Use `re2::RE2` for patterns (not `std::wregex` - RE2 is faster and safer)
+   - Patterns defined in `RegexPatterns.h` namespace
+   - Case-insensitive matching with `(?i)` prefix
+   - Unicode support: `\p{L}` for letters (handles German, English, etc.)
+   - Helper class `RE2RegexHelper` handles wstring ↔ UTF-8 conversion
 
 ### Important Patterns
 
-1. **Stemming Pattern**:
+1. **Stemming Pattern** (with caching):
    ```cpp
-   void stemWord(std::wstring& word) {
+   void GermanTextAnalyzer::stemWord(std::wstring& word) {
        if (word.empty()) return;
-       word[0] = std::tolower(word[0]);  // Lowercase first
-       m_germanStemmer(word);             // Apply stemmer
+
+       // Normalize: lowercase first character
+       std::wstring normalized = word;
+       normalized[0] = m_ctypeFacet->tolower(normalized[0]);
+
+       // Check cache first
+       auto it = m_stemCache.find(normalized);
+       if (it != m_stemCache.end()) {
+           word = it->second;
+           return;
+       }
+
+       // Apply stemmer and cache result
+       m_germanStemmer(normalized);
+       m_stemCache[word] = normalized;
+       word = normalized;
    }
    ```
 
@@ -203,8 +291,20 @@ cmake --build . -j$(nproc)
 
 4. **Debouncing**:
    - Text changes trigger `debounceFunc()`
-   - Starts 500ms one-shot timer (`m_debounceTimer`)
+   - Starts 200ms one-shot timer (`m_debounceTimer`)
    - Timer event calls `scanText()` to avoid excessive processing
+
+5. **Language Switching**:
+   - Static flag `MainWindow::s_useGerman` controls active language
+   - Static helper methods dispatch to appropriate analyzer
+   - Example: `MainWindow::createCurrentStemVector()` calls German or English analyzer
+   - Switching language triggers immediate rescan
+
+6. **Error Clearing**:
+   - Two clearing mechanisms: by BZ number (overview) or by text position (textbox)
+   - `m_clearedErrors`: Set of BZ numbers user has cleared
+   - `m_clearedTextPositions`: Set of text ranges user has cleared
+   - Menu options to restore: all errors, textbox errors only, or overview errors only
 
 ### Text Highlighting Colors
 
@@ -257,26 +357,47 @@ For each reference number:
 ## File-Specific Notes
 
 ### `include/MainWindow.h`
-- Line 64-79: Regex patterns (modify carefully, test with German text)
-- Line 92-106: Core data structures (understand before modifying)
-- Line 141-157: Error tracking (parallel arrays of positions and selection indices)
+- Lines 70-80: RE2 regex patterns (initialized from `RegexPatterns.h`)
+- Lines 83-97: Static analyzers and language-dispatch helper methods
+- Lines 110-143: Core data structures (understand before modifying)
+- Lines 175-194: Error tracking (position vectors and selection indices for 5 error types)
 
 ### `src/MainWindow.cpp`
-- Line 28-30: Debounce timer (500ms, adjust if needed)
-- Line 32-59: Stemming and multi-word logic
-- Line 61-144: Article detection helpers (German-specific)
-- Scanning logic starts around line 200+
-- UI setup in `setupUi()` method
+- Lines 20-23: Static analyzer initialization and language flag
+- Lines 26-80: Language-dispatch helper methods (delegate to analyzers)
+- Line 120: Debounce timer (200ms, adjust if needed)
+- Lines 123-182: `scanText()` - orchestrates scanning, error detection, UI updates
+- Lines 315-351: `setupUi()` - delegates to UIBuilder
+- Lines 418-483: Context menu handlers (multi-word toggle, error clearing)
+- Lines 569-624: Right-click error clearing in textbox
+- Lines 647-653: Language change handler
+
+### `include/utils_core.h`
+- Line 12: `StemVector` type alias (fundamental to the design)
+- Lines 15-25: `StemVectorHash` (don't modify without good reason)
+- Lines 28-69: `BZComparatorForMap` (ensures numeric sorting: 2, 10, 10a, 11)
+- Lines 72-84: `StemVectorComparator` for ordered containers
 
 ### `include/utils.h`
-- Line 11: `StemVector` type alias (fundamental to the design)
-- Line 14-24: Hash function (don't modify without good reason)
-- Line 27-46: BZ comparator (ensures numeric sorting: 2, 10, 10a, 11)
+- Display utility functions: `stemVectorToString()`, `stemsToDisplayString()`
+- Used for showing terms in tree view and BZ list
+
+### `include/RegexPatterns.h`
+- Namespace with `constexpr` pattern constants
+- Shared between MainWindow and tests
+- All patterns require 3+ character words
+- All patterns use case-insensitive matching `(?i)`
 
 ### `CMakeLists.txt`
 - Line 7: wxBUILD_SHARED OFF (static linking, increases binary size but simplifies distribution)
-- Line 19-27: Windows-specific defines and optimizations
-- Line 27/31: Executable sources (add new .cpp files here)
+- Lines 29-49: FetchContent for Abseil (required by RE2)
+- Lines 42-49: FetchContent for RE2 regex library
+- Lines 52-62: FetchContent for Google Test
+- Lines 64-84: Code coverage support (ENABLE_COVERAGE option)
+- Lines 120-127: Windows executable with all source files
+- Lines 129-132: Linux executable with all source files
+- Line 134: Link against wx::core, wx::base, wx::richtext, and re2
+- Line 137: Add tests subdirectory
 
 ## Common Development Tasks
 
@@ -289,10 +410,12 @@ For each reference number:
 
 ### Modifying Regex Patterns
 
-1. Edit patterns in `MainWindow.h` (lines 64-79)
-2. Test with sample German text containing umlauts
-3. Ensure patterns use `\b` for word boundaries
-4. Use `[[:alpha:]äöüÄÖÜß]+` for German words
+1. Edit patterns in `include/RegexPatterns.h` (namespace constants)
+2. Patterns are RE2 syntax (not std::regex), use RE2 documentation
+3. Test with unit tests in `tests/test_re2_regex_helper.cpp`
+4. Use `\p{L}` for Unicode letters (handles German, English, and more)
+5. Use `(?i)` prefix for case-insensitive matching
+6. Remember: patterns are shared between application and tests
 
 ### Adding New Error Type
 
@@ -333,32 +456,66 @@ For each reference number:
 
 ## Testing Guidelines
 
+### Automated Testing
+
+**Unit Tests**: ~30 tests in 4 test files using Google Test framework
+
+1. **test_german_analyzer.cpp**: Tests German stemming, articles, ignored words
+2. **test_english_analyzer.cpp**: Tests English stemming, articles, ignored words
+3. **test_re2_regex_helper.cpp**: Tests RE2/wstring conversion, pattern matching
+4. **test_utils.cpp**: Tests core utilities (BZ comparator, hash functions)
+
+**Running Tests**:
+```bash
+cd build
+cmake --build . --target unit_tests
+./tests/unit_tests
+```
+
+**Code Coverage**:
+```bash
+cmake -DENABLE_COVERAGE=ON ..
+cmake --build .
+./tests/unit_tests
+lcov --capture --directory . --output-file coverage.info
+lcov --remove coverage.info '/usr/*' '*/libs/*' '*/tests/*' --output-file coverage.info
+genhtml coverage.info --output-directory coverage_html
+```
+
 ### Manual Testing Checklist
 
 1. **Basic Functionality**:
-   - Paste German patent text
+   - Paste German and English patent text
+   - Switch between languages with radio button
    - Verify reference numbers are detected
    - Check term list and tree view populate
 
 2. **Error Detection**:
    - Missing numbers: Remove number from a term, verify yellow highlight
    - Conflicting numbers: Assign different numbers to same term
+   - Split numbers: Same number for different terms
    - Article errors: Mix "der Lager 10" and "ein Lager 10"
 
 3. **Multi-word Terms**:
    - Right-click term in tree
    - Enable multi-word mode
-   - Verify "erstes/zweites Lager" detected correctly
+   - Verify "erstes/zweites Lager" or "first/second bearing" detected correctly
 
-4. **Navigation**:
-   - Click forward/backward buttons for each error type
+4. **Error Clearing**:
+   - Right-click on highlighted text → Clear error
+   - Right-click on tree item → Clear error
+   - Use menu: Restore All Errors / Restore Textbox Errors / Restore Overview Errors
+   - Verify errors disappear and reappear correctly
+
+5. **Navigation**:
+   - Click forward/backward buttons for each error type (5 types total)
    - Verify text selection jumps to errors
    - Check counter updates (e.g., "1/5")
 
-5. **Cross-platform** (if applicable):
+6. **Cross-platform** (if applicable):
    - Test on Windows and Linux
    - Verify icon displays correctly
-   - Check text rendering (umlauts)
+   - Check text rendering (umlauts, special characters)
 
 ## Debugging Tips
 
@@ -384,45 +541,75 @@ For each reference number:
 
 ## External Dependencies
 
+### Google RE2
+- **Location**: Fetched via CMake FetchContent
+- **Type**: Compiled library (static)
+- **Purpose**: Fast, safe regular expression matching
+- **Advantages**: Linear time complexity, no catastrophic backtracking
+- **Usage**: Pattern objects (`re2::RE2`), matching with `RE2::PartialMatch()`
+- **Helper**: `RE2RegexHelper` class for wstring integration
+
+### Abseil
+- **Location**: Fetched via CMake FetchContent
+- **Type**: Compiled library (static)
+- **Purpose**: Required dependency for RE2
+- **Modules Used**: Various base utilities
+
+### Google Test
+- **Location**: Fetched via CMake FetchContent
+- **Type**: Testing framework
+- **Purpose**: Unit testing
+- **Usage**: TEST() macros, EXPECT_* assertions
+
 ### Oleander Stemming Library
-- **Location**: `include/stemming.h`, `include/german_stem.h`
+- **Location**: `include/stemming.h`, `include/german_stem.h`, `include/english_stem.h`
 - **Type**: Header-only template library
-- **Language Support**: German (others available but unused)
-- **Usage**: `stemming::german_stem<>` class with `operator()` for stemming
+- **Language Support**: German and English (others available but unused)
+- **Usage**: `stemming::german_stem<>` / `stemming::english_stem<>` with `operator()`
+- **Caching**: Wrapped by TextAnalyzer classes for performance
 - **Documentation**: See header comments
 
 ### wxWidgets
+- **Location**: Git submodule at `libs/wxWidgets`
 - **Version**: Latest from git submodule (likely 3.2+)
 - **Modules Used**: `wx::core`, `wx::base`, `wx::richtext`
-- **Key Classes**: `wxFrame`, `wxRichTextCtrl`, `wxTreeListCtrl`, `wxNotebook`, `wxTimer`
+- **Key Classes**: `wxFrame`, `wxRichTextCtrl`, `wxTreeListCtrl`, `wxNotebook`, `wxTimer`, `wxRadioBox`
 - **Build**: Static linking enabled (wxBUILD_SHARED OFF)
+- **Setup**: `git submodule update --init --recursive`
 
 ## Performance Considerations
 
-1. **Debouncing**: 500ms delay prevents excessive rescanning during typing
-2. **Regex Optimization**: Patterns compiled with `optimize` flag
-3. **Build Optimizations**: O3, LTO (on MSVC), dead code elimination
-4. **Static Linking**: No runtime dependencies, larger binary but better performance
-5. **Text Size**: Designed for patent applications (~10-50 pages), may slow with very large texts
+1. **Debouncing**: 200ms delay prevents excessive rescanning during typing
+2. **Stemming Cache**: Significant speedup by caching stemmed words (avoids redundant Oleander calls)
+3. **RE2 Regex Engine**: Linear time complexity, significantly faster than std::regex
+4. **Freeze/Thaw Pattern**: Text control frozen during updates to batch visual changes
+5. **Build Optimizations**: O2, LTO (on MSVC), dead code elimination, function sections
+6. **Static Linking**: No runtime dependencies, larger binary but better performance
+7. **Text Size**: Designed for patent applications (~10-50 pages), performs well even on large documents
+8. **Timer Profiling**: `TimerHelper` class used during development to identify bottlenecks
 
 ## Known Issues & Limitations
 
-1. **Language**: German only (stemmer is language-specific)
-2. **Multi-word**: Requires manual activation via context menu
+1. **Language**: German and English supported; other languages require new analyzer classes
+2. **Multi-word**: Requires manual activation via context menu (no auto-detection)
 3. **Article Detection**: May have false positives with complex grammar
 4. **Reference Number Format**: Assumes digits followed by optional letters (10, 10a, 10')
 5. **Text Encoding**: Requires Unicode (UTF-8/UTF-16), issues with legacy encodings
+6. **Threading**: Single-threaded; scanning happens on main thread (future: separate thread)
+7. **Word Length**: 3-character minimum may miss legitimate 2-letter technical abbreviations
 
 ## Future Enhancement Ideas
 
 (Note: These are potential improvements, not current features)
 - Auto-detect multi-word terms based on frequency
-- Support for other languages (requires different stemmers)
+- Support for other languages (requires new TextAnalyzer classes)
 - Export validation report to PDF/HTML
 - Integrate with patent office XML formats
 - Undo/redo for text editing
 - Configurable highlight colors
-- Spell checking for German technical terms
+- Separate scanning thread (non-blocking UI during large document scans)
+- Persistent settings (language preference, cleared errors, multi-word terms)
+- Import/export of multi-word term lists
 
 ---
 
@@ -432,30 +619,82 @@ When working on this codebase:
 
 ✅ **DO**:
 - Use `std::wstring` for all text manipulation
-- Test with German text containing äöüÄÖÜß
+- Test with German and English text containing special characters (äöüÄÖÜß)
 - Maintain parallel data structures (BZ→Stem and Stem→BZ)
 - Follow the member variable naming convention (`m_prefix`)
 - Consider both Windows and Linux when modifying build files
-- Check that regex patterns use wide string types (`std::wregex`)
+- Use RE2 regex patterns (not `std::regex`) via `RE2RegexHelper`
+- Add unit tests for new functionality (use Google Test framework)
+- Run tests before committing: `cd build && cmake --build . --target unit_tests && ./tests/unit_tests`
+- Update line numbers in this document when making significant changes
 
 ❌ **DON'T**:
-- Mix narrow strings (`std::string`) with wide strings
+- Mix narrow strings (`std::string`) with wide strings (use `RE2RegexHelper` for conversions)
 - Modify Oleander stemming library headers
 - Delete UI objects manually (wxWidgets manages lifecycle)
 - Break the debounce pattern (performance will suffer)
 - Change data structure types without updating hash/comparator functions
-- Forget to update both CMakeLists.txt sections (Windows/Linux)
+- Forget to update both CMakeLists.txt sections (Windows/Linux) when adding source files
+- Use `std::regex` or `std::wregex` (use RE2 instead for performance and safety)
+- Modify regex patterns without testing them in unit tests
 
 🔧 **Key Files**:
-- Core logic: `src/MainWindow.cpp` (~900 lines)
-- Data structures: `include/MainWindow.h`, `include/utils.h`
+- Core orchestration: `src/MainWindow.cpp` (~650 lines, refactored)
+- Language analysis: `src/GermanTextAnalyzer.cpp`, `src/EnglishTextAnalyzer.cpp`
+- Scanning logic: `src/TextScanner.cpp` (separated from MainWindow)
+- Error detection: `src/ErrorDetectorHelper.cpp` (separated from MainWindow)
+- Data structures: `include/MainWindow.h`, `include/utils_core.h`
+- Regex patterns: `include/RegexPatterns.h` (shared constants)
 - Build config: `CMakeLists.txt`
 - Entry point: `main.cpp` (minimal, just creates MainWindow)
+- Tests: `tests/*.cpp` (~30 tests)
 
 📊 **Architecture Summary**:
 ```
-User Input → Debounce Timer → Regex Scan → Stemming →
-Data Structure Update → Error Detection → UI Update (Highlighting + Lists)
+User Input → Debounce Timer (200ms) →
+MainWindow::scanText() →
+  TextScanner::scanText() (RE2 regex matching) →
+  Language Analyzer (stemming with cache) →
+  Data Structure Update (BZ↔Stem mappings) →
+  ErrorDetectorHelper (find errors) →
+  UI Update (Freeze→Highlighting→Thaw + Lists)
 ```
 
-Last updated: 2025-11-29
+🏗️ **Recent Major Refactoring** (Dec 2024):
+- Separated concerns: MainWindow now delegates to specialized classes
+- Added English language support (bilingual: German/English)
+- Migrated from `std::wregex` to Google RE2 for better performance
+- Implemented stemming cache for significant speed improvements
+- Added 30+ unit tests with Google Test
+- Minimum 3-character word filtering to reduce noise
+- User-configurable error clearing (textbox and overview)
+- Reduced MainWindow.cpp from ~900 to ~650 lines
+
+---
+
+## 🚨 IMPORTANT: Update This Documentation
+
+**RULE**: After any significant refactoring, new features, or bug fixes that involve compilation, **ALWAYS update this CLAUDE.md file** before ending the session.
+
+**What to update**:
+1. Project structure if files were added/removed/renamed
+2. Architecture descriptions if logic was refactored
+3. Line number references in "File-Specific Notes" section
+4. Technology stack if dependencies changed
+5. Build instructions if CMake configuration changed
+6. Testing section if tests were added
+7. Known issues/limitations if bugs were fixed or new ones discovered
+8. The "Last updated" date at the bottom
+
+**How to update**:
+- Review the changes made during the session
+- Read the affected source files to verify current state
+- Update relevant sections with accurate information
+- Test that line number references are still correct
+- Ensure build instructions work
+
+This documentation is critical for maintaining context across sessions and helping future development.
+
+---
+
+Last updated: 2024-12-04
