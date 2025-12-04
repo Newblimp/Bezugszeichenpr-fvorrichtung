@@ -15,6 +15,9 @@
 #include <wx/listctrl.h>
 #include <wx/wx.h>
 #include <set>
+#include <thread>
+#include <mutex>
+#include <atomic>
 
 class MainWindow : public wxFrame {
 public:
@@ -28,8 +31,9 @@ private:
 
   // Core scanning logic
   void scanText(wxTimerEvent &event);
+  void scanTextBackground();
+  void updateUIAfterScan();
   void debounceFunc(wxCommandEvent &event);
-  void setupAndClear();
 
   // Display methods
   void fillListTree();
@@ -106,6 +110,11 @@ private:
 
   // Debounce timer for text changes
   wxTimer m_debounceTimer;
+
+  // Thread synchronization for background scanning
+  std::jthread m_scanThread;
+  std::mutex m_dataMutex;
+  std::atomic<bool> m_cancelScan{false};
 
   // Main data structure: BZ -> set of StemVectors
   // Example: "10" -> {{"lager"}, {"zweit", "lager"}}

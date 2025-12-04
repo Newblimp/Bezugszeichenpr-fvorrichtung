@@ -11,6 +11,7 @@
 #include "wx/event.h"
 #include "wx/gdicmn.h"
 #include "wx/timer.h"
+#include "wx/wupdlock.h"
 #include <algorithm>
 #include <locale>
 #include <string>
@@ -117,43 +118,115 @@ MainWindow::MainWindow()
 }
 
 void MainWindow::debounceFunc(wxCommandEvent &event) {
-  m_debounceTimer.Start(200, true);
+  m_debounceTimer.Start(500, true);
 }
 
 void MainWindow::scanText(wxTimerEvent &event) {
-  // Freeze text control to prevent redraws during style updates
-  // This dramatically improves performance by batching all visual updates
-  m_textBox->Freeze();
-  m_textBox->BeginSuppressUndo();
+  // Cancel any running scan
+  m_cancelScan = true;
+
+  // Wait for previous thread to finish if it's still running
+  if (m_scanThread.joinable()) {
+    m_scanThread.join();
+  }
+
+  // Reset cancellation flag
+  m_cancelScan = false;
+
+  // Get the text to scan (on main thread, as required by wxWidgets)
+  m_fullText = m_textBox->GetValue().ToStdWstring();
+
+  // Launch background thread for scanning
+  m_scanThread = std::jthread([this](std::stop_token stoken) {
+    this->scanTextBackground();
+  });
+}
+
+void MainWindow::scanTextBackground() {
+  // This function runs on the background thread
+  // We lock the mutex for the entire operation to ensure data consistency
+  std::lock_guard<std::mutex> lock(m_dataMutex);
+
+  Timer t_total;
+
+  // Check for cancellation
+  if (m_cancelScan) {
+    return;
+  }
 
   Timer t_setup;
-  setupAndClear();
+  // Clear all data structures
+  m_bzToStems.clear();
+  m_stemToBz.clear();
+  m_bzToOriginalWords.clear();
+  m_bzToPositions.clear();
+  m_stemToPositions.clear();
+
+  m_allErrorsPositions.clear();
+  m_noNumberPositions.clear();
+  m_wrongNumberPositions.clear();
+  m_splitNumberPositions.clear();
+  m_wrongArticlePositions.clear();
+
   std::cout << "Time for setup and clearing: " << t_setup.elapsed() << " milliseconds\n";
 
+  if (m_cancelScan) {
+    return;
+  }
+
   // Scan text for patterns using TextScanner
+  Timer t_scan;
   TextScanner::scanText(m_fullText, m_singleWordRegex, m_twoWordRegex,
                         m_multiWordBaseStems, m_clearedTextPositions,
                         m_bzToStems, m_stemToBz, m_bzToOriginalWords,
                         m_bzToPositions, m_stemToPositions);
+  std::cout << "Time for TextScanner::scanText: " << t_scan.elapsed() << " milliseconds\n";
+
+  std::cout << "Total background scan time: " << t_total.elapsed() << " milliseconds\n";
+
+  // Schedule UI update on main thread
+  // Note: CallAfter is thread-safe in wxWidgets
+  CallAfter(&MainWindow::updateUIAfterScan);
+}
+
+void MainWindow::updateUIAfterScan() {
+  // This function runs on the main thread
+  // Lock mutex while accessing shared data
+  std::lock_guard<std::mutex> lock(m_dataMutex);
+
+  // Check if scan was cancelled
+  if (m_cancelScan) {
+    return;
+  }
+
+  // RAII-based window update locker prevents redraws during updates
+  wxWindowUpdateLocker updateLocker(m_textBox);
+  m_textBox->BeginSuppressUndo();
+
+  // Clear UI elements
+  m_treeList->DeleteAllItems();
+  m_bzCurrentOccurrence.clear();
+
+  // Reset text highlighting
+  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
 
   // Update display
   Timer t_fillListTree;
   fillListTree();
   std::cout << "Time for fillListTree: " << t_fillListTree.elapsed() << " milliseconds\n";
 
-  Timer t_finUnnumberedWords;
+  Timer t_findUnnumberedWords;
   findUnnumberedWords();
-  std::cout << "Time for finding unnumbered words: " << t_finUnnumberedWords.elapsed() << " milliseconds\n";
+  std::cout << "Time for finding unnumbered words: " << t_findUnnumberedWords.elapsed() << " milliseconds\n";
 
   Timer t_checkArticleUsage;
   checkArticleUsage();
   std::cout << "Time for checking articles: " << t_checkArticleUsage.elapsed() << " milliseconds\n";
 
-  // sort the positions of all the errors and remove any duplicate entries
+  // Sort the positions of all the errors and remove any duplicate entries
   Timer t_sortErrors;
   std::sort(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
-  auto last =
-      std::unique(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
+  auto last = std::unique(m_allErrorsPositions.begin(), m_allErrorsPositions.end());
   m_allErrorsPositions.erase(last, m_allErrorsPositions.end());
   std::cout << "Time for error sort: " << t_sortErrors.elapsed() << " milliseconds\n";
 
@@ -176,9 +249,8 @@ void MainWindow::scanText(wxTimerEvent &event) {
   fillBzList();
   std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
 
-  // Thaw text control to apply all batched updates at once
   m_textBox->EndSuppressUndo();
-  m_textBox->Thaw();
+  // wxWindowUpdateLocker automatically "thaws" the window when it goes out of scope
 }
 
 void MainWindow::fillListTree() {
@@ -237,29 +309,6 @@ void MainWindow::checkArticleUsage() {
       m_articleWarningStyle, m_wrongArticlePositions, m_allErrorsPositions);
 }
 
-void MainWindow::setupAndClear() {
-  m_fullText = m_textBox->GetValue().ToStdWstring();
-
-  // Clear all data structures
-  m_bzToStems.clear();
-  m_stemToBz.clear();
-  m_bzToOriginalWords.clear();
-  m_bzToPositions.clear();
-  m_stemToPositions.clear();
-  // m_allStems.clear();
-
-  m_treeList->DeleteAllItems();
-
-  m_allErrorsPositions.clear();
-  m_noNumberPositions.clear();
-  m_wrongNumberPositions.clear();
-  m_splitNumberPositions.clear();
-  m_wrongArticlePositions.clear();
-  m_bzCurrentOccurrence.clear();
-
-  // Reset text highlighting
-  m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
-}
 
 void MainWindow::selectNextAllError(wxCommandEvent &event) {
   ErrorNavigator::selectNext(m_allErrorsPositions, m_allErrorsSelected,
@@ -424,6 +473,9 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
   wxString bzText = m_treeList->GetItemText(item, 0);
   std::wstring bz = bzText.ToStdWstring();
 
+  // Lock mutex to safely access shared data
+  std::lock_guard<std::mutex> lock(m_dataMutex);
+
   // Get the stems for this BZ to determine the base word
   if (m_bzToStems.count(bz) && !m_bzToStems[bz].empty()) {
     // Get the first stem vector
@@ -514,6 +566,9 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
 
   wxString bzText = m_treeList->GetItemText(item, 0);
   std::wstring bz = bzText.ToStdWstring();
+
+  // Lock mutex to safely access shared data
+  std::lock_guard<std::mutex> lock(m_dataMutex);
 
   // Check if this BZ has any positions
   if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
