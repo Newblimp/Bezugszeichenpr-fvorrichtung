@@ -181,6 +181,7 @@ void ErrorDetectorHelper::checkArticleUsage(
             if (MainWindow::isCurrentIndefiniteArticle(precedingWord)) {
                 if (!isPositionCleared(clearedTextPositions, precedingPos, articleEnd)) {
                     wrongArticlePositions.emplace_back(precedingPos, articleEnd);
+                    allErrorsPositions.emplace_back(precedingPos, articleEnd);
                     textBox->SetStyle(precedingPos, articleEnd, articleWarningStyle);
                 }
             }
