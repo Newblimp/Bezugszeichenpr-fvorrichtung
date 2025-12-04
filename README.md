@@ -8,12 +8,17 @@ Wrong definite/indefinite articles are highlighted cyan, wrong reference signs y
 
 # TODO
 
-- separate scanning and GUI thread
+- image viewer for PDF patent drawings
+- scan image using CRNN for finding reference signs
+- ~~separate scanning and GUI thread~~
 - ~~clearing errors in the textbox should clear errors in the list if applicable~~
 - ~~ignore "Figure", "Figur", "Figuren" etc. when scanning for terms~~
 - ~~ignore der, die, das, dem, und, and other short connectors when scanning for terms~~
 
 # Changelog
+__version 0.4 (Dec. 04, 2025)__
+- separate scanning and GUI thread
+
 __version 0.3 (Dec. 02, 2025)__
 - clearing errors in the textbox should clear errors in the list if applicable
 
