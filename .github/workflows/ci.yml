@@ -35,11 +35,14 @@ jobs:
     - name: Build
       run: |
         cmake --build build --parallel
+        
+    - name: Install xvfb
+      run: sudo apt-get install -y xvfb
 
     - name: Run tests
       run: |
         cd build/tests
-        ./unit_tests --gtest_output=xml:test-results.xml
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" ./unit_tests --gtest_output=xml:test-results.xml
 
     - name: Upload test results
       if: always()
