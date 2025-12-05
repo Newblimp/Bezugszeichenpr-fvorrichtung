@@ -6,31 +6,41 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     // Create menu bar
     createMenuBar(parent);
 
+    // Create main panel
     wxPanel *panel = new wxPanel(parent, wxID_ANY);
+    wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
+    panel->SetSizer(mainSizer);
+
+    // Create splitter window
+    components.splitter = new wxSplitterWindow(panel, wxID_ANY);
+
+    // Left panel (existing text editor and controls)
+    wxPanel *leftPanel = new wxPanel(components.splitter, wxID_ANY);
+    wxBoxSizer *leftSizer = new wxBoxSizer(wxVERTICAL);
+    leftPanel->SetSizer(leftSizer);
+
     wxBoxSizer *viewSizer = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer *outputSizer = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *numberSizer = new wxBoxSizer(wxVERTICAL);
 
-    components.notebookList = new wxNotebook(panel, wxID_ANY);
+    components.notebookList = new wxNotebook(leftPanel, wxID_ANY);
 
     // Language selector
     wxArrayString languages;
     languages.Add("German");
     languages.Add("English");
-    components.languageSelector = new wxRadioBox(panel, wxID_ANY, "Language",
+    components.languageSelector = new wxRadioBox(leftPanel, wxID_ANY, "Language",
                                                 wxDefaultPosition, wxDefaultSize,
                                                 languages, 1, wxRA_SPECIFY_COLS);
     components.languageSelector->SetSelection(0); // Default to German
 
     // Main text editor
-    components.textBox = new wxRichTextCtrl(panel);
+    components.textBox = new wxRichTextCtrl(leftPanel);
     components.bzList = std::make_shared<wxRichTextCtrl>(
         components.notebookList, wxID_ANY, wxEmptyString,
         wxDefaultPosition, wxSize(350, -1));
 
-    wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-    mainSizer->Add(viewSizer, 1, wxEXPAND);
-    panel->SetSizer(mainSizer);
+    leftSizer->Add(viewSizer, 1, wxEXPAND);
 
     viewSizer->Add(components.textBox, 1, wxEXPAND | wxALL, 10);
     viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
@@ -47,31 +57,31 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     // Create navigation rows for each error type
     wxBoxSizer *allErrorsSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, allErrorsSizer, "all errors",
+    createNavigationRow(leftPanel, allErrorsSizer, "all errors",
                        components.buttonBackwardAllErrors,
                        components.buttonForwardAllErrors,
                        components.allErrorsLabel, 45);
 
     wxBoxSizer *noNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, noNumberSizer, "unnumbered",
+    createNavigationRow(leftPanel, noNumberSizer, "unnumbered",
                        components.buttonBackwardNoNumber,
                        components.buttonForwardNoNumber,
                        components.noNumberLabel);
 
     wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, wrongNumberSizer, "inconsistent terms",
+    createNavigationRow(leftPanel, wrongNumberSizer, "inconsistent terms",
                        components.buttonBackwardWrongNumber,
                        components.buttonForwardWrongNumber,
                        components.wrongNumberLabel);
 
     wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, splitNumberSizer, "inconsistent reference signs",
+    createNavigationRow(leftPanel, splitNumberSizer, "inconsistent reference signs",
                        components.buttonBackwardSplitNumber,
                        components.buttonForwardSplitNumber,
                        components.splitNumberLabel);
 
     wxBoxSizer *wrongArticleSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, wrongArticleSizer, "inconsistent article",
+    createNavigationRow(leftPanel, wrongArticleSizer, "inconsistent article",
                        components.buttonBackwardWrongArticle,
                        components.buttonForwardWrongArticle,
                        components.wrongArticleLabel);
@@ -91,18 +101,58 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     outputSizer->Add(bottomSizer, 0, wxALL | wxEXPAND, 10);
 
+    // Create image viewer panel (right side)
+    components.imagePanel = std::make_shared<wxScrolledWindow>(
+        components.splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxVSCROLL | wxHSCROLL);
+    components.imagePanel->SetScrollRate(10, 10);
+    components.imagePanel->SetBackgroundColour(*wxLIGHT_GREY);
+
+    wxBoxSizer *imageSizer = new wxBoxSizer(wxVERTICAL);
+    components.imagePanel->SetSizer(imageSizer);
+
+    // Add informational text (shown when no image is loaded)
+    components.imageInfoText = std::make_shared<wxStaticText>(
+        components.imagePanel.get(), wxID_ANY,
+        "Image Viewer\n\nOpen an image file\nto display it here",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+    wxFont font = components.imageInfoText->GetFont();
+    font.SetPointSize(12);
+    components.imageInfoText->SetFont(font);
+    components.imageInfoText->SetForegroundColour(wxColour(100, 100, 100));
+    imageSizer->Add(components.imageInfoText.get(), 1, wxALL | wxALIGN_CENTER | wxEXPAND, 20);
+
+    // Create image viewer (initially hidden)
+    components.imageViewer = std::make_shared<wxStaticBitmap>(
+        components.imagePanel.get(), wxID_ANY, wxNullBitmap);
+    components.imageViewer->Hide();
+    imageSizer->Add(components.imageViewer.get(), 1, wxALL | wxALIGN_CENTER, 10);
+
+    // Initialize splitter with both panels visible
+    components.splitter->SplitVertically(leftPanel, components.imagePanel.get(), -300);
+    components.splitter->SetMinimumPaneSize(200);
+
+    // Add splitter to main panel
+    mainSizer->Add(components.splitter, 1, wxEXPAND);
+
     return components;
 }
 
 void UIBuilder::createMenuBar(wxFrame* parent) {
     wxMenuBar *menuBar = new wxMenuBar();
-    wxMenu *toolsMenu = new wxMenu();
 
+    // File menu
+    wxMenu *fileMenu = new wxMenu();
+    fileMenu->Append(wxID_OPEN, "&Open Image\tCtrl+O", "Open an image file");
+
+    // Tools menu
+    wxMenu *toolsMenu = new wxMenu();
     toolsMenu->Append(wxID_HIGHEST + 20, "Restore all errors");
     toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared textbox errors");
     toolsMenu->Append(wxID_HIGHEST + 22, "Restore cleared overview errors");
 
-    menuBar->Append(toolsMenu, "Tools");
+    menuBar->Append(fileMenu, "&File");
+    menuBar->Append(toolsMenu, "&Tools");
     parent->SetMenuBar(menuBar);
 }
 

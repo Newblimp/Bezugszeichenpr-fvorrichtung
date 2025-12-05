@@ -8,6 +8,8 @@
 #include "wx/textctrl.h"
 #include "wx/timer.h"
 #include "wx/treelist.h"
+#include "wx/splitter.h"
+#include "wx/scrolwin.h"
 #include <map>
 #include <memory>
 #include <re2/re2.h>
@@ -70,6 +72,10 @@ private:
   void onRestoreAllErrors(wxCommandEvent &event);
   void toggleMultiWordTerm(const std::wstring &baseStem);
   void clearError(const std::wstring &bz);
+
+  // Image handling
+  void onOpenImage(wxCommandEvent &event);
+  void loadImage(const wxString &filePath);
 
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
@@ -168,6 +174,12 @@ private:
   std::shared_ptr<wxRichTextCtrl> m_bzList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
+
+  // Image viewer components
+  wxSplitterWindow *m_splitter;
+  std::shared_ptr<wxScrolledWindow> m_imagePanel;
+  std::shared_ptr<wxStaticBitmap> m_imageViewer;
+  std::shared_ptr<wxStaticText> m_imageInfoText;
 
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;

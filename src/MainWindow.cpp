@@ -392,6 +392,12 @@ void MainWindow::setupUi() {
   m_buttonBackwardWrongArticle = components.buttonBackwardWrongArticle;
   m_wrongArticleLabel = components.wrongArticleLabel;
 
+  // Image viewer components
+  m_splitter = components.splitter;
+  m_imagePanel = components.imagePanel;
+  m_imageViewer = components.imageViewer;
+  m_imageInfoText = components.imageInfoText;
+
   // Set up text styles
   m_neutralStyle.SetBackgroundColour(
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
@@ -433,11 +439,12 @@ void MainWindow::setupBindings() {
   m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
   
   // Menu bar handlers
+  Bind(wxEVT_MENU, &MainWindow::onOpenImage, this, wxID_OPEN);
   Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 20);
   Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 21);
   Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 22);
-  
-  
+
+
   // Language selector
   m_languageSelector->Bind(wxEVT_RADIOBOX, &MainWindow::onLanguageChanged, this);
 }
@@ -702,7 +709,40 @@ void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
 void MainWindow::onLanguageChanged(wxCommandEvent &event) {
   // Update language selection
   s_useGerman = (m_languageSelector->GetSelection() == 0);
-  
+
   // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::onOpenImage(wxCommandEvent &event) {
+  wxFileDialog openFileDialog(
+      this, "Open image file", "", "",
+      "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
+      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+
+  if (openFileDialog.ShowModal() == wxID_CANCEL)
+    return;
+
+  loadImage(openFileDialog.GetPath());
+}
+
+void MainWindow::loadImage(const wxString &filePath) {
+  wxImage image;
+  if (!image.LoadFile(filePath)) {
+    wxMessageBox("Failed to load image: " + filePath, "Error",
+                 wxICON_ERROR | wxOK);
+    return;
+  }
+
+  // Hide the info text and show the image viewer
+  m_imageInfoText->Hide();
+
+  // Convert to bitmap and display
+  wxBitmap bitmap(image);
+  m_imageViewer->SetBitmap(bitmap);
+  m_imageViewer->Show();
+
+  // Update the scrolled window virtual size
+  m_imagePanel->SetVirtualSize(bitmap.GetWidth(), bitmap.GetHeight());
+  m_imagePanel->Layout();
 }
