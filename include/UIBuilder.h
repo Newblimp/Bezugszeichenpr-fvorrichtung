@@ -4,6 +4,8 @@
 #include <wx/richtext/richtextctrl.h>
 #include <wx/treelist.h>
 #include <wx/notebook.h>
+#include <wx/splitter.h>
+#include <wx/scrolwin.h>
 #include <memory>
 
 /**
@@ -21,6 +23,12 @@ public:
         wxRadioBox* languageSelector;
         std::shared_ptr<wxRichTextCtrl> bzList;
         std::shared_ptr<wxTreeListCtrl> treeList;
+
+        // Image viewer components
+        std::shared_ptr<wxScrolledWindow> imagePanel;
+        std::shared_ptr<wxStaticBitmap> imageViewer;
+        std::shared_ptr<wxStaticText> imageInfoText;
+        wxSplitterWindow* splitter;
 
         // Navigation buttons - All errors
         std::shared_ptr<wxButton> buttonForwardAllErrors;
