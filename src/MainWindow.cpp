@@ -398,6 +398,11 @@ void MainWindow::setupUi() {
   m_imageViewer = components.imageViewer;
   m_imageInfoText = components.imageInfoText;
 
+  // Image navigation components
+  m_buttonPreviousImage = components.buttonPreviousImage;
+  m_buttonNextImage = components.buttonNextImage;
+  m_imageNavigationLabel = components.imageNavigationLabel;
+
   // Set up text styles
   m_neutralStyle.SetBackgroundColour(
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
@@ -408,6 +413,13 @@ void MainWindow::setupUi() {
 void MainWindow::setupBindings() {
   m_textBox->Bind(wxEVT_TEXT, &MainWindow::debounceFunc, this);
   m_debounceTimer.Bind(wxEVT_TIMER, &MainWindow::scanText, this);
+
+  // Image navigation buttons
+  m_buttonPreviousImage->Bind(wxEVT_BUTTON, &MainWindow::onPreviousImage, this);
+  m_buttonNextImage->Bind(wxEVT_BUTTON, &MainWindow::onNextImage, this);
+
+  // Image panel resize event
+  m_imagePanel->Bind(wxEVT_SIZE, &MainWindow::onImagePanelResize, this);
 
   m_buttonBackwardAllErrors->Bind(wxEVT_BUTTON,
                                   &MainWindow::selectPreviousAllError, this);
@@ -716,14 +728,32 @@ void MainWindow::onLanguageChanged(wxCommandEvent &event) {
 
 void MainWindow::onOpenImage(wxCommandEvent &event) {
   wxFileDialog openFileDialog(
-      this, "Open image file", "", "",
+      this, "Open image file(s)", "", "",
       "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
-      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+      wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
   if (openFileDialog.ShowModal() == wxID_CANCEL)
     return;
 
-  loadImage(openFileDialog.GetPath());
+  // Clear previous images
+  m_loadedImages.clear();
+  m_imagePaths.clear();
+  m_currentImageIndex = -1;
+
+  // Load all selected files
+  wxArrayString paths;
+  openFileDialog.GetPaths(paths);
+
+  for (const auto& path : paths) {
+    loadImage(path);
+  }
+
+  // Display the first image
+  if (!m_loadedImages.empty()) {
+    m_currentImageIndex = 0;
+    updateImageDisplay();
+    updateImageNavigationButtons();
+  }
 }
 
 void MainWindow::loadImage(const wxString &filePath) {
@@ -734,15 +764,113 @@ void MainWindow::loadImage(const wxString &filePath) {
     return;
   }
 
+  // Add image to collection
+  wxBitmap bitmap(image);
+  m_loadedImages.push_back(bitmap);
+  m_imagePaths.push_back(filePath);
+}
+
+void MainWindow::updateImageDisplay() {
+  if (m_currentImageIndex < 0 || m_currentImageIndex >= static_cast<int>(m_loadedImages.size())) {
+    // No valid image to display
+    m_imageViewer->Hide();
+    m_imageInfoText->Show();
+    m_buttonPreviousImage->Hide();
+    m_buttonNextImage->Hide();
+    m_imageNavigationLabel->Hide();
+    m_imagePanel->Layout();
+    return;
+  }
+
   // Hide the info text and show the image viewer
   m_imageInfoText->Hide();
 
-  // Convert to bitmap and display
-  wxBitmap bitmap(image);
-  m_imageViewer->SetBitmap(bitmap);
+  // Get original bitmap
+  const wxBitmap& originalBitmap = m_loadedImages[m_currentImageIndex];
+
+  // Get available space in the image panel (account for navigation buttons)
+  wxSize panelSize = m_imagePanel->GetClientSize();
+  int navHeight = 50; // Approximate height for navigation buttons
+  int availableHeight = panelSize.GetHeight() - navHeight;
+  int availableWidth = panelSize.GetWidth();
+
+  // Skip scaling if panel is too small
+  if (availableWidth < 50 || availableHeight < 50) {
+    m_imageViewer->SetBitmap(originalBitmap);
+    m_imageViewer->Show();
+    m_imagePanel->Layout();
+    return;
+  }
+
+  // Calculate scaling to fit while maintaining aspect ratio
+  int origWidth = originalBitmap.GetWidth();
+  int origHeight = originalBitmap.GetHeight();
+
+  double scaleX = static_cast<double>(availableWidth) / origWidth;
+  double scaleY = static_cast<double>(availableHeight) / origHeight;
+  double scale = std::min(scaleX, scaleY);
+
+  // Only scale down, not up (to avoid pixelation)
+  scale = std::min(scale, 1.0);
+
+  int newWidth = static_cast<int>(origWidth * scale);
+  int newHeight = static_cast<int>(origHeight * scale);
+
+  // Scale the bitmap
+  wxImage scaledImage = originalBitmap.ConvertToImage();
+  scaledImage.Rescale(newWidth, newHeight, wxIMAGE_QUALITY_HIGH);
+  wxBitmap scaledBitmap(scaledImage);
+
+  // Display scaled image
+  m_imageViewer->SetBitmap(scaledBitmap);
   m_imageViewer->Show();
 
-  // Update the scrolled window virtual size
-  m_imagePanel->SetVirtualSize(bitmap.GetWidth(), bitmap.GetHeight());
+  // Show navigation controls
+  m_buttonPreviousImage->Show();
+  m_buttonNextImage->Show();
+  m_imageNavigationLabel->Show();
+
+  // Update navigation label
+  wxString label = wxString::Format("%d/%zu", m_currentImageIndex + 1, m_loadedImages.size());
+  m_imageNavigationLabel->SetLabel(label);
+
+  // Reset virtual size (no scrolling needed since we fit to window)
+  m_imagePanel->SetVirtualSize(panelSize);
   m_imagePanel->Layout();
+}
+
+void MainWindow::updateImageNavigationButtons() {
+  if (m_loadedImages.empty()) {
+    m_buttonPreviousImage->Enable(false);
+    m_buttonNextImage->Enable(false);
+    return;
+  }
+
+  // Enable/disable buttons based on current position
+  m_buttonPreviousImage->Enable(m_currentImageIndex > 0);
+  m_buttonNextImage->Enable(m_currentImageIndex < static_cast<int>(m_loadedImages.size()) - 1);
+}
+
+void MainWindow::onPreviousImage(wxCommandEvent &event) {
+  if (m_currentImageIndex > 0) {
+    m_currentImageIndex--;
+    updateImageDisplay();
+    updateImageNavigationButtons();
+  }
+}
+
+void MainWindow::onNextImage(wxCommandEvent &event) {
+  if (m_currentImageIndex < static_cast<int>(m_loadedImages.size()) - 1) {
+    m_currentImageIndex++;
+    updateImageDisplay();
+    updateImageNavigationButtons();
+  }
+}
+
+void MainWindow::onImagePanelResize(wxSizeEvent &event) {
+  // Update image display when panel is resized
+  if (!m_loadedImages.empty() && m_currentImageIndex >= 0) {
+    updateImageDisplay();
+  }
+  event.Skip(); // Allow default processing
 }

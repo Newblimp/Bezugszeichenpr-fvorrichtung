@@ -76,6 +76,11 @@ private:
   // Image handling
   void onOpenImage(wxCommandEvent &event);
   void loadImage(const wxString &filePath);
+  void onPreviousImage(wxCommandEvent &event);
+  void onNextImage(wxCommandEvent &event);
+  void updateImageDisplay();
+  void updateImageNavigationButtons();
+  void onImagePanelResize(wxSizeEvent &event);
 
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
@@ -180,6 +185,14 @@ private:
   std::shared_ptr<wxScrolledWindow> m_imagePanel;
   std::shared_ptr<wxStaticBitmap> m_imageViewer;
   std::shared_ptr<wxStaticText> m_imageInfoText;
+
+  // Image navigation
+  std::shared_ptr<wxButton> m_buttonPreviousImage;
+  std::shared_ptr<wxButton> m_buttonNextImage;
+  std::shared_ptr<wxStaticText> m_imageNavigationLabel;
+  std::vector<wxBitmap> m_loadedImages;
+  std::vector<wxString> m_imagePaths;
+  int m_currentImageIndex{-1};
 
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;
