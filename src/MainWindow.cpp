@@ -788,11 +788,16 @@ void MainWindow::updateImageDisplay() {
   // Get original bitmap
   const wxBitmap& originalBitmap = m_loadedImages[m_currentImageIndex];
 
-  // Get available space in the image panel (account for navigation buttons)
+  // Get available space in the image panel (account for navigation buttons and margins)
   wxSize panelSize = m_imagePanel->GetClientSize();
-  int navHeight = 50; // Approximate height for navigation buttons
-  int availableHeight = panelSize.GetHeight() - navHeight;
-  int availableWidth = panelSize.GetWidth();
+
+  // Calculate actual navigation controls height
+  int navHeight = m_buttonPreviousImage->GetSize().GetHeight() + 20; // button height + margins
+  int margin = 40; // Additional safety margin for padding
+
+  int availableHeight = panelSize.GetHeight() - navHeight - margin;
+  int availableWidth = panelSize.GetWidth() - 40; // Account for horizontal margins
+
 
   // Skip scaling if panel is too small
   if (availableWidth < 50 || availableHeight < 50) {
