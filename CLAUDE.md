@@ -5,6 +5,7 @@
 **Bezugszeichenprüfvorrichtung** (Reference Number Verification Tool) is a desktop GUI application for validating reference numbers in German patent applications. It automatically checks that technical terms are consistently numbered throughout a patent document, highlighting errors such as missing numbers, conflicting assignments, or incorrect article usage.
 
 ### Key Features
+
 - Scans text for terms paired with reference numbers (e.g., "Lager 10" or "bearing 10")
 - **Bilingual Support**: Both German and English language analysis with selectable UI
 - Detects missing reference numbers for previously defined terms
@@ -129,6 +130,7 @@ Bezugszeichenprüfvorrichtung/
    - `BZComparatorForMap`: Custom comparator for reference numbers (sorts numerically)
 
 3. **Key Mappings** (in MainWindow class)
+
    ```cpp
    // Reference number -> stemmed terms
    std::map<std::wstring, std::unordered_set<StemVector>, BZComparatorForMap> m_bzToStems;
@@ -188,6 +190,7 @@ Bezugszeichenprüfvorrichtung/
 ### CMake Configuration
 
 **Key Settings**:
+
 - C++ Standard: C++20
 - Build Type: Release (with O3 optimization)
 - wxWidgets: Statically linked
@@ -196,6 +199,7 @@ Bezugszeichenprüfvorrichtung/
 **Platform-Specific**:
 
 **Windows** (MSVC or MinGW):
+
 ```cmake
 add_definitions(-DwxUSE_UNICODE_WCHAR=1 -DwxUSE_RICHEDIT=1 -DwxUSE_WINRT=1)
 # MSVC: /O2 /GL /LTCG optimization
@@ -203,6 +207,7 @@ add_definitions(-DwxUSE_UNICODE_WCHAR=1 -DwxUSE_RICHEDIT=1 -DwxUSE_WINRT=1)
 ```
 
 **Linux**:
+
 ```cmake
 add_compile_options(-Wno-write-strings)
 add_definitions(-DwxUSE_UNICODE_WCHAR=1 -DwxUSE_STL=1)
@@ -257,6 +262,7 @@ cmake --build . -j$(nproc)
 ### Important Patterns
 
 1. **Stemming Pattern** (with caching):
+
    ```cpp
    void GermanTextAnalyzer::stemWord(std::wstring& word) {
        if (word.empty()) return;
@@ -357,12 +363,14 @@ For each reference number:
 ## File-Specific Notes
 
 ### `include/MainWindow.h`
+
 - Lines 70-80: RE2 regex patterns (initialized from `RegexPatterns.h`)
 - Lines 83-97: Static analyzers and language-dispatch helper methods
 - Lines 110-143: Core data structures (understand before modifying)
 - Lines 175-194: Error tracking (position vectors and selection indices for 5 error types)
 
 ### `src/MainWindow.cpp`
+
 - Lines 20-23: Static analyzer initialization and language flag
 - Lines 26-80: Language-dispatch helper methods (delegate to analyzers)
 - Line 120: Debounce timer (200ms, adjust if needed)
@@ -373,22 +381,26 @@ For each reference number:
 - Lines 647-653: Language change handler
 
 ### `include/utils_core.h`
+
 - Line 12: `StemVector` type alias (fundamental to the design)
 - Lines 15-25: `StemVectorHash` (don't modify without good reason)
 - Lines 28-69: `BZComparatorForMap` (ensures numeric sorting: 2, 10, 10a, 11)
 - Lines 72-84: `StemVectorComparator` for ordered containers
 
 ### `include/utils.h`
+
 - Display utility functions: `stemVectorToString()`, `stemsToDisplayString()`
 - Used for showing terms in tree view and BZ list
 
 ### `include/RegexPatterns.h`
+
 - Namespace with `constexpr` pattern constants
 - Shared between MainWindow and tests
 - All patterns require 3+ character words
 - All patterns use case-insensitive matching `(?i)`
 
 ### `CMakeLists.txt`
+
 - Line 7: wxBUILD_SHARED OFF (static linking, increases binary size but simplifies distribution)
 - Lines 29-49: FetchContent for Abseil (required by RE2)
 - Lines 42-49: FetchContent for RE2 regex library
@@ -435,20 +447,24 @@ For each reference number:
 ## Git Workflow
 
 ### Current Branch
+
 - Active branch: `claude/claude-md-mikjpsukk114yoi5-01MoikcjC4cnCxE2mSBX8r76`
 - Main branch: (not specified, likely `main` or `master`)
 
 ### Submodule Management
+
 - wxWidgets is a git submodule at `libs/wxWidgets`
 - Initialize with: `git submodule update --init --recursive`
 - Don't modify submodule files directly
 
 ### Commit Conventions
+
 - Recent commits show descriptive messages
 - Focus on "what changed" not implementation details
 - Examples: "fixed highlighting of multi-word missing number terms", "fix windows compilation flags"
 
 ### Platform Testing
+
 - Test builds on both Windows and Linux when modifying:
   - CMakeLists.txt
   - Platform-specific code (#ifdef _WIN32)
@@ -466,6 +482,7 @@ For each reference number:
 4. **test_utils.cpp**: Tests core utilities (BZ comparator, hash functions)
 
 **Running Tests**:
+
 ```bash
 cd build
 cmake --build . --target unit_tests
@@ -473,6 +490,7 @@ cmake --build . --target unit_tests
 ```
 
 **Code Coverage**:
+
 ```bash
 cmake -DENABLE_COVERAGE=ON ..
 cmake --build .
@@ -542,6 +560,7 @@ genhtml coverage.info --output-directory coverage_html
 ## External Dependencies
 
 ### Google RE2
+
 - **Location**: Fetched via CMake FetchContent
 - **Type**: Compiled library (static)
 - **Purpose**: Fast, safe regular expression matching
@@ -550,18 +569,21 @@ genhtml coverage.info --output-directory coverage_html
 - **Helper**: `RE2RegexHelper` class for wstring integration
 
 ### Abseil
+
 - **Location**: Fetched via CMake FetchContent
 - **Type**: Compiled library (static)
 - **Purpose**: Required dependency for RE2
 - **Modules Used**: Various base utilities
 
 ### Google Test
+
 - **Location**: Fetched via CMake FetchContent
 - **Type**: Testing framework
 - **Purpose**: Unit testing
 - **Usage**: TEST() macros, EXPECT_* assertions
 
 ### Oleander Stemming Library
+
 - **Location**: `include/stemming.h`, `include/german_stem.h`, `include/english_stem.h`
 - **Type**: Header-only template library
 - **Language Support**: German and English (others available but unused)
@@ -570,6 +592,7 @@ genhtml coverage.info --output-directory coverage_html
 - **Documentation**: See header comments
 
 ### wxWidgets
+
 - **Location**: Git submodule at `libs/wxWidgets`
 - **Version**: Latest from git submodule (likely 3.2+)
 - **Modules Used**: `wx::core`, `wx::base`, `wx::richtext`
@@ -601,6 +624,7 @@ genhtml coverage.info --output-directory coverage_html
 ## Future Enhancement Ideas
 
 (Note: These are potential improvements, not current features)
+
 - Auto-detect multi-word terms based on frequency
 - Support for other languages (requires new TextAnalyzer classes)
 - Export validation report to PDF/HTML
@@ -618,6 +642,7 @@ genhtml coverage.info --output-directory coverage_html
 When working on this codebase:
 
 ✅ **DO**:
+
 - Use `std::wstring` for all text manipulation
 - Test with German and English text containing special characters (äöüÄÖÜß)
 - Maintain parallel data structures (BZ→Stem and Stem→BZ)
@@ -625,10 +650,10 @@ When working on this codebase:
 - Consider both Windows and Linux when modifying build files
 - Use RE2 regex patterns (not `std::regex`) via `RE2RegexHelper`
 - Add unit tests for new functionality (use Google Test framework)
-- Run tests before committing: `cd build && cmake --build . --target unit_tests && ./tests/unit_tests`
 - Update line numbers in this document when making significant changes
 
 ❌ **DON'T**:
+
 - Mix narrow strings (`std::string`) with wide strings (use `RE2RegexHelper` for conversions)
 - Modify Oleander stemming library headers
 - Delete UI objects manually (wxWidgets manages lifecycle)
@@ -637,8 +662,10 @@ When working on this codebase:
 - Forget to update both CMakeLists.txt sections (Windows/Linux) when adding source files
 - Use `std::regex` or `std::wregex` (use RE2 instead for performance and safety)
 - Modify regex patterns without testing them in unit tests
+- only build and run tests if the user explicitly requests this
 
 🔧 **Key Files**:
+
 - Core orchestration: `src/MainWindow.cpp` (~650 lines, refactored)
 - Language analysis: `src/GermanTextAnalyzer.cpp`, `src/EnglishTextAnalyzer.cpp`
 - Scanning logic: `src/TextScanner.cpp` (separated from MainWindow)
@@ -650,6 +677,7 @@ When working on this codebase:
 - Tests: `tests/*.cpp` (~30 tests)
 
 📊 **Architecture Summary**:
+
 ```
 User Input → Debounce Timer (200ms) →
 MainWindow::scanText() →
@@ -661,6 +689,7 @@ MainWindow::scanText() →
 ```
 
 🏗️ **Recent Major Refactoring** (Dec 2024):
+
 - Separated concerns: MainWindow now delegates to specialized classes
 - Added English language support (bilingual: German/English)
 - Migrated from `std::wregex` to Google RE2 for better performance
@@ -677,6 +706,7 @@ MainWindow::scanText() →
 **RULE**: After any significant refactoring, new features, or bug fixes that involve compilation, **ALWAYS update this CLAUDE.md file** before ending the session.
 
 **What to update**:
+
 1. Project structure if files were added/removed/renamed
 2. Architecture descriptions if logic was refactored
 3. Line number references in "File-Specific Notes" section
@@ -687,6 +717,7 @@ MainWindow::scanText() →
 8. The "Last updated" date at the bottom
 
 **How to update**:
+
 - Review the changes made during the session
 - Read the affected source files to verify current state
 - Update relevant sections with accurate information

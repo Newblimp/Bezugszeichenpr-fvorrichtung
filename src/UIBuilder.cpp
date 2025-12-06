@@ -128,6 +128,26 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     components.imageViewer->Hide();
     imageSizer->Add(components.imageViewer.get(), 1, wxALL | wxALIGN_CENTER, 10);
 
+    // Create image navigation controls (initially hidden)
+    wxBoxSizer *imageNavSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    components.buttonPreviousImage = std::make_shared<wxButton>(
+        components.imagePanel.get(), wxID_ANY, "<", wxDefaultPosition, wxSize(40, 30));
+    components.buttonPreviousImage->Hide();
+    imageNavSizer->Add(components.buttonPreviousImage.get(), 0, wxALL | wxALIGN_CENTER, 5);
+
+    components.imageNavigationLabel = std::make_shared<wxStaticText>(
+        components.imagePanel.get(), wxID_ANY, "0/0", wxDefaultPosition, wxSize(60, -1), wxALIGN_CENTER);
+    components.imageNavigationLabel->Hide();
+    imageNavSizer->Add(components.imageNavigationLabel.get(), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+
+    components.buttonNextImage = std::make_shared<wxButton>(
+        components.imagePanel.get(), wxID_ANY, ">", wxDefaultPosition, wxSize(40, 30));
+    components.buttonNextImage->Hide();
+    imageNavSizer->Add(components.buttonNextImage.get(), 0, wxALL | wxALIGN_CENTER, 5);
+
+    imageSizer->Add(imageNavSizer, 0, wxALL | wxALIGN_CENTER, 5);
+
     // Initialize splitter with both panels visible
     components.splitter->SplitVertically(leftPanel, components.imagePanel.get(), -300);
     components.splitter->SetMinimumPaneSize(200);

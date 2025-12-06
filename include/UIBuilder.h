@@ -30,6 +30,11 @@ public:
         std::shared_ptr<wxStaticText> imageInfoText;
         wxSplitterWindow* splitter;
 
+        // Image navigation components
+        std::shared_ptr<wxButton> buttonPreviousImage;
+        std::shared_ptr<wxButton> buttonNextImage;
+        std::shared_ptr<wxStaticText> imageNavigationLabel;
+
         // Navigation buttons - All errors
         std::shared_ptr<wxButton> buttonForwardAllErrors;
         std::shared_ptr<wxButton> buttonBackwardAllErrors;
