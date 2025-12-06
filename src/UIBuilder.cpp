@@ -116,16 +116,16 @@ void UIBuilder::createNavigationRow(
     int labelWidth
 ) {
     backButton = std::make_shared<wxButton>(
-        panel, wxID_ANY, "<", wxDefaultPosition, wxSize(25, -1));
+        panel, wxID_ANY, "<", wxDefaultPosition, wxSize(35, -1));
     forwardButton = std::make_shared<wxButton>(
-        panel, wxID_ANY, ">", wxDefaultPosition, wxSize(25, -1));
+        panel, wxID_ANY, ">", wxDefaultPosition, wxSize(35, -1));
 
     // Adjust button width for "all errors" row
     if (labelWidth == 45) {
         backButton = std::make_shared<wxButton>(
-            panel, wxID_ANY, "<", wxDefaultPosition, wxSize(30, -1));
+            panel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, -1));
         forwardButton = std::make_shared<wxButton>(
-            panel, wxID_ANY, ">", wxDefaultPosition, wxSize(30, -1));
+            panel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, -1));
     }
 
     sizer->Add(backButton.get());
