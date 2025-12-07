@@ -513,9 +513,13 @@ function(setup_mupdf)
     # COMBINED MUPDF LIBRARY - Single library target for easier linking
     # ==============================================================================
     add_library(mupdf INTERFACE)
+    # Handle circular dependency between mupdf_fitz and mupdf_pdf
+    # by listing them twice (traditional solution for circular deps in static libs)
     target_link_libraries(mupdf INTERFACE
+        mupdf_fitz
         mupdf_pdf
         mupdf_fitz
+        mupdf_pdf
         mupdf_harfbuzz
         mupdf_freetype
         mupdf_lcms2
