@@ -25,9 +25,10 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/ErrorNavigator.cpp
   ${CMAKE_SOURCE_DIR}/src/MainWindow.cpp
   ${CMAKE_SOURCE_DIR}/src/UIBuilder.cpp
+  ${CMAKE_SOURCE_DIR}/src/PDFLoader.cpp
 )
 
-# Link against Google Test, RE2, and wxWidgets
+# Link against Google Test, RE2, wxWidgets, and muPDF (Windows only)
 target_link_libraries(
   unit_tests
   GTest::gtest_main
@@ -37,6 +38,11 @@ target_link_libraries(
   wx::base
   wx::richtext
 )
+
+# Link muPDF on Windows
+if(WIN32)
+  target_link_libraries(unit_tests mupdf)
+endif()
 
 # Discover tests for CTest
 include(GoogleTest)

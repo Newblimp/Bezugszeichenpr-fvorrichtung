@@ -115,23 +115,37 @@ set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/wxWidgets)
 include_directories(include img)
 
+# Build muPDF from source for Windows (static linking, same compiler settings)
+if(WIN32)
+  add_subdirectory(libs/mupdf)
+endif()
+
 # Add executable target
 if(WIN32)
-  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1)
+  add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_RICHEDIT=1; -DwxUSE_WINRT=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1; -DwxUSE_GUI=1; -DHAVE_MUPDF=1)
   if(MSVC)
     add_compile_options(/Zc:strictStrings-)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /GL")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_compile_options(-Wno-write-strings)
   add_definitions(-DwxUSE_UNICODE_WCHAR=1; -DwxUSE_STL=1; -DwxUSE_STD_STRING=1)
   add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp img/check_16.xpm src/stem_collector.cpp)
 endif()
 # Link against wxWidgets and RE2 libraries
-target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
+if(WIN32)
+  target_link_libraries(Bezugszeichenvorrichtung
+    wx::core wx::base wx::richtext re2
+    # muPDF (built from source with same compiler settings)
+    mupdf
+  )
+else()
+  target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
+  message(WARNING "PDF support is Windows-only. Linux builds will not support PDF viewing.")
+endif()
 
 # Add tests subdirectory
 add_subdirectory(tests)
