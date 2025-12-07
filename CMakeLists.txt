@@ -117,7 +117,8 @@ include_directories(include img)
 
 # Build muPDF from source for Windows (static linking, same compiler settings)
 if(WIN32)
-  add_subdirectory(libs/mupdf)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/MuPDFConfig.cmake)
+  setup_mupdf()
 endif()
 
 # Add executable target
