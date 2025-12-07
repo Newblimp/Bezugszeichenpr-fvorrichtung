@@ -727,10 +727,19 @@ void MainWindow::onLanguageChanged(wxCommandEvent &event) {
 }
 
 void MainWindow::onOpenImage(wxCommandEvent &event) {
+#ifdef HAVE_MUPDF
+  wxFileDialog openFileDialog(
+      this, "Open Image or PDF Files", "", "",
+      "All Supported (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf|"
+      "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|"
+      "PDF Files (*.pdf)|*.pdf",
+      wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+#else
   wxFileDialog openFileDialog(
       this, "Open image file(s)", "", "",
       "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
       wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+#endif
 
   if (openFileDialog.ShowModal() == wxID_CANCEL)
     return;
@@ -757,6 +766,15 @@ void MainWindow::onOpenImage(wxCommandEvent &event) {
 }
 
 void MainWindow::loadImage(const wxString &filePath) {
+#ifdef HAVE_MUPDF
+  // Check if file is PDF
+  if (filePath.Lower().EndsWith(".pdf")) {
+    loadPDF(filePath);
+    return;
+  }
+#endif
+
+  // Original image loading code
   wxImage image;
   if (!image.LoadFile(filePath)) {
     wxMessageBox("Failed to load image: " + filePath, "Error",
@@ -769,6 +787,39 @@ void MainWindow::loadImage(const wxString &filePath) {
   m_loadedImages.push_back(bitmap);
   m_imagePaths.push_back(filePath);
 }
+
+#ifdef HAVE_MUPDF
+void MainWindow::loadPDF(const wxString &filePath) {
+  std::vector<wxBitmap> pdfPages;
+  wxString errorMsg;
+
+  // Show busy cursor during loading (300 DPI can take 1-2 sec/page)
+  wxBusyCursor wait;
+
+  // Load PDF at 300 DPI
+  if (!PDFLoader::loadPDF(filePath, 300, pdfPages, errorMsg)) {
+    wxMessageBox("Failed to load PDF: " + errorMsg, "Error",
+                 wxICON_ERROR | wxOK);
+    return;
+  }
+
+  if (pdfPages.empty()) {
+    wxMessageBox("PDF contains no pages: " + filePath, "Error",
+                 wxICON_ERROR | wxOK);
+    return;
+  }
+
+  // Add all pages to image collection
+  for (size_t i = 0; i < pdfPages.size(); ++i) {
+    m_loadedImages.push_back(pdfPages[i]);
+
+    // Store path with page number for display
+    wxString pathWithPage = wxString::Format("%s (Page %zu)",
+                                              filePath, i + 1);
+    m_imagePaths.push_back(pathWithPage);
+  }
+}
+#endif
 
 void MainWindow::updateImageDisplay() {
   if (m_currentImageIndex < 0 || m_currentImageIndex >= static_cast<int>(m_loadedImages.size())) {

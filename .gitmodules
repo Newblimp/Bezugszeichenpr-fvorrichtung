@@ -1,3 +1,6 @@
 [submodule "libs/wxWidgets"]
 	path = libs/wxWidgets
 	url = https://github.com/wxWidgets/wxWidgets.git
+[submodule "libs/mupdf"]
+	path = libs/mupdf
+	url = https://github.com/ArtifexSoftware/mupdf.git

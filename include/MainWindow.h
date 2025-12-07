@@ -3,6 +3,9 @@
 #include "EnglishTextAnalyzer.h"
 #include "RE2RegexHelper.h"
 #include "utils.h"
+#ifdef HAVE_MUPDF
+#include "PDFLoader.h"
+#endif
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
 #include "wx/textctrl.h"
@@ -81,6 +84,11 @@ private:
   void updateImageDisplay();
   void updateImageNavigationButtons();
   void onImagePanelResize(wxSizeEvent &event);
+
+#ifdef HAVE_MUPDF
+  // PDF handling (reuses image infrastructure)
+  void loadPDF(const wxString &filePath);
+#endif
 
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
