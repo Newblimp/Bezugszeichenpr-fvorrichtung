@@ -6,6 +6,9 @@
 #ifdef HAVE_MUPDF
 #include "PDFLoader.h"
 #endif
+#ifdef HAVE_OPENCV
+#include "OCREngine.h"
+#endif
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
 #include "wx/textctrl.h"
@@ -88,6 +91,12 @@ private:
 #ifdef HAVE_MUPDF
   // PDF handling (reuses image infrastructure)
   void loadPDF(const wxString &filePath);
+#endif
+
+#ifdef HAVE_OPENCV
+  // OCR handling
+  void onScanOCR(wxCommandEvent &event);
+  void updateOCRResults(const std::vector<OCRResult>& results);
 #endif
 
     // RE2 regex patterns (optimized for performance)
@@ -202,6 +211,19 @@ private:
   std::vector<wxString> m_imagePaths;
   int m_currentImageIndex{-1};
 
+  // Right panel notebook (contains Image and OCR tabs)
+  wxNotebook* m_rightNotebook;
+
+#ifdef HAVE_OPENCV
+  // OCR components
+  std::unique_ptr<OCREngine> m_ocrEngine;
+  std::shared_ptr<wxPanel> m_ocrPanel;
+  std::shared_ptr<wxListCtrl> m_ocrResultsList;
+  std::shared_ptr<wxButton> m_buttonScanOCR;
+  std::shared_ptr<wxStaticText> m_ocrStatusLabel;
+  std::vector<OCRResult> m_ocrResults;
+#endif
+
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;
   std::shared_ptr<wxButton> m_buttonBackwardAllErrors;
@@ -235,5 +257,3 @@ private:
   int m_wrongArticleSelected{-1};
   std::shared_ptr<wxStaticText> m_wrongArticleLabel;
 };
-
-  // Track cleared text positions (for right-click clear on highlighted text)

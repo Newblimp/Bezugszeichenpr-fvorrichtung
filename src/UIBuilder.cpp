@@ -101,9 +101,12 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     outputSizer->Add(bottomSizer, 0, wxALL | wxEXPAND, 10);
 
-    // Create image viewer panel (right side)
+    // Create right panel notebook (contains Image and OCR tabs)
+    components.rightNotebook = new wxNotebook(components.splitter, wxID_ANY);
+
+    // Create image viewer panel (first tab in right notebook)
     components.imagePanel = std::make_shared<wxScrolledWindow>(
-        components.splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        components.rightNotebook, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxVSCROLL | wxHSCROLL);
     components.imagePanel->SetScrollRate(10, 10);
     components.imagePanel->SetBackgroundColour(*wxLIGHT_GREY);
@@ -148,8 +151,50 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     imageSizer->Add(imageNavSizer, 0, wxALL | wxALIGN_CENTER, 5);
 
+#ifdef HAVE_OPENCV
+    // Add "Scan for Numbers" button (initially hidden)
+    components.buttonScanOCR = std::make_shared<wxButton>(
+        components.imagePanel.get(), wxID_ANY, "Scan for Numbers",
+        wxDefaultPosition, wxSize(140, 30));
+    components.buttonScanOCR->Hide();
+    imageSizer->Add(components.buttonScanOCR.get(), 0, wxALL | wxALIGN_CENTER, 5);
+#endif
+
+    // Add image panel as first tab
+    components.rightNotebook->AddPage(components.imagePanel.get(), "Image");
+
+#ifdef HAVE_OPENCV
+    // Create OCR results panel (second tab)
+    components.ocrPanel = std::make_shared<wxPanel>(components.rightNotebook, wxID_ANY);
+    wxBoxSizer *ocrSizer = new wxBoxSizer(wxVERTICAL);
+    components.ocrPanel->SetSizer(ocrSizer);
+
+    // OCR status label
+    components.ocrStatusLabel = std::make_shared<wxStaticText>(
+        components.ocrPanel.get(), wxID_ANY,
+        "No OCR results yet.\nLoad an image and click 'Scan for Numbers'.",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+    wxFont ocrFont = components.ocrStatusLabel->GetFont();
+    ocrFont.SetPointSize(11);
+    components.ocrStatusLabel->SetFont(ocrFont);
+    components.ocrStatusLabel->SetForegroundColour(wxColour(100, 100, 100));
+    ocrSizer->Add(components.ocrStatusLabel.get(), 0, wxALL | wxALIGN_CENTER | wxEXPAND, 20);
+
+    // OCR results list
+    components.ocrResultsList = std::make_shared<wxListCtrl>(
+        components.ocrPanel.get(), wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxLC_REPORT | wxLC_SINGLE_SEL);
+    components.ocrResultsList->AppendColumn("Reference Number", wxLIST_FORMAT_LEFT, 150);
+    components.ocrResultsList->AppendColumn("Confidence", wxLIST_FORMAT_LEFT, 80);
+    components.ocrResultsList->Hide();
+    ocrSizer->Add(components.ocrResultsList.get(), 1, wxALL | wxEXPAND, 10);
+
+    // Add OCR panel as second tab
+    components.rightNotebook->AddPage(components.ocrPanel.get(), "OCR Numbers");
+#endif
+
     // Initialize splitter with both panels visible
-    components.splitter->SplitVertically(leftPanel, components.imagePanel.get(), -300);
+    components.splitter->SplitVertically(leftPanel, components.rightNotebook, -300);
     components.splitter->SetMinimumPaneSize(200);
 
     // Add splitter to main panel

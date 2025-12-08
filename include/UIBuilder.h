@@ -6,6 +6,7 @@
 #include <wx/notebook.h>
 #include <wx/splitter.h>
 #include <wx/scrolwin.h>
+#include <wx/listctrl.h>
 #include <memory>
 
 /**
@@ -24,11 +25,22 @@ public:
         std::shared_ptr<wxRichTextCtrl> bzList;
         std::shared_ptr<wxTreeListCtrl> treeList;
 
+        // Right panel notebook (contains Image and OCR tabs)
+        wxNotebook* rightNotebook;
+
         // Image viewer components
         std::shared_ptr<wxScrolledWindow> imagePanel;
         std::shared_ptr<wxStaticBitmap> imageViewer;
         std::shared_ptr<wxStaticText> imageInfoText;
         wxSplitterWindow* splitter;
+
+#ifdef HAVE_OPENCV
+        // OCR components
+        std::shared_ptr<wxPanel> ocrPanel;
+        std::shared_ptr<wxListCtrl> ocrResultsList;
+        std::shared_ptr<wxButton> buttonScanOCR;
+        std::shared_ptr<wxStaticText> ocrStatusLabel;
+#endif
 
         // Image navigation components
         std::shared_ptr<wxButton> buttonPreviousImage;

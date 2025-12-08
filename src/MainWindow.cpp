@@ -403,6 +403,17 @@ void MainWindow::setupUi() {
   m_buttonNextImage = components.buttonNextImage;
   m_imageNavigationLabel = components.imageNavigationLabel;
 
+  // Right panel notebook
+  m_rightNotebook = components.rightNotebook;
+
+#ifdef HAVE_OPENCV
+  // OCR components
+  m_ocrPanel = components.ocrPanel;
+  m_ocrResultsList = components.ocrResultsList;
+  m_buttonScanOCR = components.buttonScanOCR;
+  m_ocrStatusLabel = components.ocrStatusLabel;
+#endif
+
   // Set up text styles
   m_neutralStyle.SetBackgroundColour(
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
@@ -420,6 +431,11 @@ void MainWindow::setupBindings() {
 
   // Image panel resize event
   m_imagePanel->Bind(wxEVT_SIZE, &MainWindow::onImagePanelResize, this);
+
+#ifdef HAVE_OPENCV
+  // OCR scan button
+  m_buttonScanOCR->Bind(wxEVT_BUTTON, &MainWindow::onScanOCR, this);
+#endif
 
   m_buttonBackwardAllErrors->Bind(wxEVT_BUTTON,
                                   &MainWindow::selectPreviousAllError, this);
@@ -829,6 +845,9 @@ void MainWindow::updateImageDisplay() {
     m_buttonPreviousImage->Hide();
     m_buttonNextImage->Hide();
     m_imageNavigationLabel->Hide();
+#ifdef HAVE_OPENCV
+    m_buttonScanOCR->Hide();
+#endif
     m_imagePanel->Layout();
     return;
   }
@@ -885,6 +904,9 @@ void MainWindow::updateImageDisplay() {
   m_buttonPreviousImage->Show();
   m_buttonNextImage->Show();
   m_imageNavigationLabel->Show();
+#ifdef HAVE_OPENCV
+  m_buttonScanOCR->Show();
+#endif
 
   // Update navigation label
   wxString label = wxString::Format("%d/%zu", m_currentImageIndex + 1, m_loadedImages.size());
@@ -930,3 +952,64 @@ void MainWindow::onImagePanelResize(wxSizeEvent &event) {
   }
   event.Skip(); // Allow default processing
 }
+
+#ifdef HAVE_OPENCV
+void MainWindow::onScanOCR(wxCommandEvent &event) {
+  // Initialize OCR engine lazily on first use
+  if (!m_ocrEngine) {
+    m_ocrEngine = std::make_unique<OCREngine>();
+    if (!m_ocrEngine->initialize()) {
+      wxMessageBox("Failed to initialize OCR engine: " + m_ocrEngine->getLastError(),
+                   "OCR Error", wxICON_ERROR | wxOK, this);
+      m_ocrEngine.reset();
+      return;
+    }
+  }
+
+  // Check if we have an image to scan
+  if (m_currentImageIndex < 0 || m_loadedImages.empty()) {
+    wxMessageBox("No image loaded to scan", "OCR Error", wxICON_ERROR | wxOK, this);
+    return;
+  }
+
+  // Show busy cursor during OCR
+  wxBusyCursor wait;
+
+  // Process current image
+  const wxBitmap& currentImage = m_loadedImages[m_currentImageIndex];
+  m_ocrResults = m_ocrEngine->processImage(currentImage);
+
+  // Update results display
+  updateOCRResults(m_ocrResults);
+
+  // Switch to OCR tab to show results
+  m_rightNotebook->SetSelection(1);
+}
+
+void MainWindow::updateOCRResults(const std::vector<OCRResult>& results) {
+  // Clear previous results
+  m_ocrResultsList->DeleteAllItems();
+
+  if (results.empty()) {
+    // Show status label with no results message
+    m_ocrStatusLabel->SetLabel("No reference numbers found in this image.\nTry scanning a different image.");
+    m_ocrStatusLabel->Show();
+    m_ocrResultsList->Hide();
+  } else {
+    // Hide status label and show results list
+    m_ocrStatusLabel->Hide();
+    m_ocrResultsList->Show();
+
+    // Populate list with results
+    for (size_t i = 0; i < results.size(); ++i) {
+      const auto& result = results[i];
+      long itemIndex = m_ocrResultsList->InsertItem(i, wxString(result.text));
+      wxString confStr = wxString::Format("%.0f%%", result.confidence * 100);
+      m_ocrResultsList->SetItem(itemIndex, 1, confStr);
+    }
+  }
+
+  // Layout the OCR panel
+  m_ocrPanel->Layout();
+}
+#endif

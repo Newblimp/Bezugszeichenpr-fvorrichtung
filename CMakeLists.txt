@@ -113,14 +113,37 @@ set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/wxWidgets)
-include_directories(include img)
+include_directories(include img resources)
 
 # Build muPDF from source (static linking, same compiler settings)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/MuPDFConfig.cmake)
 setup_mupdf()
 
+# ==============================================================================
+# OpenCV for OCR (PaddleOCR support)
+# ==============================================================================
+option(ENABLE_OCR "Enable PaddleOCR support for handwritten number recognition" ON)
+if(ENABLE_OCR)
+    message(STATUS "OCR support enabled - configuring OpenCV")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenCVConfig.cmake)
+    setup_opencv()
+
+    # Include model embedding script
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedModels.cmake)
+
+    # Define OCR sources
+    set(OCR_SOURCES
+        src/OCREngine.cpp
+        src/ModelLoader.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/resources/models_compressed.cpp
+    )
+endif()
+
 # Add executable target
 add_definitions(-DwxUSE_UNICODE_WCHAR=1 -DwxUSE_STL=1 -DwxUSE_STD_STRING=1 -DHAVE_MUPDF=1)
+if(ENABLE_OCR)
+    add_definitions(-DHAVE_OPENCV=1)
+endif()
 if(WIN32)
   add_definitions(-DwxUSE_RICHEDIT=1 -DwxUSE_WINRT=1 -DwxUSE_GUI=1)
   if(MSVC)
@@ -129,10 +152,10 @@ if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG /OPT:REF /OPT:ICF")
   else()
   endif()
-  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
+  add_executable(Bezugszeichenvorrichtung WIN32 main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm img/app_icon.ico src/stem_collector.cpp ${OCR_SOURCES} res.rc) #libs/wxWidgets/include/wx/msw/wx.rc)
 else()
   add_compile_options(-Wno-write-strings)
-  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm src/stem_collector.cpp)
+  add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm src/stem_collector.cpp ${OCR_SOURCES})
 endif()
 # Link against wxWidgets and RE2
 target_link_libraries(Bezugszeichenvorrichtung
@@ -157,6 +180,27 @@ else()
     mupdf_zlib
     mupdf_resources
   )
+endif()
+
+# Handle OpenCV linking for OCR support
+if(ENABLE_OCR)
+    target_link_libraries(Bezugszeichenvorrichtung
+        opencv_core
+        opencv_imgproc
+        opencv_dnn
+    )
+    # Add include directories for OpenCV
+    target_include_directories(Bezugszeichenvorrichtung PRIVATE
+        ${CMAKE_BINARY_DIR}/opencv
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/core/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/imgproc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/dnn/include
+    )
+    # Link against zlib from muPDF for model decompression
+    target_link_libraries(Bezugszeichenvorrichtung mupdf_zlib)
+    target_include_directories(Bezugszeichenvorrichtung PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/mupdf/thirdparty/zlib
+    )
 endif()
 
 # Add tests subdirectory
