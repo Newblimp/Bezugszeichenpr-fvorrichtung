@@ -56,24 +56,24 @@ bool OCREngine::initialize() {
 
     try {
         // Load detection model
-        std::vector<uint8_t> detData = ModelLoader::getDetectionModel();
+        std::vector<unsigned char> detData = ModelLoader::getDetectionModel();
         if (detData.empty()) {
             m_lastError = wxString::FromUTF8(
-                "Failed to decompress detection model: " + ModelLoader::getLastError());
+                "Failed to load detection model: " + ModelLoader::getLastError());
             return false;
         }
 
         m_detNet = cv::dnn::readNetFromONNX(detData);
         if (m_detNet.empty()) {
-            m_lastError = "Failed to load detection model";
+            m_lastError = "Failed to parse detection model";
             return false;
         }
 
         // Load recognition model
-        std::vector<uint8_t> recData = ModelLoader::getRecognitionModel();
+        std::vector<unsigned char> recData = ModelLoader::getRecognitionModel();
         if (recData.empty()) {
             m_lastError = wxString::FromUTF8(
-                "Failed to decompress recognition model: " + ModelLoader::getLastError());
+                "Failed to load recognition model: " + ModelLoader::getLastError());
             return false;
         }
 

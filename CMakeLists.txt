@@ -129,13 +129,13 @@ if(ENABLE_OCR)
     setup_opencv()
 
     # Include model embedding script
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedModels.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedModelsUncompressed.cmake)
 
     # Define OCR sources
     set(OCR_SOURCES
         src/OCREngine.cpp
         src/ModelLoader.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/resources/models_compressed.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/resources/models_uncompressed.cpp
     )
 endif()
 
@@ -157,6 +157,12 @@ else()
   add_compile_options(-Wno-write-strings)
   add_executable(Bezugszeichenvorrichtung main.cpp src/MainWindow.cpp src/utils.cpp src/utils_core.cpp src/GermanTextAnalyzer.cpp src/EnglishTextAnalyzer.cpp src/ErrorNavigator.cpp src/RE2RegexHelper.cpp src/TextScanner.cpp src/ErrorDetectorHelper.cpp src/UIBuilder.cpp src/PDFLoader.cpp img/check_16.xpm src/stem_collector.cpp ${OCR_SOURCES})
 endif()
+
+# Ensure embedding target runs before main executable build
+if(ENABLE_OCR)
+  add_dependencies(Bezugszeichenvorrichtung embed_ocr_models)
+endif()
+
 # Link against wxWidgets and RE2
 target_link_libraries(Bezugszeichenvorrichtung
   wx::core wx::base wx::richtext re2
@@ -191,15 +197,10 @@ if(ENABLE_OCR)
     )
     # Add include directories for OpenCV
     target_include_directories(Bezugszeichenvorrichtung PRIVATE
-        ${CMAKE_BINARY_DIR}/opencv
+        ${CMAKE_BINARY_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/core/include
         ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/imgproc/include
         ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/dnn/include
-    )
-    # Link against zlib from muPDF for model decompression
-    target_link_libraries(Bezugszeichenvorrichtung mupdf_zlib)
-    target_include_directories(Bezugszeichenvorrichtung PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/mupdf/thirdparty/zlib
     )
 endif()
 
