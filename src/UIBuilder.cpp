@@ -186,6 +186,7 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
         wxLC_REPORT | wxLC_SINGLE_SEL);
     components.ocrResultsList->AppendColumn("Reference Number", wxLIST_FORMAT_LEFT, 150);
     components.ocrResultsList->AppendColumn("Confidence", wxLIST_FORMAT_LEFT, 80);
+    components.ocrResultsList->AppendColumn("Status", wxLIST_FORMAT_LEFT, 120);
     components.ocrResultsList->Hide();
     ocrSizer->Add(components.ocrResultsList.get(), 1, wxALL | wxEXPAND, 10);
 

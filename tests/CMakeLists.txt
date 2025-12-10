@@ -44,6 +44,32 @@ if(WIN32)
   target_link_libraries(unit_tests mupdf)
 endif()
 
+# Handle OpenCV and ONNXRuntime for OCR support (tests compile MainWindow.cpp which includes OCREngine.h)
+if(ENABLE_OCR)
+  target_link_libraries(unit_tests
+    opencv_core
+    opencv_imgproc
+    opencv_dnn
+  )
+  target_include_directories(unit_tests PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/opencv/modules/core/include
+    ${CMAKE_SOURCE_DIR}/opencv/modules/imgproc/include
+    ${CMAKE_SOURCE_DIR}/opencv/modules/dnn/include
+    ${ONNXRUNTIME_INCLUDE_DIR}
+  )
+  # Link ONNXRuntime library
+  if(WIN32)
+    target_link_libraries(unit_tests ${ONNXRUNTIME_LIB_DIR}/onnxruntime.lib)
+  else()
+    target_link_libraries(unit_tests ${ONNXRUNTIME_LIB_DIR}/libonnxruntime.so)
+    set_target_properties(unit_tests PROPERTIES
+      BUILD_RPATH "${ONNXRUNTIME_LIB_DIR}"
+      INSTALL_RPATH "${ONNXRUNTIME_LIB_DIR}"
+    )
+  endif()
+endif()
+
 # Discover tests for CTest
 include(GoogleTest)
 gtest_discover_tests(unit_tests)

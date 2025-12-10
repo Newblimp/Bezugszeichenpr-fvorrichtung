@@ -58,6 +58,35 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# ==============================================================================
+# ONNXRuntime for TrOCR inference (OpenCV DNN doesn't support transformer models)
+# ==============================================================================
+set(ONNXRUNTIME_VERSION "1.19.2")
+if(WIN32)
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(ONNXRUNTIME_PLATFORM "win-x64")
+  else()
+    set(ONNXRUNTIME_PLATFORM "win-x86")
+  endif()
+  set(ONNXRUNTIME_EXT "zip")
+else()
+  set(ONNXRUNTIME_PLATFORM "linux-x64")
+  set(ONNXRUNTIME_EXT "tgz")
+endif()
+
+FetchContent_Declare(
+  onnxruntime
+  URL https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-${ONNXRUNTIME_PLATFORM}-${ONNXRUNTIME_VERSION}.${ONNXRUNTIME_EXT}
+)
+FetchContent_MakeAvailable(onnxruntime)
+
+# Set ONNXRuntime paths
+set(ONNXRUNTIME_ROOT "${onnxruntime_SOURCE_DIR}")
+set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+set(ONNXRUNTIME_LIB_DIR "${ONNXRUNTIME_ROOT}/lib")
+
+message(STATUS "ONNXRuntime ${ONNXRUNTIME_VERSION} configured at ${ONNXRUNTIME_ROOT}")
+
 # Enable testing
 enable_testing()
 
@@ -188,8 +217,9 @@ else()
   )
 endif()
 
-# Handle OpenCV linking for OCR support
+# Handle OpenCV and ONNXRuntime linking for OCR support
 if(ENABLE_OCR)
+    # OpenCV for detection and image processing
     target_link_libraries(Bezugszeichenvorrichtung
         opencv_core
         opencv_imgproc
@@ -197,6 +227,39 @@ if(ENABLE_OCR)
     )
     # Add include directories for OpenCV
     target_include_directories(Bezugszeichenvorrichtung PRIVATE
+        ${CMAKE_BINARY_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/core/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/imgproc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/dnn/include
+    )
+
+    # ONNXRuntime for TrOCR recognition
+    target_include_directories(Bezugszeichenvorrichtung PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
+    if(WIN32)
+        target_link_libraries(Bezugszeichenvorrichtung ${ONNXRUNTIME_LIB_DIR}/onnxruntime.lib)
+        # Copy DLL to output directory
+        add_custom_command(TARGET Bezugszeichenvorrichtung POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${ONNXRUNTIME_LIB_DIR}/onnxruntime.dll"
+            $<TARGET_FILE_DIR:Bezugszeichenvorrichtung>
+        )
+    else()
+        target_link_libraries(Bezugszeichenvorrichtung ${ONNXRUNTIME_LIB_DIR}/libonnxruntime.so)
+        # Set RPATH to find the library at runtime
+        set_target_properties(Bezugszeichenvorrichtung PROPERTIES
+            BUILD_RPATH "${ONNXRUNTIME_LIB_DIR}"
+            INSTALL_RPATH "${ONNXRUNTIME_LIB_DIR}"
+        )
+    endif()
+
+    # Add a separate executable for testing ONNX model loading
+    add_executable(test_onnx_load test_onnx_load.cpp)
+    target_link_libraries(test_onnx_load
+        opencv_core
+        opencv_imgproc
+        opencv_dnn
+    )
+    target_include_directories(test_onnx_load PRIVATE
         ${CMAKE_BINARY_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/core/include
         ${CMAKE_CURRENT_SOURCE_DIR}/opencv/modules/imgproc/include

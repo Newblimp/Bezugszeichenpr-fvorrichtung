@@ -117,6 +117,16 @@ MainWindow::MainWindow()
   setupBindings();
 }
 
+MainWindow::~MainWindow() {
+#ifdef HAVE_OPENCV
+  // Wait for OCR thread to complete if it's running
+  if (m_ocrThread && m_ocrThread->joinable()) {
+    std::cout << "Waiting for OCR thread to complete..." << std::endl;
+    m_ocrThread->join();
+  }
+#endif
+}
+
 void MainWindow::debounceFunc(wxCommandEvent &event) {
   m_debounceTimer.Start(500, true);
 }
@@ -435,6 +445,10 @@ void MainWindow::setupBindings() {
 #ifdef HAVE_OPENCV
   // OCR scan button
   m_buttonScanOCR->Bind(wxEVT_BUTTON, &MainWindow::onScanOCR, this);
+  // OCR thread completion event
+  Bind(wxEVT_THREAD, &MainWindow::onOCRThreadComplete, this);
+  // OCR loading animation timer
+  m_ocrLoadingTimer.Bind(wxEVT_TIMER, &MainWindow::onOCRLoadingAnimation, this);
 #endif
 
   m_buttonBackwardAllErrors->Bind(wxEVT_BUTTON,
@@ -972,18 +986,29 @@ void MainWindow::onScanOCR(wxCommandEvent &event) {
     return;
   }
 
-  // Show busy cursor during OCR
-  wxBusyCursor wait;
+  // Disable button during processing
+  m_buttonScanOCR->Disable();
 
-  // Process current image
+  // Show analysis in progress status
+  m_ocrStatusLabel->SetLabel("🔍 Analyzing image...");
+  m_ocrStatusLabel->Show();
+  m_ocrResultsList->Hide();
+  m_ocrStatusLabel->GetParent()->Layout();
+
+  // Start loading animation
+  m_ocrLoadingFrame = 0;
+  m_ocrLoadingTimer.Start(200, wxTIMER_CONTINUOUS);
+
+  // Copy current image and launch processing thread
   const wxBitmap& currentImage = m_loadedImages[m_currentImageIndex];
-  m_ocrResults = m_ocrEngine->processImage(currentImage);
 
-  // Update results display
-  updateOCRResults(m_ocrResults);
+  // Wait for previous thread to complete if it exists
+  if (m_ocrThread && m_ocrThread->joinable()) {
+    m_ocrThread->join();
+  }
 
-  // Switch to OCR tab to show results
-  m_rightNotebook->SetSelection(1);
+  // Launch OCR processing on background thread
+  m_ocrThread = std::make_unique<std::thread>(&MainWindow::ocrProcessingThread, this, currentImage);
 }
 
 void MainWindow::updateOCRResults(const std::vector<OCRResult>& results) {
@@ -1000,16 +1025,128 @@ void MainWindow::updateOCRResults(const std::vector<OCRResult>& results) {
     m_ocrStatusLabel->Hide();
     m_ocrResultsList->Show();
 
-    // Populate list with results
-    for (size_t i = 0; i < results.size(); ++i) {
-      const auto& result = results[i];
-      long itemIndex = m_ocrResultsList->InsertItem(i, wxString(result.text));
-      wxString confStr = wxString::Format("%.0f%%", result.confidence * 100);
-      m_ocrResultsList->SetItem(itemIndex, 1, confStr);
-    }
+      // Populate list with results
+      // Lock mutex to safely access shared data (m_bzToStems)
+      std::lock_guard<std::mutex> lock(m_dataMutex);
+
+      for (size_t i = 0; i < results.size(); ++i) {
+        const auto& result = results[i];
+        long itemIndex = m_ocrResultsList->InsertItem(i, wxString(result.text));
+        wxString confStr = wxString::Format("%.0f%%", result.confidence * 100);
+        m_ocrResultsList->SetItem(itemIndex, 1, confStr);
+
+        wxString status;
+        if (m_bzToStems.count(result.text)) {
+          status = "Found in Text";
+        } else {
+          status = "New";
+        }
+        m_ocrResultsList->SetItem(itemIndex, 2, status);
+      }
   }
 
   // Layout the OCR panel
   m_ocrPanel->Layout();
 }
+
+void MainWindow::ocrProcessingThread(const wxBitmap& image) {
+  std::cout << "OCR processing thread started..." << std::endl;
+
+  try {
+    // Process image on background thread
+    std::vector<OCRResult> results = m_ocrEngine->processImage(image);
+    wxBitmap debugImage = m_ocrEngine->getDebugImage();
+
+    // Store results in thread-safe manner
+    {
+      std::lock_guard<std::mutex> lock(m_ocrMutex);
+      m_ocrThreadResults = results;
+      m_ocrThreadDebugImage = debugImage;
+    }
+
+    std::cout << "OCR processing completed: " << results.size() << " results" << std::endl;
+
+    // Send completion event to main thread
+    wxThreadEvent* event = new wxThreadEvent(wxEVT_THREAD);
+    event->SetInt(1); // Success flag
+    wxQueueEvent(this, event);
+
+  } catch (const std::exception& e) {
+    std::cerr << "Error in OCR processing thread: " << e.what() << std::endl;
+
+    // Send error event to main thread
+    wxThreadEvent* event = new wxThreadEvent(wxEVT_THREAD);
+    event->SetInt(0); // Error flag
+    wxQueueEvent(this, event);
+  }
+}
+
+void MainWindow::onOCRThreadComplete(wxThreadEvent &event) {
+  std::cout << "OCR thread completion event received" << std::endl;
+
+  // Stop loading animation
+  m_ocrLoadingTimer.Stop();
+
+  // Enable button
+  m_buttonScanOCR->Enable();
+
+  if (event.GetInt() == 1) {
+    // Success - get results from thread-safe storage
+    std::vector<OCRResult> results;
+    wxBitmap debugImage;
+
+    {
+      std::lock_guard<std::mutex> lock(m_ocrMutex);
+      results = m_ocrThreadResults;
+      debugImage = m_ocrThreadDebugImage;
+    }
+
+    // Update results
+    m_ocrResults = results;
+
+    // Replace displayed image with debug image showing detection boxes
+    if (debugImage.IsOk() && m_currentImageIndex >= 0 && m_currentImageIndex < (int)m_loadedImages.size()) {
+      m_loadedImages[m_currentImageIndex] = debugImage;
+      updateImageDisplay();
+    }
+
+    // Update results display
+    updateOCRResults(m_ocrResults);
+
+    // Switch to OCR tab to show results
+    m_rightNotebook->SetSelection(1);
+
+    std::cout << "OCR results updated in UI" << std::endl;
+  } else {
+    // Error occurred
+    m_ocrStatusLabel->SetLabel("❌ Error during OCR analysis. Check console for details.");
+    m_ocrStatusLabel->Show();
+    m_ocrResultsList->Hide();
+    m_ocrStatusLabel->GetParent()->Layout();
+  }
+}
+
+void MainWindow::onOCRLoadingAnimation(wxTimerEvent &event) {
+  // Spinning wheel animation frames
+  const std::string spinnerFrames[] = {
+      "🔍 Analyzing image ⠋",
+      "🔍 Analyzing image ⠙",
+      "🔍 Analyzing image ⠹",
+      "🔍 Analyzing image ⠸",
+      "🔍 Analyzing image ⠼",
+      "🔍 Analyzing image ⠴",
+      "🔍 Analyzing image ⠦",
+      "🔍 Analyzing image ⠧",
+      "🔍 Analyzing image ⠇",
+      "🔍 Analyzing image ⠏"
+  };
+
+  // Update label with current frame
+  const std::string& frame = spinnerFrames[m_ocrLoadingFrame % 10];
+  m_ocrStatusLabel->SetLabel(wxString::FromUTF8(frame.c_str()));
+
+  // Move to next frame
+  m_ocrLoadingFrame++;
+}
+
 #endif

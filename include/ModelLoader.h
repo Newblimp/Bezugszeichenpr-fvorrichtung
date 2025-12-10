@@ -5,31 +5,45 @@
 #include <vector>
 #include <cstdint>
 #include <string>
-#include <opencv2/core/types.hpp>
 
 /**
- * @brief Loads uncompressed ONNX models embedded in the executable
+ * @brief Loads embedded OCR models from executable
  *
- * Models are embedded as C arrays during build with no compression.
- * This class provides direct access to them for OpenCV DNN.
+ * Models embedded:
+ * - Detection: YOLOv11n (for OpenCV DNN)
+ * - TrOCR Encoder: Vision Transformer (for ONNXRuntime)
+ * - TrOCR Decoder: GPT-2 autoregressive (for ONNXRuntime)
+ * - Vocabulary: Token ID to string mapping
  */
 class ModelLoader {
 public:
     /**
-     * @brief Get detection model data
+     * @brief Get detection model data (YOLOv11n)
      * @return ONNX bytes, empty vector on failure
      */
     static std::vector<unsigned char> getDetectionModel();
 
     /**
-     * @brief Get recognition model data
+     * @brief Get TrOCR encoder model data
      * @return ONNX bytes, empty vector on failure
      */
-    static std::vector<unsigned char> getRecognitionModel();
+    static std::vector<unsigned char> getTrOCREncoder();
 
     /**
-     * @brief Check if models are available
-     * @return true if embedded models exist
+     * @brief Get TrOCR decoder model data
+     * @return ONNX bytes, empty vector on failure
+     */
+    static std::vector<unsigned char> getTrOCRDecoder();
+
+    /**
+     * @brief Get TrOCR vocabulary data (one token per line)
+     * @return UTF-8 text bytes, empty vector on failure
+     */
+    static std::vector<unsigned char> getTrOCRVocabulary();
+
+    /**
+     * @brief Check if all models are available
+     * @return true if all embedded models exist
      */
     static bool hasModels();
 

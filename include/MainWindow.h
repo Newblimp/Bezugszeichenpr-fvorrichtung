@@ -30,6 +30,7 @@
 class MainWindow : public wxFrame {
 public:
   MainWindow();
+  ~MainWindow();
 
 private:
   // Setup methods
@@ -97,6 +98,8 @@ private:
   // OCR handling
   void onScanOCR(wxCommandEvent &event);
   void updateOCRResults(const std::vector<OCRResult>& results);
+  void onOCRThreadComplete(wxThreadEvent &event);
+  void ocrProcessingThread(const wxBitmap& image);
 #endif
 
     // RE2 regex patterns (optimized for performance)
@@ -222,6 +225,17 @@ private:
   std::shared_ptr<wxButton> m_buttonScanOCR;
   std::shared_ptr<wxStaticText> m_ocrStatusLabel;
   std::vector<OCRResult> m_ocrResults;
+
+  // OCR threading
+  std::unique_ptr<std::thread> m_ocrThread;
+  std::mutex m_ocrMutex;
+  std::vector<OCRResult> m_ocrThreadResults;
+  wxBitmap m_ocrThreadDebugImage;
+
+  // OCR loading animation
+  wxTimer m_ocrLoadingTimer{this, wxID_ANY};
+  int m_ocrLoadingFrame{0};
+  void onOCRLoadingAnimation(wxTimerEvent &event);
 #endif
 
   // Navigation buttons
