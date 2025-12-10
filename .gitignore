@@ -1,5 +1,5 @@
 # ignore all files in any directory named build
 build/
-
+resources/
 # ignore the build cache
 .cache/
