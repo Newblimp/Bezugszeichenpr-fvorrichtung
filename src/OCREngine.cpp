@@ -441,7 +441,47 @@ std::wstring OCREngine::runTrOCRInference(const std::vector<float>& pixelValues)
             // Get logits for last position
             float* lastLogits = logits + (seqLen - 1) * vocabSize;
 
-            // Find argmax
+            // Apply logit biasing to favor digit tokens
+            // Digit token IDs found from tokenizer.json (single digits 0-9)
+            static const std::vector<int> digitTokenIds = {
+                252,  // ▁2
+                267,  // ▁1
+                271,  // ▁3
+                319,  // ▁4
+                331,  // ▁5
+                467,  // ▁6
+                531,  // ▁7
+                539,  // ▁8
+                641,  // ▁9
+                792,  // 2 (no space)
+                896,  // 1 (no space)
+                1023, // 3 (no space)
+                1065, // 4 (no space)
+                1264, // 5 (no space)
+                1428, // 9 (no space)
+                1439, // 8 (no space)
+                1473, // 7 (no space)
+                1487, // 6 (no space)
+                1596, // ▁0
+                1724  // 0 (no space)
+            };
+
+            // Bias: reduce logits for ALL tokens except digits and end token
+            const float bias_penalty = -100.0f;  // Large negative number to suppress non-digits
+            for (size_t i = 0; i < vocabSize; ++i) {
+                // Skip end token (ID 2)
+                if (i == TROCR_END_TOKEN) continue;
+
+                // Check if this is a digit token
+                bool isDigit = std::find(digitTokenIds.begin(), digitTokenIds.end(), i) != digitTokenIds.end();
+
+                // Apply penalty to non-digit tokens
+                if (!isDigit) {
+                    lastLogits[i] += bias_penalty;
+                }
+            }
+
+            // Find argmax after biasing
             int64_t nextToken = 0;
             float maxLogit = lastLogits[0];
             for (size_t i = 1; i < vocabSize; ++i) {
@@ -451,8 +491,12 @@ std::wstring OCREngine::runTrOCRInference(const std::vector<float>& pixelValues)
                 }
             }
 
+            std::cout << "  Step " << step << ": Generated token ID " << nextToken
+                      << " (vocabSize=" << vocabSize << ", maxLogit=" << maxLogit << ")" << std::endl;
+
             // Check for end token
             if (nextToken == TROCR_END_TOKEN) {
+                std::cout << "  Stopping: End token encountered" << std::endl;
                 break;
             }
 
@@ -478,6 +522,8 @@ std::wstring OCREngine::decodeTokens(const std::vector<int64_t>& tokens) {
 
             // Handle sentencepiece: replace leading underscore with space
             if (!tokenStr.empty() && tokenStr[0] == L'\u2581') {
+                // SentencePiece uses ▁ (U+2581) to mark spaces
+                // Don't add space at the beginning
                 if (!result.empty()) {
                     result += L' ';
                 }
@@ -487,6 +533,9 @@ std::wstring OCREngine::decodeTokens(const std::vector<int64_t>& tokens) {
             }
         }
     }
+
+    // Remove all spaces from the result (digits only)
+    result.erase(std::remove(result.begin(), result.end(), L' '), result.end());
 
     return result;
 }

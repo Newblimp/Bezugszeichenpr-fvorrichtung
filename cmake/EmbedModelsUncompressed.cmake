@@ -8,13 +8,13 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/resources/models_uncompressed.cpp
     COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_models.py
-        --det ${CMAKE_CURRENT_SOURCE_DIR}/models/YOLOv11n.onnx
+        --det ${CMAKE_CURRENT_SOURCE_DIR}/models/best.onnx
         --encoder ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_encoder_model_quantized.onnx
         --decoder ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_decoder_model_quantized.onnx
         --vocab ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_vocab.txt
         --output ${CMAKE_CURRENT_BINARY_DIR}/resources/models_uncompressed.cpp
     DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/models/YOLOv11n.onnx
+        ${CMAKE_CURRENT_SOURCE_DIR}/models/best.onnx
         ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_encoder_model_quantized.onnx
         ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_decoder_model_quantized.onnx
         ${CMAKE_CURRENT_SOURCE_DIR}/models/trocr_vocab.txt
