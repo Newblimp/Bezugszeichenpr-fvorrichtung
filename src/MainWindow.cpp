@@ -413,6 +413,12 @@ void MainWindow::setupUi() {
   m_buttonNextImage = components.buttonNextImage;
   m_imageNavigationLabel = components.imageNavigationLabel;
 
+  // Zoom controls
+  m_buttonZoomIn = components.buttonZoomIn;
+  m_buttonZoomOut = components.buttonZoomOut;
+  m_buttonZoomReset = components.buttonZoomReset;
+  m_zoomLabel = components.zoomLabel;
+
   // Right panel notebook
   m_rightNotebook = components.rightNotebook;
 
@@ -438,6 +444,14 @@ void MainWindow::setupBindings() {
   // Image navigation buttons
   m_buttonPreviousImage->Bind(wxEVT_BUTTON, &MainWindow::onPreviousImage, this);
   m_buttonNextImage->Bind(wxEVT_BUTTON, &MainWindow::onNextImage, this);
+
+  // Zoom buttons
+  m_buttonZoomIn->Bind(wxEVT_BUTTON, &MainWindow::onZoomIn, this);
+  m_buttonZoomOut->Bind(wxEVT_BUTTON, &MainWindow::onZoomOut, this);
+  m_buttonZoomReset->Bind(wxEVT_BUTTON, &MainWindow::onZoomReset, this);
+
+  // Listen for zoom changes from the image viewer
+  m_imageViewer->Bind(wxEVT_COMMAND_TEXT_UPDATED, &MainWindow::onImageViewerZoomChanged, this);
 
   // Image panel resize event
   m_imagePanel->Bind(wxEVT_SIZE, &MainWindow::onImagePanelResize, this);
@@ -852,6 +866,12 @@ void MainWindow::loadPDF(const wxString &filePath) {
 #endif
 
 void MainWindow::updateImageDisplay() {
+  // Prevent resize event loops
+  if (m_updatingImageDisplay) {
+    return;
+  }
+  m_updatingImageDisplay = true;
+
   if (m_currentImageIndex < 0 || m_currentImageIndex >= static_cast<int>(m_loadedImages.size())) {
     // No valid image to display
     m_imageViewer->Hide();
@@ -863,55 +883,40 @@ void MainWindow::updateImageDisplay() {
     m_buttonScanOCR->Hide();
 #endif
     m_imagePanel->Layout();
+    m_updatingImageDisplay = false;
     return;
   }
 
   // Hide the info text and show the image viewer
   m_imageInfoText->Hide();
 
+  // Show right panel on first image load
+  if (!m_rightNotebook->IsShown()) {
+    m_rightNotebook->Show();
+    m_rightNotebook->GetParent()->Layout();  // Layout the container
+    m_splitter->Layout();
+    m_rightNotebook->GetParent()->Refresh();  // Force visual refresh
+  }
+
   // Get original bitmap
   const wxBitmap& originalBitmap = m_loadedImages[m_currentImageIndex];
 
-  // Get available space in the image panel (account for navigation buttons and margins)
-  wxSize panelSize = m_imagePanel->GetClientSize();
+  // Calculate zoom-to-fit level
+  wxSize panelSize = m_imageViewer->GetClientSize();
+  int availableWidth = std::max(panelSize.GetWidth() - 20, 100);
+  int availableHeight = std::max(panelSize.GetHeight() - 20, 100);
 
-  // Calculate actual navigation controls height
-  int navHeight = m_buttonPreviousImage->GetSize().GetHeight() + 20; // button height + margins
-  int margin = 40; // Additional safety margin for padding
+  double scaleX = (double)availableWidth / originalBitmap.GetWidth();
+  double scaleY = (double)availableHeight / originalBitmap.GetHeight();
+  double fitZoom = std::min(scaleX, scaleY);
 
-  int availableHeight = panelSize.GetHeight() - navHeight - margin;
-  int availableWidth = panelSize.GetWidth() - 40; // Account for horizontal margins
+  // Only scale down to fit, not up (avoid pixelation)
+  fitZoom = std::min(fitZoom, 1.0);
 
-
-  // Skip scaling if panel is too small
-  if (availableWidth < 50 || availableHeight < 50) {
-    m_imageViewer->SetBitmap(originalBitmap);
-    m_imageViewer->Show();
-    m_imagePanel->Layout();
-    return;
-  }
-
-  // Calculate scaling to fit while maintaining aspect ratio
-  int origWidth = originalBitmap.GetWidth();
-  int origHeight = originalBitmap.GetHeight();
-
-  double scaleX = static_cast<double>(availableWidth) / origWidth;
-  double scaleY = static_cast<double>(availableHeight) / origHeight;
-  double scale = std::min(scaleX, scaleY);
-
-  // Only scale down, not up (to avoid pixelation)
-  scale = std::min(scale, 1.0);
-
-  int newWidth = static_cast<int>(origWidth * scale);
-  int newHeight = static_cast<int>(origHeight * scale);
-
-  // Scale the bitmap
-  wxImage scaledImage = originalBitmap.ConvertToImage();
-  scaledImage.Rescale(newWidth, newHeight, wxIMAGE_QUALITY_HIGH);
-  wxBitmap scaledBitmap(scaledImage);
-
-  // Display scaled image
-  m_imageViewer->SetBitmap(scaledBitmap);
+  // Apply zoom-to-fit
+  m_zoomLevel = fitZoom;
+  m_imageViewer->SetBitmap(originalBitmap);
+  m_imageViewer->SetZoom(m_zoomLevel);
   m_imageViewer->Show();
 
   // Show navigation controls
@@ -922,13 +927,25 @@ void MainWindow::updateImageDisplay() {
   m_buttonScanOCR->Show();
 #endif
 
+  // Show zoom controls
+  m_buttonZoomIn->Show();
+  m_buttonZoomOut->Show();
+  m_buttonZoomReset->Show();
+  m_zoomLabel->Show();
+
+  // Update zoom label to show current zoom percentage
+  m_zoomLabel->SetLabel(wxString::Format("%d%%", (int)(m_zoomLevel * 100)));
+
   // Update navigation label
   wxString label = wxString::Format("%d/%zu", m_currentImageIndex + 1, m_loadedImages.size());
   m_imageNavigationLabel->SetLabel(label);
 
-  // Reset virtual size (no scrolling needed since we fit to window)
-  m_imagePanel->SetVirtualSize(panelSize);
-  m_imagePanel->Layout();
+  // Force layout on button containers to ensure they're visible
+  if (m_buttonZoomIn->GetParent()) {
+    m_buttonZoomIn->GetParent()->Layout();
+  }
+
+  m_updatingImageDisplay = false;
 }
 
 void MainWindow::updateImageNavigationButtons() {
@@ -967,6 +984,35 @@ void MainWindow::onImagePanelResize(wxSizeEvent &event) {
   event.Skip(); // Allow default processing
 }
 
+void MainWindow::onZoomIn(wxCommandEvent &event) {
+  m_zoomLevel *= 1.2;  // 20% increase
+  if (m_zoomLevel > 5.0) m_zoomLevel = 5.0;  // Max 500%
+  updateImageWithZoom();
+}
+
+void MainWindow::onZoomOut(wxCommandEvent &event) {
+  m_zoomLevel /= 1.2;  // 20% decrease
+  if (m_zoomLevel < 0.1) m_zoomLevel = 0.1;  // Min 10%
+  updateImageWithZoom();
+}
+
+void MainWindow::onZoomReset(wxCommandEvent &event) {
+  m_zoomLevel = 1.0;  // Reset to 100%
+  updateImageWithZoom();
+}
+
+void MainWindow::onImageViewerZoomChanged(wxCommandEvent &event) {
+  // Update zoom level from the viewer's notification
+  m_zoomLevel = m_imageViewer->GetZoom();
+  m_zoomLabel->SetLabel(wxString::Format("%d%%", (int)(m_zoomLevel * 100)));
+}
+
+void MainWindow::updateImageWithZoom() {
+  // Update zoom level in the viewer
+  m_imageViewer->SetZoom(m_zoomLevel);
+  m_zoomLabel->SetLabel(wxString::Format("%d%%", (int)(m_zoomLevel * 100)));
+}
+
 #ifdef HAVE_OPENCV
 void MainWindow::onScanOCR(wxCommandEvent &event) {
   // Initialize OCR engine lazily on first use
@@ -986,7 +1032,8 @@ void MainWindow::onScanOCR(wxCommandEvent &event) {
     return;
   }
 
-  // Disable button during processing
+  // Disable button during processing and show loading text
+  m_buttonScanOCR->SetLabel("⏳ Scanning...");
   m_buttonScanOCR->Disable();
 
   // Show analysis in progress status
@@ -1087,7 +1134,8 @@ void MainWindow::onOCRThreadComplete(wxThreadEvent &event) {
   // Stop loading animation
   m_ocrLoadingTimer.Stop();
 
-  // Enable button
+  // Restore button text and enable
+  m_buttonScanOCR->SetLabel("Scan for Numbers");
   m_buttonScanOCR->Enable();
 
   if (event.GetInt() == 1) {
@@ -1113,8 +1161,7 @@ void MainWindow::onOCRThreadComplete(wxThreadEvent &event) {
     // Update results display
     updateOCRResults(m_ocrResults);
 
-    // Switch to OCR tab to show results
-    m_rightNotebook->SetSelection(1);
+    // OCR results now visible in side-by-side layout (no tab switching needed)
 
     std::cout << "OCR results updated in UI" << std::endl;
   } else {
@@ -1127,7 +1174,7 @@ void MainWindow::onOCRThreadComplete(wxThreadEvent &event) {
 }
 
 void MainWindow::onOCRLoadingAnimation(wxTimerEvent &event) {
-  // Spinning wheel animation frames
+  // Spinning wheel animation frames for status label
   const std::string spinnerFrames[] = {
       "🔍 Analyzing image ⠋",
       "🔍 Analyzing image ⠙",
@@ -1141,9 +1188,16 @@ void MainWindow::onOCRLoadingAnimation(wxTimerEvent &event) {
       "🔍 Analyzing image ⠏"
   };
 
+  // Spinner characters for button
+  const char* buttonSpinners[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+
   // Update label with current frame
   const std::string& frame = spinnerFrames[m_ocrLoadingFrame % 10];
   m_ocrStatusLabel->SetLabel(wxString::FromUTF8(frame.c_str()));
+
+  // Update button with spinner
+  const char* buttonSpinner = buttonSpinners[m_ocrLoadingFrame % 10];
+  m_buttonScanOCR->SetLabel(wxString::FromUTF8(std::string(buttonSpinner) + " Scanning..."));
 
   // Move to next frame
   m_ocrLoadingFrame++;

@@ -9,6 +9,9 @@
 #include <wx/listctrl.h>
 #include <memory>
 
+// Forward declaration
+class ImageViewerPanel;
+
 /**
  * @brief Helper class for building the MainWindow UI
  *
@@ -25,12 +28,12 @@ public:
         std::shared_ptr<wxRichTextCtrl> bzList;
         std::shared_ptr<wxTreeListCtrl> treeList;
 
-        // Right panel notebook (contains Image and OCR tabs)
-        wxNotebook* rightNotebook;
+        // Right panel horizontal splitter (contains Image and OCR side-by-side)
+        wxSplitterWindow* rightNotebook;  // Name kept for compatibility
 
         // Image viewer components
         std::shared_ptr<wxScrolledWindow> imagePanel;
-        std::shared_ptr<wxStaticBitmap> imageViewer;
+        std::shared_ptr<ImageViewerPanel> imageViewer;
         std::shared_ptr<wxStaticText> imageInfoText;
         wxSplitterWindow* splitter;
 
@@ -46,6 +49,12 @@ public:
         std::shared_ptr<wxButton> buttonPreviousImage;
         std::shared_ptr<wxButton> buttonNextImage;
         std::shared_ptr<wxStaticText> imageNavigationLabel;
+
+        // Zoom controls
+        std::shared_ptr<wxButton> buttonZoomIn;
+        std::shared_ptr<wxButton> buttonZoomOut;
+        std::shared_ptr<wxButton> buttonZoomReset;
+        std::shared_ptr<wxStaticText> zoomLabel;
 
         // Navigation buttons - All errors
         std::shared_ptr<wxButton> buttonForwardAllErrors;

@@ -22,10 +22,169 @@
 #include <wx/dataview.h>
 #include <wx/listctrl.h>
 #include <wx/wx.h>
+#include <wx/graphics.h>
+#include <wx/dcbuffer.h>
 #include <set>
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <iostream>
+
+// Custom scrolled window for rendering images with zoom and pan
+class ImageViewerPanel : public wxScrolledWindow {
+public:
+  ImageViewerPanel(wxWindow* parent, wxWindowID id = wxID_ANY)
+    : wxScrolledWindow(parent, id, wxDefaultPosition, wxDefaultSize, wxHSCROLL | wxVSCROLL) {
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    SetScrollRate(1, 1);  // Pixel-level scrolling
+    Bind(wxEVT_PAINT, &ImageViewerPanel::onPaint, this);
+    Bind(wxEVT_LEFT_DOWN, &ImageViewerPanel::onMouseDown, this);
+    Bind(wxEVT_LEFT_UP, &ImageViewerPanel::onMouseUp, this);
+    Bind(wxEVT_MOTION, &ImageViewerPanel::onMouseMove, this);
+    Bind(wxEVT_MOUSEWHEEL, &ImageViewerPanel::onMouseWheel, this);
+    SetCursor(wxCursor(wxCURSOR_HAND));
+  }
+
+  ~ImageViewerPanel() {
+    if (HasCapture()) {
+      ReleaseMouse();
+    }
+  }
+
+  void SetBitmap(const wxBitmap& bitmap) {
+    m_bitmap = bitmap;
+    UpdateVirtualSize();
+    Refresh();
+  }
+
+  void SetZoom(double zoom) {
+    if (zoom < 0.1) zoom = 0.1;
+    if (zoom > 5.0) zoom = 5.0;
+    m_zoom = zoom;
+    UpdateVirtualSize();
+    Refresh();
+  }
+
+  double GetZoom() const {
+    return m_zoom;
+  }
+
+  wxSize GetImageSize() const {
+    if (m_bitmap.IsOk()) {
+      return m_bitmap.GetSize();
+    }
+    return wxSize(0, 0);
+  }
+
+  // Convert screen coordinates to image coordinates
+  wxPoint ScreenToImage(const wxPoint& screenPos) {
+    int scrollX, scrollY;
+    GetViewStart(&scrollX, &scrollY);
+    return wxPoint((screenPos.x + scrollX) / m_zoom, (screenPos.y + scrollY) / m_zoom);
+  }
+
+private:
+  void UpdateVirtualSize() {
+    if (m_bitmap.IsOk()) {
+      int w = m_bitmap.GetWidth() * m_zoom;
+      int h = m_bitmap.GetHeight() * m_zoom;
+      SetVirtualSize(w, h);
+    }
+  }
+
+  void onPaint(wxPaintEvent& event) {
+    wxAutoBufferedPaintDC dc(this);
+    DoPrepareDC(dc);  // Apply scroll offset
+
+    // Clear background
+    dc.SetBackground(*wxLIGHT_GREY_BRUSH);
+    dc.Clear();
+
+    if (!m_bitmap.IsOk()) {
+      return;
+    }
+
+    // Apply zoom
+    dc.SetUserScale(m_zoom, m_zoom);
+
+    // Draw bitmap at origin (DoPrepareDC handles scroll offset)
+    dc.DrawBitmap(m_bitmap, 0, 0, false);
+  }
+
+  void onMouseDown(wxMouseEvent& event) {
+    m_dragging = true;
+    m_dragStart = event.GetPosition();
+    CaptureMouse();
+  }
+
+  void onMouseUp(wxMouseEvent& event) {
+    if (m_dragging) {
+      m_dragging = false;
+      if (HasCapture()) {
+        ReleaseMouse();
+      }
+    }
+  }
+
+  void onMouseMove(wxMouseEvent& event) {
+    if (m_dragging && event.Dragging()) {
+      wxPoint currentPos = event.GetPosition();
+      wxPoint delta = currentPos - m_dragStart;
+
+      int scrollX, scrollY;
+      GetViewStart(&scrollX, &scrollY);
+      Scroll(scrollX - delta.x, scrollY - delta.y);
+
+      m_dragStart = currentPos;
+    }
+  }
+
+  void onMouseWheel(wxMouseEvent& event) {
+    if (!m_bitmap.IsOk()) {
+      event.Skip();
+      return;
+    }
+
+    // Get mouse position in screen coordinates
+    wxPoint mousePos = event.GetPosition();
+
+    // Convert to image coordinates before zoom
+    wxPoint imagePosBefore = ScreenToImage(mousePos);
+
+    // Change zoom level
+    double oldZoom = m_zoom;
+    int rotation = event.GetWheelRotation();
+    if (rotation > 0) {
+      m_zoom *= 1.1;
+    } else {
+      m_zoom /= 1.1;
+    }
+
+    // Clamp zoom
+    if (m_zoom > 5.0) m_zoom = 5.0;
+    if (m_zoom < 0.1) m_zoom = 0.1;
+
+    // Update virtual size
+    UpdateVirtualSize();
+
+    // Calculate new scroll position to keep image point under mouse
+    int newScrollX = imagePosBefore.x * m_zoom - mousePos.x;
+    int newScrollY = imagePosBefore.y * m_zoom - mousePos.y;
+
+    Scroll(newScrollX, newScrollY);
+    Refresh();
+
+    // Notify parent of zoom change
+    wxCommandEvent zoomEvent(wxEVT_COMMAND_TEXT_UPDATED, GetId());
+    zoomEvent.SetString(wxString::Format("%.1f", m_zoom * 100));
+    GetParent()->GetEventHandler()->ProcessEvent(zoomEvent);
+  }
+
+  wxBitmap m_bitmap;
+  double m_zoom{1.0};
+  bool m_dragging{false};
+  wxPoint m_dragStart;
+};
 
 class MainWindow : public wxFrame {
 public:
@@ -88,6 +247,13 @@ private:
   void updateImageDisplay();
   void updateImageNavigationButtons();
   void onImagePanelResize(wxSizeEvent &event);
+
+  // Zoom handling
+  void onZoomIn(wxCommandEvent &event);
+  void onZoomOut(wxCommandEvent &event);
+  void onZoomReset(wxCommandEvent &event);
+  void onImageViewerZoomChanged(wxCommandEvent &event);
+  void updateImageWithZoom();
 
 #ifdef HAVE_MUPDF
   // PDF handling (reuses image infrastructure)
@@ -203,19 +369,28 @@ private:
   // Image viewer components
   wxSplitterWindow *m_splitter;
   std::shared_ptr<wxScrolledWindow> m_imagePanel;
-  std::shared_ptr<wxStaticBitmap> m_imageViewer;
+  std::shared_ptr<ImageViewerPanel> m_imageViewer;
   std::shared_ptr<wxStaticText> m_imageInfoText;
 
   // Image navigation
   std::shared_ptr<wxButton> m_buttonPreviousImage;
   std::shared_ptr<wxButton> m_buttonNextImage;
   std::shared_ptr<wxStaticText> m_imageNavigationLabel;
+
+  // Zoom controls
+  std::shared_ptr<wxButton> m_buttonZoomIn;
+  std::shared_ptr<wxButton> m_buttonZoomOut;
+  std::shared_ptr<wxButton> m_buttonZoomReset;
+  std::shared_ptr<wxStaticText> m_zoomLabel;
+  double m_zoomLevel{1.0};  // 1.0 = 100%
+  bool m_updatingImageDisplay{false};  // Prevent resize event loops
+
   std::vector<wxBitmap> m_loadedImages;
   std::vector<wxString> m_imagePaths;
   int m_currentImageIndex{-1};
 
-  // Right panel notebook (contains Image and OCR tabs)
-  wxNotebook* m_rightNotebook;
+  // Right panel horizontal splitter (contains Image and OCR side-by-side)
+  wxSplitterWindow* m_rightNotebook;  // Name kept for compatibility
 
 #ifdef HAVE_OPENCV
   // OCR components

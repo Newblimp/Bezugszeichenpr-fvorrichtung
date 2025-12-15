@@ -1,4 +1,5 @@
 #include "UIBuilder.h"
+#include "MainWindow.h"
 
 UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     UIComponents components;
@@ -101,70 +102,102 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     outputSizer->Add(bottomSizer, 0, wxALL | wxEXPAND, 10);
 
-    // Create right panel notebook (contains Image and OCR tabs)
-    components.rightNotebook = new wxNotebook(components.splitter, wxID_ANY);
+    // Create right panel container (will contain horizontal splitter for image + OCR)
+    auto* rightPanelContainer = new wxPanel(components.splitter, wxID_ANY);
+    auto* rightContainerSizer = new wxBoxSizer(wxVERTICAL);
+    rightPanelContainer->SetSizer(rightContainerSizer);
+    rightPanelContainer->Hide();  // Initially hidden until images are loaded
 
-    // Create image viewer panel (first tab in right notebook)
-    components.imagePanel = std::make_shared<wxScrolledWindow>(
-        components.rightNotebook, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxVSCROLL | wxHSCROLL);
-    components.imagePanel->SetScrollRate(10, 10);
-    components.imagePanel->SetBackgroundColour(*wxLIGHT_GREY);
+    // Create horizontal splitter for side-by-side layout (image | OCR)
+    components.rightNotebook = new wxSplitterWindow(rightPanelContainer, wxID_ANY);
+    rightContainerSizer->Add(components.rightNotebook, 1, wxEXPAND);
 
-    wxBoxSizer *imageSizer = new wxBoxSizer(wxVERTICAL);
-    components.imagePanel->SetSizer(imageSizer);
+    // Create container panel for image viewer section (left side of horizontal splitter)
+    auto* imageContainerPanel = new wxPanel(components.rightNotebook, wxID_ANY);
+    auto* imageContainerSizer = new wxBoxSizer(wxVERTICAL);
+    imageContainerPanel->SetSizer(imageContainerSizer);
 
-    // Add informational text (shown when no image is loaded)
+    // Create zoom controls at top (initially hidden)
+    wxBoxSizer *zoomSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    components.buttonZoomOut = std::make_shared<wxButton>(
+        imageContainerPanel, wxID_ANY, "−", wxDefaultPosition, wxSize(40, 30));
+    components.buttonZoomOut->Hide();
+    zoomSizer->Add(components.buttonZoomOut.get(), 0, wxALL, 2);
+
+    components.zoomLabel = std::make_shared<wxStaticText>(
+        imageContainerPanel, wxID_ANY, "100%", wxDefaultPosition, wxSize(50, -1), wxALIGN_CENTER);
+    components.zoomLabel->Hide();
+    zoomSizer->Add(components.zoomLabel.get(), 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
+
+    components.buttonZoomIn = std::make_shared<wxButton>(
+        imageContainerPanel, wxID_ANY, "+", wxDefaultPosition, wxSize(40, 30));
+    components.buttonZoomIn->Hide();
+    zoomSizer->Add(components.buttonZoomIn.get(), 0, wxALL, 2);
+
+    components.buttonZoomReset = std::make_shared<wxButton>(
+        imageContainerPanel, wxID_ANY, "Reset", wxDefaultPosition, wxSize(60, 30));
+    components.buttonZoomReset->Hide();
+    zoomSizer->Add(components.buttonZoomReset.get(), 0, wxALL, 2);
+
+    imageContainerSizer->Add(zoomSizer, 0, wxALIGN_CENTER | wxALL, 5);
+
+    // Create image viewer panel (handles scrolling itself)
+    components.imageViewer = std::make_shared<ImageViewerPanel>(imageContainerPanel);
+    components.imageViewer->Hide();
+    components.imageViewer->SetMinSize(wxSize(100, 100));
+    components.imageViewer->SetBackgroundColour(*wxLIGHT_GREY);
+
+    // Add informational text overlay (shown when no image is loaded)
     components.imageInfoText = std::make_shared<wxStaticText>(
-        components.imagePanel.get(), wxID_ANY,
+        imageContainerPanel, wxID_ANY,
         "Image Viewer\n\nOpen an image file\nto display it here",
         wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
     wxFont font = components.imageInfoText->GetFont();
     font.SetPointSize(12);
     components.imageInfoText->SetFont(font);
     components.imageInfoText->SetForegroundColour(wxColour(100, 100, 100));
-    imageSizer->Add(components.imageInfoText.get(), 1, wxALL | wxALIGN_CENTER | wxEXPAND, 20);
 
-    // Create image viewer (initially hidden)
-    components.imageViewer = std::make_shared<wxStaticBitmap>(
-        components.imagePanel.get(), wxID_ANY, wxNullBitmap);
-    components.imageViewer->Hide();
-    imageSizer->Add(components.imageViewer.get(), 1, wxALL | wxALIGN_CENTER, 10);
+    // Add image viewer to container (expandable)
+    imageContainerSizer->Add(components.imageViewer.get(), 1, wxEXPAND);
 
-    // Create image navigation controls (initially hidden)
+    // Keep imagePanel reference for compatibility (but it's actually the viewer now)
+    components.imagePanel = std::static_pointer_cast<wxScrolledWindow>(components.imageViewer);
+
+    // Create image navigation controls at bottom (initially hidden)
     wxBoxSizer *imageNavSizer = new wxBoxSizer(wxHORIZONTAL);
 
     components.buttonPreviousImage = std::make_shared<wxButton>(
-        components.imagePanel.get(), wxID_ANY, "<", wxDefaultPosition, wxSize(40, 30));
+        imageContainerPanel, wxID_ANY, "<", wxDefaultPosition, wxSize(40, 30));
     components.buttonPreviousImage->Hide();
     imageNavSizer->Add(components.buttonPreviousImage.get(), 0, wxALL | wxALIGN_CENTER, 5);
 
     components.imageNavigationLabel = std::make_shared<wxStaticText>(
-        components.imagePanel.get(), wxID_ANY, "0/0", wxDefaultPosition, wxSize(60, -1), wxALIGN_CENTER);
+        imageContainerPanel, wxID_ANY, "0/0", wxDefaultPosition, wxSize(60, -1), wxALIGN_CENTER);
     components.imageNavigationLabel->Hide();
     imageNavSizer->Add(components.imageNavigationLabel.get(), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
 
     components.buttonNextImage = std::make_shared<wxButton>(
-        components.imagePanel.get(), wxID_ANY, ">", wxDefaultPosition, wxSize(40, 30));
+        imageContainerPanel, wxID_ANY, ">", wxDefaultPosition, wxSize(40, 30));
     components.buttonNextImage->Hide();
     imageNavSizer->Add(components.buttonNextImage.get(), 0, wxALL | wxALIGN_CENTER, 5);
 
-    imageSizer->Add(imageNavSizer, 0, wxALL | wxALIGN_CENTER, 5);
-
 #ifdef HAVE_OPENCV
-    // Add "Scan for Numbers" button (initially hidden)
+    // Add spacer between navigation arrows and scan button
+    imageNavSizer->AddSpacer(20);
+
+    // Add "Scan for Numbers" button on same line (initially hidden)
     components.buttonScanOCR = std::make_shared<wxButton>(
-        components.imagePanel.get(), wxID_ANY, "Scan for Numbers",
+        imageContainerPanel, wxID_ANY, "Scan for Numbers",
         wxDefaultPosition, wxSize(140, 30));
     components.buttonScanOCR->Hide();
-    imageSizer->Add(components.buttonScanOCR.get(), 0, wxALL | wxALIGN_CENTER, 5);
+    imageNavSizer->Add(components.buttonScanOCR.get(), 0, wxALL | wxALIGN_CENTER, 5);
 #endif
 
-    // Add image panel as first tab
-    components.rightNotebook->AddPage(components.imagePanel.get(), "Image");
+    imageContainerSizer->Add(imageNavSizer, 0, wxALL | wxALIGN_CENTER, 5);
 
 #ifdef HAVE_OPENCV
-    // Create OCR results panel (second tab)
+    // Create OCR results panel (right side of horizontal splitter)
     components.ocrPanel = std::make_shared<wxPanel>(components.rightNotebook, wxID_ANY);
     wxBoxSizer *ocrSizer = new wxBoxSizer(wxVERTICAL);
     components.ocrPanel->SetSizer(ocrSizer);
@@ -190,12 +223,16 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     components.ocrResultsList->Hide();
     ocrSizer->Add(components.ocrResultsList.get(), 1, wxALL | wxEXPAND, 10);
 
-    // Add OCR panel as second tab
-    components.rightNotebook->AddPage(components.ocrPanel.get(), "OCR Numbers");
+    // Initialize horizontal splitter: image container on left, OCR on right
+    components.rightNotebook->SplitVertically(imageContainerPanel, components.ocrPanel.get(), -250);
+    components.rightNotebook->SetMinimumPaneSize(150);
+#else
+    // No OCR: just show image container
+    components.rightNotebook->Initialize(imageContainerPanel);
 #endif
 
-    // Initialize splitter with both panels visible
-    components.splitter->SplitVertically(leftPanel, components.rightNotebook, -300);
+    // Initialize main splitter with both panels visible
+    components.splitter->SplitVertically(leftPanel, rightPanelContainer, -300);
     components.splitter->SetMinimumPaneSize(200);
 
     // Add splitter to main panel
