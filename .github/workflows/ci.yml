@@ -91,7 +91,16 @@ jobs:
       run: |
         OpenCppCoverage.exe --sources src --excluded_sources tests --export_type cobertura:coverage.xml -- build/tests/Debug/unit_tests.exe
 
-    - name: Upload coverage report
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-windows
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload coverage report artifact
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report

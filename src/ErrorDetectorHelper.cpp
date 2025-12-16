@@ -198,9 +198,8 @@ bool ErrorDetectorHelper::isUniquelyAssigned(
     const std::unordered_set<std::wstring>& clearedErrors,
     const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
     wxRichTextCtrl* textBox,
-    const wxTextAttr& warningStyle,
-    std::vector<std::pair<int, int>>& wrongNumberPositions,
-    std::vector<std::pair<int, int>>& splitNumberPositions,
+    const wxTextAttr& conflictStyle,
+    std::vector<std::pair<int, int>>& wrongTermBzPositions,
     std::vector<std::pair<int, int>>& allErrorsPositions
 ) {
     // Check if this error has been cleared by user
@@ -218,9 +217,9 @@ bool ErrorDetectorHelper::isUniquelyAssigned(
             size_t start = i.first;
             size_t len = i.second;
             if (!isPositionCleared(clearedTextPositions, start, start + len)) {
-                wrongNumberPositions.emplace_back(start, start + len);
+                wrongTermBzPositions.emplace_back(start, start + len);
                 allErrorsPositions.emplace_back(start, start + len);
-                textBox->SetStyle(start, start + len, warningStyle);
+                textBox->SetStyle(start, start + len, conflictStyle);
             }
         }
         return false;
@@ -235,16 +234,16 @@ bool ErrorDetectorHelper::isUniquelyAssigned(
                 size_t start = i.first;
                 size_t len = i.second;
 
-                // Avoid duplicates in the split number list
+                // Avoid duplicates in the merged list
                 auto pos_pair = std::make_pair(static_cast<int>(start),
                                                static_cast<int>(start + len));
-                if (std::find(splitNumberPositions.begin(),
-                              splitNumberPositions.end(),
-                              pos_pair) == splitNumberPositions.end() &&
+                if (std::find(wrongTermBzPositions.begin(),
+                              wrongTermBzPositions.end(),
+                              pos_pair) == wrongTermBzPositions.end() &&
                     !isPositionCleared(clearedTextPositions, start, start + len)) {
-                    splitNumberPositions.emplace_back(start, start + len);
+                    wrongTermBzPositions.emplace_back(start, start + len);
                     allErrorsPositions.emplace_back(start, start + len);
-                    textBox->SetStyle(start, start + len, warningStyle);
+                    textBox->SetStyle(start, start + len, conflictStyle);
                 }
             }
             return false;

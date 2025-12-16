@@ -60,9 +60,8 @@ public:
         const std::unordered_set<std::wstring>& clearedErrors,
         const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
         wxRichTextCtrl* textBox,
-        const wxTextAttr& warningStyle,
-        std::vector<std::pair<int, int>>& wrongNumberPositions,
-        std::vector<std::pair<int, int>>& splitNumberPositions,
+        const wxTextAttr& conflictStyle,
+        std::vector<std::pair<int, int>>& wrongTermBzPositions,
         std::vector<std::pair<int, int>>& allErrorsPositions
     );
 

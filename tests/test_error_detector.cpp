@@ -53,6 +53,7 @@ protected:
 
         // Create text styles
         warningStyle.SetBackgroundColour(wxColour(255, 255, 0)); // Yellow
+        conflictStyle.SetBackgroundColour(wxColour(255, 165, 0)); // Orange
         articleWarningStyle.SetBackgroundColour(wxColour(0, 255, 255)); // Cyan
 
         // Clear all data structures
@@ -81,8 +82,7 @@ protected:
         clearedTextPositions.clear();
         clearedErrors.clear();
         noNumberPositions.clear();
-        wrongNumberPositions.clear();
-        splitNumberPositions.clear();
+        wrongTermBzPositions.clear();
         wrongArticlePositions.clear();
         allErrorsPositions.clear();
     }
@@ -104,6 +104,7 @@ protected:
     wxFrame* frame = nullptr;
     wxRichTextCtrl* textBox = nullptr;
     wxTextAttr warningStyle;
+    wxTextAttr conflictStyle;
     wxTextAttr articleWarningStyle;
 
     // Data structures
@@ -118,8 +119,7 @@ protected:
 
     // Error position vectors
     std::vector<std::pair<int, int>> noNumberPositions;
-    std::vector<std::pair<int, int>> wrongNumberPositions;
-    std::vector<std::pair<int, int>> splitNumberPositions;
+    std::vector<std::pair<int, int>> wrongTermBzPositions;
     std::vector<std::pair<int, int>> wrongArticlePositions;
     std::vector<std::pair<int, int>> allErrorsPositions;
 };
@@ -175,15 +175,15 @@ TEST_F(ErrorDetectorTest, DetectConflictingAssignments) {
     for (const auto& [bz, stems] : bzToStems) {
         ErrorDetectorHelper::isUniquelyAssigned(bz, bzToStems, stemToBz, bzToPositions,
                                                stemToPositions, clearedErrors, clearedTextPositions,
-                                               textBox, warningStyle, wrongNumberPositions,
-                                               splitNumberPositions, allErrorsPositions);
+                                               textBox, conflictStyle, wrongTermBzPositions,
+                                               allErrorsPositions);
     }
 
     // Should detect conflicting assignment: same stem "lag" with different BZs
-    EXPECT_FALSE(splitNumberPositions.empty());
+    EXPECT_FALSE(wrongTermBzPositions.empty());
 
     // Both occurrences should be highlighted
-    EXPECT_GE(splitNumberPositions.size(), 2);
+    EXPECT_GE(wrongTermBzPositions.size(), 2);
 }
 
 // Test 12: DetectSplitAssignments
@@ -195,14 +195,14 @@ TEST_F(ErrorDetectorTest, DetectSplitAssignments) {
     // Check BZ "10" for unique assignment
     bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
         L"10", bzToStems, stemToBz, bzToPositions, stemToPositions,
-        clearedErrors, clearedTextPositions, textBox, warningStyle,
-        wrongNumberPositions, splitNumberPositions, allErrorsPositions);
+        clearedErrors, clearedTextPositions, textBox, conflictStyle,
+        wrongTermBzPositions, allErrorsPositions);
 
     // Should detect split assignment: same BZ "10" for different terms
     EXPECT_FALSE(isUnique);
 
-    // Should highlight as wrong number (split assignment)
-    EXPECT_FALSE(wrongNumberPositions.empty());
+    // Should highlight as wrong term/BZ (conflict)
+    EXPECT_FALSE(wrongTermBzPositions.empty());
 }
 
 // Test 13: ArticleValidation_DefiniteVsIndefinite
@@ -293,15 +293,14 @@ TEST_F(ErrorDetectorTest, RespectClearedBZNumbers) {
     // Check BZ "10" for unique assignment
     bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
         L"10", bzToStems, stemToBz, bzToPositions, stemToPositions,
-        clearedErrors, clearedTextPositions, textBox, warningStyle,
-        wrongNumberPositions, splitNumberPositions, allErrorsPositions);
+        clearedErrors, clearedTextPositions, textBox, conflictStyle,
+        wrongTermBzPositions, allErrorsPositions);
 
     // Should treat as unique (no error) because it was cleared
     EXPECT_TRUE(isUnique);
 
     // No positions should be added
-    EXPECT_TRUE(wrongNumberPositions.empty());
-    EXPECT_TRUE(splitNumberPositions.empty());
+    EXPECT_TRUE(wrongTermBzPositions.empty());
 }
 
 // Test 17: RespectClearedTextPositions
@@ -414,11 +413,11 @@ TEST_F(ErrorDetectorTest, ConflictingAssignments_AfterClearing) {
     for (const auto& [bz, stems] : bzToStems) {
         ErrorDetectorHelper::isUniquelyAssigned(bz, bzToStems, stemToBz, bzToPositions,
                                                stemToPositions, clearedErrors, clearedTextPositions,
-                                               textBox, warningStyle, wrongNumberPositions,
-                                               splitNumberPositions, allErrorsPositions);
+                                               textBox, conflictStyle, wrongTermBzPositions,
+                                               allErrorsPositions);
     }
 
-    size_t initialErrorCount = splitNumberPositions.size();
+    size_t initialErrorCount = wrongTermBzPositions.size();
     EXPECT_GT(initialErrorCount, 0);
 
     // Clear data and rescan with errors cleared
@@ -434,13 +433,13 @@ TEST_F(ErrorDetectorTest, ConflictingAssignments_AfterClearing) {
     for (const auto& [bz, stems] : bzToStems) {
         bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
             bz, bzToStems, stemToBz, bzToPositions, stemToPositions,
-            clearedErrors, clearedTextPositions, textBox, warningStyle,
-            wrongNumberPositions, splitNumberPositions, allErrorsPositions);
+            clearedErrors, clearedTextPositions, textBox, conflictStyle,
+            wrongTermBzPositions, allErrorsPositions);
 
         // All should be treated as unique now
         EXPECT_TRUE(isUnique);
     }
 
     // No new errors should be added
-    EXPECT_TRUE(splitNumberPositions.empty());
+    EXPECT_TRUE(wrongTermBzPositions.empty());
 }

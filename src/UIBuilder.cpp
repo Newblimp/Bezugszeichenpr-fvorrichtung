@@ -28,21 +28,28 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
         components.notebookList, wxID_ANY, wxEmptyString,
         wxDefaultPosition, wxSize(350, -1));
 
+    // Tree list for term -> BZ inverse mapping
+    components.termList = std::make_shared<wxTreeListCtrl>(
+        components.notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    components.termList->AppendColumn("feature");
+    components.termList->AppendColumn("reference signs");
+
     wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->Add(viewSizer, 1, wxEXPAND);
     panel->SetSizer(mainSizer);
 
-    viewSizer->Add(components.textBox, 1, wxEXPAND | wxALL, 10);
-    viewSizer->Add(outputSizer, 0, wxEXPAND, 10);
+    viewSizer->Add(components.textBox, 2, wxEXPAND | wxALL, 10);
+    viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
     // Tree list for displaying BZ-term mappings
     components.treeList = std::make_shared<wxTreeListCtrl>(
         components.notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     components.treeList->AppendColumn("reference sign");
-    components.treeList->AppendColumn("feature");
+    components.treeList->AppendColumn("features");
 
-    outputSizer->Add(components.notebookList, 2, wxEXPAND | wxALL, 10);
-    components.notebookList->AddPage(components.treeList.get(), "overview");
+    outputSizer->Add(components.notebookList, 3, wxEXPAND | wxALL, 10);
+    components.notebookList->AddPage(components.treeList.get(), "BZ -> feature");
+    components.notebookList->AddPage(components.termList.get(), "feature -> BZ");
     components.notebookList->AddPage(components.bzList.get(), "reference sign list");
 
     // Create navigation rows for each error type
@@ -58,17 +65,11 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
                        components.buttonForwardNoNumber,
                        components.noNumberLabel);
 
-    wxBoxSizer *wrongNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, wrongNumberSizer, "inconsistent terms",
-                       components.buttonBackwardWrongNumber,
-                       components.buttonForwardWrongNumber,
-                       components.wrongNumberLabel);
-
-    wxBoxSizer *splitNumberSizer = new wxBoxSizer(wxHORIZONTAL);
-    createNavigationRow(panel, splitNumberSizer, "inconsistent reference signs",
-                       components.buttonBackwardSplitNumber,
-                       components.buttonForwardSplitNumber,
-                       components.splitNumberLabel);
+    wxBoxSizer *wrongTermBzSizer = new wxBoxSizer(wxHORIZONTAL);
+    createNavigationRow(panel, wrongTermBzSizer, "wrong term/BZ",
+                       components.buttonBackwardWrongTermBz,
+                       components.buttonForwardWrongTermBz,
+                       components.wrongTermBzLabel);
 
     wxBoxSizer *wrongArticleSizer = new wxBoxSizer(wxHORIZONTAL);
     createNavigationRow(panel, wrongArticleSizer, "inconsistent article",
@@ -79,8 +80,7 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     numberSizer->Add(allErrorsSizer, wxLEFT);
     numberSizer->AddSpacer(5);
     numberSizer->Add(noNumberSizer, wxLEFT);
-    numberSizer->Add(wrongNumberSizer, wxLEFT);
-    numberSizer->Add(splitNumberSizer, wxLEFT);
+    numberSizer->Add(wrongTermBzSizer, wxLEFT);
     numberSizer->Add(wrongArticleSizer, wxLEFT);
 
     // Create horizontal sizer for error navigation and language selector

@@ -20,6 +20,7 @@ public:
         wxRichTextCtrl* textBox;
         wxRadioBox* languageSelector;
         std::shared_ptr<wxRichTextCtrl> bzList;
+        std::shared_ptr<wxTreeListCtrl> termList;
         std::shared_ptr<wxTreeListCtrl> treeList;
 
         // Navigation buttons - All errors
@@ -32,15 +33,10 @@ public:
         std::shared_ptr<wxButton> buttonBackwardNoNumber;
         std::shared_ptr<wxStaticText> noNumberLabel;
 
-        // Navigation buttons - Wrong number
-        std::shared_ptr<wxButton> buttonForwardWrongNumber;
-        std::shared_ptr<wxButton> buttonBackwardWrongNumber;
-        std::shared_ptr<wxStaticText> wrongNumberLabel;
-
-        // Navigation buttons - Split number
-        std::shared_ptr<wxButton> buttonForwardSplitNumber;
-        std::shared_ptr<wxButton> buttonBackwardSplitNumber;
-        std::shared_ptr<wxStaticText> splitNumberLabel;
+        // Navigation buttons - Wrong term/BZ (merged conflicts)
+        std::shared_ptr<wxButton> buttonForwardWrongTermBz;
+        std::shared_ptr<wxButton> buttonBackwardWrongTermBz;
+        std::shared_ptr<wxStaticText> wrongTermBzLabel;
 
         // Navigation buttons - Wrong article
         std::shared_ptr<wxButton> buttonForwardWrongArticle;

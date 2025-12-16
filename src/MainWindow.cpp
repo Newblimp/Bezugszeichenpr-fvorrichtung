@@ -164,8 +164,7 @@ void MainWindow::scanTextBackground() {
 
   m_allErrorsPositions.clear();
   m_noNumberPositions.clear();
-  m_wrongNumberPositions.clear();
-  m_splitNumberPositions.clear();
+  m_wrongTermBzPositions.clear();
   m_wrongArticlePositions.clear();
 
   std::cout << "Time for setup and clearing: " << t_setup.elapsed() << " milliseconds\n";
@@ -200,6 +199,24 @@ void MainWindow::scanTextBackground() {
                         m_bzToStems, m_stemToBz, m_bzToOriginalWords,
                         m_bzToPositions, m_stemToPositions);
   std::cout << "Time for TextScanner::scanText: " << t_scan.elapsed() << " milliseconds\n";
+
+  // Cache first occurrence words for display
+  m_stemToFirstWord.clear();
+  for (const auto& [stem, positions] : m_stemToPositions) {
+    if (!positions.empty()) {
+      size_t firstStart = positions[0].first;
+      size_t firstLen = positions[0].second;
+      std::wstring fullMatch = m_fullText.substr(firstStart, firstLen);
+
+      // Extract word before BZ number
+      size_t bzStart = fullMatch.find_last_of(L' ');
+      if (bzStart != std::wstring::npos) {
+        m_stemToFirstWord[stem] = fullMatch.substr(0, bzStart);
+      } else {
+        m_stemToFirstWord[stem] = fullMatch;
+      }
+    }
+  }
 
   std::cout << "Total background scan time: " << t_total.elapsed() << " milliseconds\n";
 
@@ -254,10 +271,8 @@ void MainWindow::updateUIAfterScan() {
       L"0/" + std::to_wstring(m_allErrorsPositions.size()) + L"\t");
   m_noNumberLabel->SetLabel(
       L"0/" + std::to_wstring(m_noNumberPositions.size()) + L"\t");
-  m_wrongNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_wrongNumberPositions.size()) + L"\t");
-  m_splitNumberLabel->SetLabel(
-      L"0/" + std::to_wstring(m_splitNumberPositions.size()) + L"\t");
+  m_wrongTermBzLabel->SetLabel(
+      L"0/" + std::to_wstring(m_wrongTermBzPositions.size()) + L"\t");
   m_wrongArticleLabel->SetLabel(
       L"0/" + std::to_wstring(m_wrongArticlePositions.size()) + L"\t");
 
@@ -266,7 +281,11 @@ void MainWindow::updateUIAfterScan() {
 
   Timer t_fillBzList;
   fillBzList();
-  std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n\n";
+  std::cout << "Time for fillBzList: " << t_fillBzList.elapsed() << " milliseconds\n";
+
+  Timer t_fillTermList;
+  fillTermList();
+  std::cout << "Time for fillTermList: " << t_fillTermList.elapsed() << " milliseconds\n\n";
 
   m_textBox->EndSuppressUndo();
   // wxWindowUpdateLocker automatically "thaws" the window when it goes out of scope
@@ -287,17 +306,27 @@ void MainWindow::fillListTree() {
       item = m_treeList->AppendItem(m_treeList->GetRootItem(), bz, 1, 1);
     }
 
-    // Display original words for this BZ
-    m_treeList->SetItemText(
-        item, 1, stemsToDisplayString(stems, m_bzToOriginalWords[bz]));
+    // Build display string from first occurrence of each stem
+    std::wstring displayText;
+    for (const auto& stem : stems) {
+      std::wstring firstWord = getFirstOccurrenceWord(stem);
+      if (!firstWord.empty()) {
+        if (!displayText.empty()) {
+          displayText += L"; ";
+        }
+        displayText += firstWord;
+      }
+    }
+
+    m_treeList->SetItemText(item, 1, displayText);
   }
 }
 
 bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
   return ErrorDetectorHelper::isUniquelyAssigned(
       bz, m_bzToStems, m_stemToBz, m_bzToPositions, m_stemToPositions,
-      m_clearedErrors, m_clearedTextPositions, m_textBox, m_warningStyle,
-      m_wrongNumberPositions, m_splitNumberPositions, m_allErrorsPositions);
+      m_clearedErrors, m_clearedTextPositions, m_textBox, m_conflictStyle,
+      m_wrongTermBzPositions, m_allErrorsPositions);
 }
 
 void MainWindow::loadIcons() {
@@ -313,6 +342,7 @@ void MainWindow::loadIcons() {
   m_imageList->Add(check);
   m_imageList->Add(warning);
   m_treeList->SetImageList(m_imageList.get());
+  m_termList->SetImageList(m_imageList.get());
 }
 
 void MainWindow::findUnnumberedWords() {
@@ -349,24 +379,14 @@ void MainWindow::selectPreviousNoNumber(wxCommandEvent &event) {
                                  m_textBox, m_noNumberLabel.get());
 }
 
-void MainWindow::selectNextWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_wrongNumberPositions, m_wrongNumberSelected,
-                             m_textBox, m_wrongNumberLabel.get());
+void MainWindow::selectNextWrongTermBz(wxCommandEvent &event) {
+  ErrorNavigator::selectNext(m_wrongTermBzPositions, m_wrongTermBzSelected,
+                             m_textBox, m_wrongTermBzLabel.get());
 }
 
-void MainWindow::selectPreviousWrongNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_wrongNumberPositions, m_wrongNumberSelected,
-                                 m_textBox, m_wrongNumberLabel.get());
-}
-
-void MainWindow::selectNextSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectNext(m_splitNumberPositions, m_splitNumberSelected,
-                             m_textBox, m_splitNumberLabel.get());
-}
-
-void MainWindow::selectPreviousSplitNumber(wxCommandEvent &event) {
-  ErrorNavigator::selectPrevious(m_splitNumberPositions, m_splitNumberSelected,
-                                 m_textBox, m_splitNumberLabel.get());
+void MainWindow::selectPreviousWrongTermBz(wxCommandEvent &event) {
+  ErrorNavigator::selectPrevious(m_wrongTermBzPositions, m_wrongTermBzSelected,
+                                 m_textBox, m_wrongTermBzLabel.get());
 }
 
 void MainWindow::selectNextWrongArticle(wxCommandEvent &event) {
@@ -389,6 +409,7 @@ void MainWindow::setupUi() {
   m_textBox = components.textBox;
   m_languageSelector = components.languageSelector;
   m_bzList = components.bzList;
+  m_termList = components.termList;
   m_treeList = components.treeList;
 
   m_buttonForwardAllErrors = components.buttonForwardAllErrors;
@@ -399,13 +420,9 @@ void MainWindow::setupUi() {
   m_buttonBackwardNoNumber = components.buttonBackwardNoNumber;
   m_noNumberLabel = components.noNumberLabel;
 
-  m_buttonForwardWrongNumber = components.buttonForwardWrongNumber;
-  m_buttonBackwardWrongNumber = components.buttonBackwardWrongNumber;
-  m_wrongNumberLabel = components.wrongNumberLabel;
-
-  m_buttonForwardSplitNumber = components.buttonForwardSplitNumber;
-  m_buttonBackwardSplitNumber = components.buttonBackwardSplitNumber;
-  m_splitNumberLabel = components.splitNumberLabel;
+  m_buttonForwardWrongTermBz = components.buttonForwardWrongTermBz;
+  m_buttonBackwardWrongTermBz = components.buttonBackwardWrongTermBz;
+  m_wrongTermBzLabel = components.wrongTermBzLabel;
 
   m_buttonForwardWrongArticle = components.buttonForwardWrongArticle;
   m_buttonBackwardWrongArticle = components.buttonBackwardWrongArticle;
@@ -415,6 +432,7 @@ void MainWindow::setupUi() {
   m_neutralStyle.SetBackgroundColour(
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
   m_warningStyle.SetBackgroundColour(*wxYELLOW);
+  m_conflictStyle.SetBackgroundColour(wxColour(255, 165, 0));  // Orange
   m_articleWarningStyle.SetBackgroundColour(*wxCYAN);
 
   // Create menu bar
@@ -443,14 +461,10 @@ void MainWindow::setupBindings() {
                                  &MainWindow::selectPreviousNoNumber, this);
   m_buttonForwardNoNumber->Bind(wxEVT_BUTTON, &MainWindow::selectNextNoNumber,
                                 this);
-  m_buttonBackwardWrongNumber->Bind(
-      wxEVT_BUTTON, &MainWindow::selectPreviousWrongNumber, this);
-  m_buttonForwardWrongNumber->Bind(wxEVT_BUTTON,
-                                   &MainWindow::selectNextWrongNumber, this);
-  m_buttonBackwardSplitNumber->Bind(
-      wxEVT_BUTTON, &MainWindow::selectPreviousSplitNumber, this);
-  m_buttonForwardSplitNumber->Bind(wxEVT_BUTTON,
-                                   &MainWindow::selectNextSplitNumber, this);
+  m_buttonBackwardWrongTermBz->Bind(
+      wxEVT_BUTTON, &MainWindow::selectPreviousWrongTermBz, this);
+  m_buttonForwardWrongTermBz->Bind(wxEVT_BUTTON,
+                                   &MainWindow::selectNextWrongTermBz, this);
   m_buttonBackwardWrongArticle->Bind(
       wxEVT_BUTTON, &MainWindow::selectPreviousWrongArticle, this);
   m_buttonForwardWrongArticle->Bind(wxEVT_BUTTON,
@@ -778,4 +792,105 @@ void MainWindow::onAbout(wxCommandEvent &event) {
 
   wxMessageBox(aboutText, wxT("About Bezugszeichenprüfvorrichtung"),
                wxOK | wxICON_INFORMATION);
+}
+
+std::wstring MainWindow::getFirstOccurrenceWord(const StemVector& stem) const {
+  if (!m_stemToPositions.count(stem) || m_stemToPositions.at(stem).empty()) {
+    return L"";
+  }
+
+  const auto& positions = m_stemToPositions.at(stem);
+  size_t firstStart = positions[0].first;
+  size_t firstLen = positions[0].second;
+
+  std::wstring fullMatch = m_fullText.substr(firstStart, firstLen);
+
+  // Extract word before BZ number
+  size_t bzStart = fullMatch.find_last_of(L' ');
+  if (bzStart != std::wstring::npos) {
+    return fullMatch.substr(0, bzStart);
+  }
+
+  return fullMatch;
+}
+
+void MainWindow::fillTermList() {
+  m_termList->DeleteAllItems();
+
+  // Collect all stems sorted by first occurrence position
+  struct StemInfo {
+    StemVector stem;
+    size_t firstPosition;
+    std::wstring firstWord;
+    std::unordered_set<std::wstring> bzs;
+  };
+
+  std::vector<StemInfo> stemInfos;
+
+  for (const auto& [stem, bzSet] : m_stemToBz) {
+    StemInfo info;
+    info.stem = stem;
+    info.bzs = bzSet;
+
+    // Get first position and word
+    if (m_stemToPositions.count(stem) && !m_stemToPositions.at(stem).empty()) {
+      info.firstPosition = m_stemToPositions.at(stem)[0].first;
+
+      if (m_stemToFirstWord.count(stem)) {
+        info.firstWord = m_stemToFirstWord.at(stem);
+      }
+    } else {
+      info.firstPosition = SIZE_MAX;
+    }
+
+    stemInfos.push_back(info);
+  }
+
+  // Sort by first occurrence position
+  std::sort(stemInfos.begin(), stemInfos.end(),
+            [](const StemInfo& a, const StemInfo& b) {
+              return a.firstPosition < b.firstPosition;
+            });
+
+  // Populate tree control
+  for (const auto& info : stemInfos) {
+    // Sort BZs numerically
+    std::vector<std::wstring> sortedBzs(info.bzs.begin(), info.bzs.end());
+    std::sort(sortedBzs.begin(), sortedBzs.end(), BZComparatorForMap());
+
+    std::wstring bzListStr;
+    for (size_t i = 0; i < sortedBzs.size(); ++i) {
+      if (i > 0) bzListStr += L", ";
+      bzListStr += sortedBzs[i];
+    }
+
+    // Check if there's a conflict:
+    // 1. Term maps to multiple BZs (info.bzs.size() > 1)
+    // 2. Any BZ this term is assigned to is also assigned to other terms
+    bool hasError = false;
+    if (info.bzs.size() > 1) {
+      hasError = true;  // One term -> multiple BZs
+    } else {
+      // Check if the single BZ is assigned to multiple terms
+      for (const auto& bz : info.bzs) {
+        if (!isUniquelyAssigned(bz)) {
+          hasError = true;
+          break;
+        }
+      }
+    }
+
+    // Create tree item with appropriate icon
+    wxTreeListItem item;
+    if (hasError) {
+      // Warning icon (1) for conflicts
+      item = m_termList->AppendItem(m_termList->GetRootItem(), info.firstWord, 1, 1);
+    } else {
+      // Check icon (0) for no conflicts
+      item = m_termList->AppendItem(m_termList->GetRootItem(), info.firstWord, 0, 0);
+    }
+
+    // Set the BZ list in the second column
+    m_termList->SetItemText(item, 1, bzListStr);
+  }
 }

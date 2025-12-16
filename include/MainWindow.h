@@ -39,7 +39,9 @@ private:
   // Display methods
   void fillListTree();
   void fillBzList();
+  void fillTermList();
   bool isUniquelyAssigned(const std::wstring &bz);
+  std::wstring getFirstOccurrenceWord(const StemVector& stem) const;
 
   // Error detection
   void findUnnumberedWords();
@@ -51,10 +53,8 @@ private:
   void selectPreviousAllError(wxCommandEvent &event);
   void selectNextNoNumber(wxCommandEvent &event);
   void selectPreviousNoNumber(wxCommandEvent &event);
-  void selectNextWrongNumber(wxCommandEvent &event);
-  void selectPreviousWrongNumber(wxCommandEvent &event);
-  void selectNextSplitNumber(wxCommandEvent &event);
-  void selectPreviousSplitNumber(wxCommandEvent &event);
+  void selectNextWrongTermBz(wxCommandEvent &event);
+  void selectPreviousWrongTermBz(wxCommandEvent &event);
   void selectNextWrongArticle(wxCommandEvent &event);
   void selectPreviousWrongArticle(wxCommandEvent &event);
 
@@ -110,6 +110,7 @@ private:
   // Text styles
   wxTextAttr m_neutralStyle;
   wxTextAttr m_warningStyle;
+  wxTextAttr m_conflictStyle;
   wxTextAttr m_articleWarningStyle;
 
   // Debounce timer for text changes
@@ -147,6 +148,9 @@ private:
                      StemVectorHash>
       m_stemToPositions;
 
+  // Cache of first occurrence words for display
+  std::unordered_map<StemVector, std::wstring, StemVectorHash> m_stemToFirstWord;
+
   // keeping track of the position of the cursor when browsing occurences
   std::unordered_map<std::wstring, int> m_bzCurrentOccurrence;
 
@@ -181,6 +185,7 @@ private:
   wxRadioBox *m_languageSelector;
   void onLanguageChanged(wxCommandEvent &event);
   std::shared_ptr<wxRichTextCtrl> m_bzList;
+  std::shared_ptr<wxTreeListCtrl> m_termList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
 
@@ -189,10 +194,8 @@ private:
   std::shared_ptr<wxButton> m_buttonBackwardAllErrors;
   std::shared_ptr<wxButton> m_buttonForwardNoNumber;
   std::shared_ptr<wxButton> m_buttonBackwardNoNumber;
-  std::shared_ptr<wxButton> m_buttonForwardWrongNumber;
-  std::shared_ptr<wxButton> m_buttonBackwardWrongNumber;
-  std::shared_ptr<wxButton> m_buttonForwardSplitNumber;
-  std::shared_ptr<wxButton> m_buttonBackwardSplitNumber;
+  std::shared_ptr<wxButton> m_buttonForwardWrongTermBz;
+  std::shared_ptr<wxButton> m_buttonBackwardWrongTermBz;
   std::shared_ptr<wxButton> m_buttonForwardWrongArticle;
   std::shared_ptr<wxButton> m_buttonBackwardWrongArticle;
 
@@ -205,13 +208,9 @@ private:
   int m_noNumberSelected{-1};
   std::shared_ptr<wxStaticText> m_noNumberLabel;
 
-  std::vector<std::pair<int, int>> m_wrongNumberPositions;
-  int m_wrongNumberSelected{-1};
-  std::shared_ptr<wxStaticText> m_wrongNumberLabel;
-
-  std::vector<std::pair<int, int>> m_splitNumberPositions;
-  int m_splitNumberSelected{-1};
-  std::shared_ptr<wxStaticText> m_splitNumberLabel;
+  std::vector<std::pair<int, int>> m_wrongTermBzPositions;
+  int m_wrongTermBzSelected{-1};
+  std::shared_ptr<wxStaticText> m_wrongTermBzLabel;
 
   std::vector<std::pair<int, int>> m_wrongArticlePositions;
   int m_wrongArticleSelected{-1};
