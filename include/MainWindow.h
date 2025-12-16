@@ -1,6 +1,7 @@
 #pragma once
 #include "GermanTextAnalyzer.h"
 #include "EnglishTextAnalyzer.h"
+#include "OrdinalDetector.h"
 #include "RE2RegexHelper.h"
 #include "utils.h"
 #include "wx/notebook.h"
@@ -151,6 +152,17 @@ private:
   // "lager"}
   std::unordered_set<std::wstring> m_multiWordBaseStems;
 
+  // Auto-detection tracking for ordinal-based multi-word terms
+  // Stores stems that were auto-detected (separately from manual toggles)
+  std::unordered_set<std::wstring> m_autoDetectedMultiWordStems;
+
+  // Manual toggles: stems that user explicitly enabled via context menu
+  std::unordered_set<std::wstring> m_manualMultiWordToggles;
+
+  // Manual disables: stems that user explicitly disabled via context menu
+  // (prevents auto-detection from re-enabling them)
+  std::unordered_set<std::wstring> m_manuallyDisabledMultiWord;
+
   // Set of BZ numbers whose errors have been cleared/ignored by user
   std::unordered_set<std::wstring> m_clearedErrors;
 
@@ -202,5 +214,3 @@ private:
   int m_wrongArticleSelected{-1};
   std::shared_ptr<wxStaticText> m_wrongArticleLabel;
 };
-
-  // Track cleared text positions (for right-click clear on highlighted text)

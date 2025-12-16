@@ -174,6 +174,25 @@ void MainWindow::scanTextBackground() {
     return;
   }
 
+  // AUTO-DETECT ordinal patterns for multi-word terms BEFORE scanning
+  Timer t_ordinalDetect;
+  std::unordered_set<std::wstring> newAutoDetected =
+      OrdinalDetector::detectOrdinalPatterns(m_fullText, m_twoWordRegex, s_useGerman);
+  std::cout << "Time for OrdinalDetector: " << t_ordinalDetect.elapsed() << " milliseconds\n";
+
+  // Rebuild combined multi-word set: manual + auto - disabled
+  m_multiWordBaseStems = m_manualMultiWordToggles;  // Start with manual enables
+  for (const auto& stem : newAutoDetected) {
+    if (m_manuallyDisabledMultiWord.count(stem) == 0) {
+      m_multiWordBaseStems.insert(stem);  // Add auto-detected if not manually disabled
+    }
+  }
+  m_autoDetectedMultiWordStems = newAutoDetected;  // Remember what was auto-detected
+
+  if (m_cancelScan) {
+    return;
+  }
+
   // Scan text for patterns using TextScanner
   Timer t_scan;
   TextScanner::scanText(m_fullText, m_singleWordRegex, m_twoWordRegex,
@@ -535,10 +554,19 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
 }
 
 void MainWindow::toggleMultiWordTerm(const std::wstring &baseStem) {
-  if (m_multiWordBaseStems.count(baseStem)) {
-    m_multiWordBaseStems.erase(baseStem);
+  bool currentlyActive = m_multiWordBaseStems.count(baseStem) > 0;
+
+  if (currentlyActive) {
+    // User is DISABLING multi-word mode
+    m_manualMultiWordToggles.erase(baseStem);          // Remove from manual enables
+    m_manuallyDisabledMultiWord.insert(baseStem);      // Add to manual disables
+
+    // Also remove from auto-detected (so rebuild logic doesn't re-add it)
+    m_autoDetectedMultiWordStems.erase(baseStem);
   } else {
-    m_multiWordBaseStems.insert(baseStem);
+    // User is ENABLING multi-word mode
+    m_manuallyDisabledMultiWord.erase(baseStem);       // Remove from manual disables
+    m_manualMultiWordToggles.insert(baseStem);         // Add to manual enables
   }
 
   // Trigger rescan
@@ -702,7 +730,13 @@ void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
 void MainWindow::onLanguageChanged(wxCommandEvent &event) {
   // Update language selection
   s_useGerman = (m_languageSelector->GetSelection() == 0);
-  
+
+  // Clear auto-detected stems (language-specific)
+  m_autoDetectedMultiWordStems.clear();
+
+  // Rebuild combined set with just manual toggles
+  m_multiWordBaseStems = m_manualMultiWordToggles;
+
   // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
 }

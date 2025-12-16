@@ -13,6 +13,7 @@ add_executable(
   test_utils.cpp
   test_text_scanner.cpp
   test_error_detector.cpp
+  test_ordinal_detector.cpp
   # Source files needed for testing (non-UI components)
   ${CMAKE_SOURCE_DIR}/src/GermanTextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/EnglishTextAnalyzer.cpp
@@ -23,6 +24,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/TextScanner.cpp
   ${CMAKE_SOURCE_DIR}/src/ErrorDetectorHelper.cpp
   ${CMAKE_SOURCE_DIR}/src/ErrorNavigator.cpp
+  ${CMAKE_SOURCE_DIR}/src/OrdinalDetector.cpp
   ${CMAKE_SOURCE_DIR}/src/MainWindow.cpp
   ${CMAKE_SOURCE_DIR}/src/UIBuilder.cpp
 )

@@ -137,7 +137,9 @@ const std::unordered_set<std::wstring> GermanTextAnalyzer::s_ignoredWords = {
     // Indefinite articles
     L"ein", L"eine", L"eines", L"einen", L"einer", L"einem",
     // Figure references
-    L"figur", L"figuren"
+    L"figur", L"figuren",
+    // conjunctions
+    L"und", L"oder"
 };
 
 bool GermanTextAnalyzer::isIgnoredWord(const std::wstring& word) {

@@ -11,6 +11,7 @@
 - Identifies conflicting number assignments (same term with different numbers)
 - Validates article usage (definite/indefinite) for both languages
 - Supports multi-word term matching (e.g., "zweites Lager" or "second bearing")
+- **Automatic multi-word detection**: Automatically enables multi-word mode for terms that appear with both "first" and "second" ordinal prefixes
 - Uses Oleander stemming library for language morphology (handles plurals, cases)
 - Stemming cache for improved performance on large documents
 - Minimum word length filtering (3+ characters) to reduce noise
@@ -35,10 +36,11 @@ Bezugszeichenprüfvorrichtung/
 ├── main.cpp                 # Application entry point (minimal)
 ├── res.rc                   # Windows resource file (icons)
 ├── .gitmodules              # Git submodules (wxWidgets)
-├── include/                 # Header files (~17 headers)
+├── include/                 # Header files (~18 headers)
 │   ├── MainWindow.h         # Main window class declaration
 │   ├── GermanTextAnalyzer.h # German language analysis
 │   ├── EnglishTextAnalyzer.h# English language analysis
+│   ├── OrdinalDetector.h    # Automatic multi-word term detection
 │   ├── TextScanner.h        # Text scanning logic (separated)
 │   ├── ErrorDetectorHelper.h# Error detection logic (separated)
 │   ├── ErrorNavigator.h     # Navigation through errors
@@ -54,10 +56,11 @@ Bezugszeichenprüfvorrichtung/
 │   ├── stemming.h           # General stemming library
 │   ├── stem_collector.h     # Stem collection utilities
 │   └── common_lang_constants.h  # Language constants
-├── src/                     # Source files (~11 implementations)
+├── src/                     # Source files (~12 implementations)
 │   ├── MainWindow.cpp       # Main window (~650 lines, refactored)
 │   ├── GermanTextAnalyzer.cpp  # German language implementation
 │   ├── EnglishTextAnalyzer.cpp # English language implementation
+│   ├── OrdinalDetector.cpp  # Automatic multi-word term detection
 │   ├── TextScanner.cpp      # Text scanning implementation
 │   ├── ErrorDetectorHelper.cpp # Error detection implementation
 │   ├── ErrorNavigator.cpp   # Navigation implementation
@@ -70,10 +73,11 @@ Bezugszeichenprüfvorrichtung/
 │   ├── app_icon.ico         # Application icon
 │   ├── check_16.xpm/.png    # Success icon
 │   └── warning_16.xpm/.png  # Warning icon
-├── tests/                   # Unit tests (~4 test files, 30+ tests)
+├── tests/                   # Unit tests (~5 test files, 145+ tests)
 │   ├── test_german_analyzer.cpp
 │   ├── test_english_analyzer.cpp
 │   ├── test_re2_regex_helper.cpp
+│   ├── test_ordinal_detector.cpp
 │   └── test_utils.cpp
 └── libs/                    # Third-party libraries
     └── wxWidgets/           # Git submodule
@@ -118,17 +122,25 @@ Bezugszeichenprüfvorrichtung/
    - Creates all widgets, layouts, and navigation buttons
    - Returns structured component bundle
 
-7. **RE2RegexHelper** (`include/RE2RegexHelper.h`, `src/RE2RegexHelper.cpp`)
+7. **OrdinalDetector** (`include/OrdinalDetector.h`, `src/OrdinalDetector.cpp`)
+   - Automatically detects multi-word terms with ordinal prefixes
+   - Scans for "first"/"second" (English) or "erste"/"zweite" (German) patterns
+   - Identifies base words appearing with BOTH first AND second ordinals
+   - Auto-enables multi-word mode for detected terms
+   - Supports all declensions of German ordinals
+   - Respects manual user toggles (manual settings take precedence)
+
+8. **RE2RegexHelper** (`include/RE2RegexHelper.h`, `src/RE2RegexHelper.cpp`)
    - Bridges RE2 (UTF-8) and wxWidgets/STL (wstring)
    - Provides MatchIterator for convenient iteration
    - Handles position mapping between encodings
 
-8. **Data Structures** (see `include/utils_core.h`)
+9. **Data Structures** (see `include/utils_core.h`)
    - `StemVector`: Vector of stemmed word(s) representing a term
    - `StemVectorHash`: Custom hash function for unordered containers
    - `BZComparatorForMap`: Custom comparator for reference numbers (sorts numerically)
 
-3. **Key Mappings** (in MainWindow class)
+10. **Key Mappings** (in MainWindow class)
    ```cpp
    // Reference number -> stemmed terms
    std::map<std::wstring, std::unordered_set<StemVector>, BZComparatorForMap> m_bzToStems;
@@ -143,32 +155,48 @@ Bezugszeichenprüfvorrichtung/
    std::unordered_map<std::wstring, std::vector<std::pair<size_t,size_t>>> m_bzToPositions;
    std::unordered_map<StemVector, std::vector<std::pair<size_t,size_t>>, StemVectorHash> m_stemToPositions;
 
-   // Multi-word base stems (e.g., "lager" triggers "erstes Lager" matching)
+   // Multi-word base stems: combined manual + auto (e.g., "lager" triggers "erstes Lager" matching)
    std::unordered_set<std::wstring> m_multiWordBaseStems;
+
+   // Auto-detection tracking: stems automatically detected by OrdinalDetector
+   std::unordered_set<std::wstring> m_autoDetectedMultiWordStems;
+
+   // Manual toggles: stems user explicitly enabled via context menu
+   std::unordered_set<std::wstring> m_manualMultiWordToggles;
+
+   // Manual disables: stems user explicitly disabled (prevents auto re-enabling)
+   std::unordered_set<std::wstring> m_manuallyDisabledMultiWord;
    ```
 
 ### Text Processing Pipeline
 
 1. **Text Input** → `debounceFunc()` → 200ms timer → `scanText()`
 2. **Language Selection**: Static `s_useGerman` flag determines which analyzer to use
-3. **Regex Matching**: Three RE2 regex patterns (defined in `RegexPatterns.h`)
+3. **Automatic Ordinal Detection** (new):
+   - `OrdinalDetector::detectOrdinalPatterns()` scans for ordinal prefix patterns
+   - Identifies base words appearing with BOTH "first" AND "second" ordinals
+   - Examples: "erste Lager ... zweite Lager", "first bearing ... second bearing"
+   - Auto-enables multi-word mode for detected terms
+   - Respects manual user toggles (manual settings override auto-detection)
+   - Clears previous auto-detected stems on each scan (language-specific)
+4. **Regex Matching**: Three RE2 regex patterns (defined in `RegexPatterns.h`)
    - `SINGLE_WORD_PATTERN`: Matches "word number" (e.g., "Lager 10", min 3 chars)
    - `TWO_WORD_PATTERN`: Matches "word word number" (e.g., "erstes Lager 10")
    - `WORD_PATTERN`: Matches isolated words (for finding unnumbered terms)
-4. **Stemming**: Language-specific stemmer with caching
+5. **Stemming**: Language-specific stemmer with caching
    - German: `german_stem<>` from Oleander library
    - English: `english_stem<>` from Oleander library
    - Cache prevents redundant stemming of same words
    - Handles morphology (umlauts, cases, plurals)
-5. **Multi-word Detection**: Context-sensitive matching
-   - If base word is in `m_multiWordBaseStems`, match two-word patterns
+6. **Multi-word Detection**: Context-sensitive matching
+   - If base word is in `m_multiWordBaseStems` (manual + auto-detected), match two-word patterns
    - Example: "lager" in set → "erstes Lager 10" → StemVector{"erst", "lager"}
-   - User can toggle via context menu in tree view
-6. **Error Detection** (delegated to `ErrorDetectorHelper`):
+   - User can manually toggle via context menu in tree view
+7. **Error Detection** (delegated to `ErrorDetectorHelper`):
    - `findUnnumberedWords()`: Finds terms missing reference numbers
    - `isUniquelyAssigned()`: Detects conflicting/split number assignments
    - `checkArticleUsage()`: Validates definite/indefinite articles
-7. **Word Filtering**:
+8. **Word Filtering**:
    - Minimum 3-character words (filters out articles, prepositions)
    - Ignored words list (e.g., "Figure", "Figur" for German/English)
 
@@ -697,4 +725,4 @@ This documentation is critical for maintaining context across sessions and helpi
 
 ---
 
-Last updated: 2024-12-04
+Last updated: 2025-12-16
