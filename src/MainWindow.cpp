@@ -416,9 +416,22 @@ void MainWindow::setupUi() {
       wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
   m_warningStyle.SetBackgroundColour(*wxYELLOW);
   m_articleWarningStyle.SetBackgroundColour(*wxCYAN);
+
+  // Create menu bar
+  wxMenuBar* menuBar = new wxMenuBar();
+
+  // Help menu
+  wxMenu* helpMenu = new wxMenu();
+  helpMenu->Append(wxID_ABOUT, wxT("&About"));
+  menuBar->Append(helpMenu, wxT("&Help"));
+
+  SetMenuBar(menuBar);
 }
 
 void MainWindow::setupBindings() {
+  // Menu bar bindings
+  Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
+
   m_textBox->Bind(wxEVT_TEXT, &MainWindow::debounceFunc, this);
   m_debounceTimer.Bind(wxEVT_TIMER, &MainWindow::scanText, this);
 
@@ -739,4 +752,30 @@ void MainWindow::onLanguageChanged(wxCommandEvent &event) {
 
   // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
+}
+
+void MainWindow::onAbout(wxCommandEvent &event) {
+  wxString aboutText = wxT(
+    "Bezugszeichenprüfvorrichtung\n"
+    "Reference Number Verification Tool\n\n"
+    "Version 0.5 (Dec 16, 2025)\n\n"
+    "A utility for validating reference numbers in patent applications.\n"
+    "Automatically checks that technical terms are consistently numbered\n"
+    "throughout a document with support for German and English.\n\n"
+    "Features:\n"
+    "• Bilingual support (German/English)\n"
+    "• Smart stemming for plurals and cases\n"
+    "• Multi-word term detection\n"
+    "• Error highlighting and navigation\n"
+    "• Automatic ordinal pattern detection\n\n"
+    "Credits & Libraries:\n"
+    "• wxWidgets - Cross-platform GUI\n"
+    "• Google RE2 - Regular expressions\n"
+    "• Oleander Stemming - Language analysis\n"
+    "• Google Test - Unit testing\n"
+    "• Abseil - C++ utilities\n"
+  );
+
+  wxMessageBox(aboutText, wxT("About Bezugszeichenprüfvorrichtung"),
+               wxOK | wxICON_INFORMATION);
 }

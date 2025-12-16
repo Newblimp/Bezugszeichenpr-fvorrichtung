@@ -42,3 +42,16 @@ __version 0.2 (Nov. 30, 2025)__
 - ignore "Figure", "Figur", "Figuren" etc. when scanning for terms
 - ignore der, die, das, dem, und, and other short connectors when scanning for terms
 
+# Credits & Libraries
+
+This project uses the following open-source libraries:
+
+- **wxWidgets** - Cross-platform GUI library (https://www.wxwidgets.org/)
+- **Google RE2** - Fast, safe regular expression library (https://github.com/google/re2)
+- **Oleander Stemming Library** - Language stemming for German and English (https://github.com/Temporizor/OleanderStemmingLibrary)
+- **Google Test** - Unit testing framework (https://github.com/google/googletest)
+- **Abseil** - C++ utility library (https://abseil.io/)
+
+# License
+
+This project uses open-source libraries under their respective licenses.

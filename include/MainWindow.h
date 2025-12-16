@@ -72,6 +72,9 @@ private:
   void toggleMultiWordTerm(const std::wstring &baseStem);
   void clearError(const std::wstring &bz);
 
+  // Help menu
+  void onAbout(wxCommandEvent &event);
+
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
     // Pattern: word followed by whitespace and number
