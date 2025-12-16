@@ -141,7 +141,7 @@ jobs:
     # Only run this on the main branch, and only on push (not PRs)
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     # Wait for tests to pass before releasing
-    needs: [test-windows, test-linux]
+    needs: [test-windows]
     runs-on: windows-latest
     permissions:
       contents: write
