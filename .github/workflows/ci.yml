@@ -7,47 +7,6 @@ on:
     branches: [ "**" ]
 
 jobs:
-  test-linux:
-    name: Test on Linux
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          cmake \
-          ninja-build \
-          libgtk-3-dev \
-          libgl1-mesa-dev \
-          libglu1-mesa-dev
-
-    - name: Configure CMake
-      run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-
-    - name: Build
-      run: |
-        cmake --build build --parallel
-
-    - name: Run tests
-      run: |
-        cd build/tests
-        ./unit_tests --gtest_output=xml:test-results.xml
-
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-linux
-        path: build/tests/test-results.xml
-
   test-windows:
     name: Test on Windows
     runs-on: windows-latest
@@ -57,6 +16,16 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
+
+    - name: Cache CMake build
+      uses: actions/cache@v4
+      with:
+        path: |
+          build
+          ~/.cache/ccache
+        key: ${{ runner.os }}-cmake-test-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-cmake-test-
 
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
@@ -82,8 +51,8 @@ jobs:
         path: build/tests/Release/test-results.xml
 
   code-coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
+    name: Code Coverage (Windows)
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
@@ -91,48 +60,42 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          cmake \
-          ninja-build \
-          libgtk-3-dev \
-          libgl1-mesa-dev \
-          libglu1-mesa-dev \
-          lcov
+    - name: Cache CMake build
+      uses: actions/cache@v4
+      with:
+        path: |
+          build
+          ~/.cache/ccache
+        key: ${{ runner.os }}-cmake-coverage-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-cmake-coverage-
 
-    - name: Configure CMake with coverage
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Install OpenCppCoverage
+      run: choco install opencppcoverage
+
+    - name: Add OpenCppCoverage to PATH
+      run: echo "C:\Program Files\OpenCppCoverage" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Configure CMake
       run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
+        cmake -B build -G "Visual Studio 17 2022" -A x64
 
     - name: Build
       run: |
-        cmake --build build --parallel
+        cmake --build build --config Debug --parallel
 
-    - name: Run tests
+    - name: Run tests with coverage
       run: |
-        cd build/tests
-        ./unit_tests
+        OpenCppCoverage.exe --sources src --excluded_sources tests --export_type cobertura:coverage.xml -- build/tests/Debug/unit_tests.exe
 
-    - name: Generate coverage report
-      run: |
-        lcov --capture --directory build --output-file coverage.info --ignore-errors mismatch
-        lcov --remove coverage.info \
-          '/usr/*' \
-          '*/build/_deps/*' \
-          '*/tests/*' \
-          --output-file coverage.info
-        lcov --list coverage.info
-
-    - name: Upload coverage to artifact
+    - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
-        path: coverage.info
+        path: coverage.xml
 # ------------------------------------------------------------------
 # NEW JOB: Builds Release EXE, Compresses with UPX, and Publishes
 # ------------------------------------------------------------------
@@ -152,9 +115,27 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Cache CMake build
+      uses: actions/cache@v4
+      with:
+        path: |
+          build
+          ~/.cache/ccache
+        key: ${{ runner.os }}-cmake-release-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-cmake-release-
+
+    - name: Cache Chocolatey packages
+      uses: actions/cache@v4
+      with:
+        path: C:\ProgramData\chocolatey\lib
+        key: ${{ runner.os }}-choco-upx
+        restore-keys: |
+          ${{ runner.os }}-choco-
+
     # Install UPX using Chocolatey (pre-installed on GitHub Windows runners)
     - name: Install UPX
-      run: choco install upx
+      run: choco install upx -y
 
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
