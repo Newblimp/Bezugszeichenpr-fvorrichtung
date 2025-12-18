@@ -146,6 +146,9 @@ jobs:
     - name: Install UPX
       run: choco install upx -y
 
+    - name: Add UPX to PATH
+      run: echo "C:\Program Files\UPX" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
 

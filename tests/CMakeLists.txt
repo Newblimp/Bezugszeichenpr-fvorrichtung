@@ -43,7 +43,7 @@ target_link_libraries(
 
 # Discover tests for CTest
 include(GoogleTest)
-gtest_discover_tests(unit_tests)
+gtest_discover_tests(unit_tests DISCOVERY_TIMEOUT 30)
 
 # Add coverage flags to test executable if coverage is enabled
 if(ENABLE_COVERAGE)
