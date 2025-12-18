@@ -134,21 +134,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cmake-release-
 
-    - name: Cache Chocolatey packages
-      uses: actions/cache@v4
-      with:
-        path: C:\ProgramData\chocolatey\lib
-        key: ${{ runner.os }}-choco-upx
-        restore-keys: |
-          ${{ runner.os }}-choco-
-
-    # Install UPX using Chocolatey (pre-installed on GitHub Windows runners)
-    - name: Install UPX
-      run: choco install upx -y
-
-    - name: Add UPX to PATH
-      run: echo "C:\Program Files\UPX" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
     - name: Setup MSVC
       uses: microsoft/setup-msbuild@v2
 
@@ -158,19 +143,6 @@ jobs:
 
     - name: Build
       run: cmake --build build --config Release --parallel
-
-    - name: Compress with UPX
-      # Finds all .exe files in the Release folder and compresses them.
-      # Excludes unit_tests.exe if it happens to be there.
-      # Using bash to ensure PATH is properly inherited
-      shell: bash
-      run: |
-        for file in build/Release/*.exe; do
-            if [[ ! "$file" =~ unit_tests ]]; then
-                echo "Compressing $file..."
-                upx --best --lzma "$file"
-            fi
-        done
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
