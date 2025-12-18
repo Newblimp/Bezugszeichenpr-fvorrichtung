@@ -162,12 +162,15 @@ jobs:
     - name: Compress with UPX
       # Finds all .exe files in the Release folder and compresses them.
       # Excludes unit_tests.exe if it happens to be there.
-      # Note: Adjust 'build/Release/*.exe' if your binary is in 'build/src/Release/'
+      # Using bash to ensure PATH is properly inherited
+      shell: bash
       run: |
-        Get-ChildItem -Path build/Release/*.exe -Exclude "*unit_tests*" | ForEach-Object {
-            Write-Host "Compressing $_..."
-            upx --best --lzma $_.FullName
-        }
+        for file in build/Release/*.exe; do
+            if [[ ! "$file" =~ unit_tests ]]; then
+                echo "Compressing $file..."
+                upx --best --lzma "$file"
+            fi
+        done
 
     - name: Upload Release
       uses: softprops/action-gh-release@v1
