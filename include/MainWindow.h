@@ -22,6 +22,8 @@
 #include <atomic>
 
 class MainWindow : public wxFrame {
+  // Forward declaration for testing
+  friend class MainWindowTestBase;
 public:
   MainWindow();
 
@@ -92,6 +94,24 @@ private:
 public:
   // Current text analyzer (polymorphic)
   std::unique_ptr<TextAnalyzer> m_currentAnalyzer;
+
+  // Test accessors
+  AnalysisContext& getContext() { return m_ctx; }
+  wxRichTextCtrl* getTextBox() { return m_textBox; }
+  std::vector<std::pair<int, int>>& getWrongTermBzPositions() { return m_wrongTermBzPositions; }
+  std::vector<std::pair<int, int>>& getNoNumberPositions() { return m_noNumberPositions; }
+  std::shared_ptr<wxStaticText> getNoNumberLabel() { return m_noNumberLabel; }
+  std::shared_ptr<wxRichTextCtrl> getBzList() { return m_bzList; }
+  std::shared_ptr<wxTreeListCtrl> getTermList() { return m_termList; }
+  std::shared_ptr<wxTreeListCtrl> getTreeList() { return m_treeList; }
+  void testToggleMultiWord(const std::wstring& stem) { toggleMultiWordTerm(stem); }
+  void testClearError(const std::wstring& bz) { clearError(bz); }
+  void testRestoreAllErrors() { wxCommandEvent e; onRestoreAllErrors(e); }
+  void testOnLanguageChanged() { wxCommandEvent e; onLanguageChanged(e); }
+  wxRadioBox* getLanguageSelector() { return m_languageSelector; }
+  wxTimer& getDebounceTimer() { return m_debounceTimer; }
+  void testScanText(wxTimerEvent& event) { scanText(event); }
+  void testDebounceFunc(wxCommandEvent& event) { debounceFunc(event); }
 
 private:
   std::wstring m_fullText;

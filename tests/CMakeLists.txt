@@ -15,6 +15,7 @@ add_executable(
   test_error_detector.cpp
   test_ordinal_detector.cpp
   test_coverage_gap.cpp
+  test_main_window.cpp
   # test_ui_display.cpp
   # Source files needed for testing (non-UI components)
   ${CMAKE_SOURCE_DIR}/src/GermanTextAnalyzer.cpp
