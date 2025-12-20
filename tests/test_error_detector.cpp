@@ -26,14 +26,11 @@ protected:
         // Initialize wxWidgets once for all tests
         int argc = 0;
         char** argv = nullptr;
-        wxApp::SetInstance(new TestApp());
-        wxEntryStart(argc, argv);
-        wxTheApp->CallOnInit();
-    }
-
-    static void TearDownTestSuite() {
-        wxTheApp->OnExit();
-        wxEntryCleanup();
+        if (!wxTheApp) {
+            wxApp::SetInstance(new TestApp());
+            wxEntryStart(argc, argv);
+            wxTheApp->CallOnInit();
+        }
     }
 
     void SetUp() override {

@@ -60,6 +60,7 @@ private:
 
   // Context menu handling
   void onTreeListContextMenu(wxTreeListEvent &event);
+  void onTermListContextMenu(wxTreeListEvent &event);
   void onTreeListItemActivated(wxTreeListEvent &event);
   void onTextRightClick(wxMouseEvent &event);
   void clearTextError(size_t start, size_t end);

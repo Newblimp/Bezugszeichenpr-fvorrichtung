@@ -435,15 +435,17 @@ void MainWindow::setupUi() {
   m_conflictStyle.SetBackgroundColour(wxColour(255, 165, 0));  // Orange
   m_articleWarningStyle.SetBackgroundColour(*wxCYAN);
 
-  // Create menu bar
-  wxMenuBar* menuBar = new wxMenuBar();
+  // Create menu bar if it doesn't exist
+  wxMenuBar* menuBar = GetMenuBar();
+  if (!menuBar) {
+      menuBar = new wxMenuBar();
+      SetMenuBar(menuBar);
+  }
 
   // Help menu
   wxMenu* helpMenu = new wxMenu();
   helpMenu->Append(wxID_ABOUT, wxT("&About"));
   menuBar->Append(helpMenu, wxT("&Help"));
-
-  SetMenuBar(menuBar);
 }
 
 void MainWindow::setupBindings() {
@@ -474,6 +476,9 @@ void MainWindow::setupBindings() {
                    &MainWindow::onTreeListContextMenu, this);
   m_treeList->Bind(wxEVT_TREELIST_ITEM_ACTIVATED,
                    &MainWindow::onTreeListItemActivated, this);
+
+  m_termList->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
+                   &MainWindow::onTermListContextMenu, this);
   
   // Text right-click for clearing errors
   m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
@@ -577,6 +582,72 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     } else if (selection == ID_CLEAR_ERROR) {
       clearError(bz);
     }
+  }
+}
+
+void MainWindow::onTermListContextMenu(wxTreeListEvent &event) {
+  wxTreeListItem item = event.GetItem();
+  if (!item.IsOk()) {
+    return;
+  }
+
+  // Get BZs from the second column
+  wxString bzListText = m_termList->GetItemText(item, 1);
+  std::wstring bzListStr = bzListText.ToStdWstring();
+  
+  // Parse BZs
+  std::vector<std::wstring> bzs;
+  size_t start = 0;
+  size_t end = bzListStr.find(L", ");
+  while (end != std::wstring::npos) {
+    bzs.push_back(bzListStr.substr(start, end - start));
+    start = end + 2; // skip ", "
+    end = bzListStr.find(L", ", start);
+  }
+  bzs.push_back(bzListStr.substr(start));
+
+  if (bzs.empty()) return;
+
+  // Create menu
+  wxMenu menu;
+  
+  // Lock mutex to safely access shared data
+  std::lock_guard<std::mutex> lock(m_dataMutex);
+
+  int idCounter = 0;
+  const int BASE_ID = wxID_HIGHEST + 100;
+
+  for (const auto& bz : bzs) {
+    if (bz.empty()) continue;
+
+    bool isCleared = m_clearedErrors.count(bz) > 0;
+    
+    // Check if there is an error associated with this BZ
+    bool hasError = false;
+    if (bzs.size() > 1) {
+        hasError = true;
+    } else {
+        if (!isUniquelyAssigned(bz)) {
+            hasError = true;
+        }
+    }
+    
+    if (hasError || isCleared) {
+        wxString label = isCleared ? wxString::Format("Restore error for '%s'", bz) 
+                                   : wxString::Format("Clear error for '%s'", bz);
+        menu.Append(BASE_ID + idCounter, label);
+    }
+    idCounter++;
+  }
+
+  if (menu.GetMenuItemCount() > 0) {
+      int selection = GetPopupMenuSelectionFromUser(menu);
+      if (selection >= BASE_ID && selection < BASE_ID + idCounter) {
+          int index = selection - BASE_ID;
+          if (index >= 0 && index < static_cast<int>(bzs.size())) {
+              clearError(bzs[index]);
+          }
+      }
   }
 }
 
