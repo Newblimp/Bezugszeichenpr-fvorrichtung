@@ -70,7 +70,7 @@ bool GermanTextAnalyzer::isMultiWordBase(std::wstring word,
 }
 
 // Optimized: use manual lowercase loop with early exit
-bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
+bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) const {
     // Fast path: check length first
     if (word.length() < 3 || word.length() > 6) {
         return false;
@@ -86,7 +86,7 @@ bool GermanTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
 }
 
 // Optimized: use manual lowercase loop with early exit
-bool GermanTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
+bool GermanTextAnalyzer::isDefiniteArticle(const std::wstring& word) const {
     // Fast path: check length first (all definite articles are exactly 3 chars)
     if (word.length() != 3) {
         return false;
@@ -101,35 +101,6 @@ bool GermanTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
     return s_definiteArticles.count(lower) > 0;
 }
 
-std::pair<std::wstring, size_t> GermanTextAnalyzer::findPrecedingWord(const std::wstring& text,
-                                                                       size_t pos) {
-    if (pos == 0) {
-        return {L"", 0};
-    }
-
-    // Skip whitespace backwards
-    size_t end = pos;
-    while (end > 0 && std::iswspace(text[end - 1])) {
-        --end;
-    }
-
-    if (end == 0) {
-        return {L"", 0};
-    }
-
-    // Find the start of the word
-    size_t start = end;
-    while (start > 0 && std::iswalpha(text[start - 1])) {
-        --start;
-    }
-
-    if (start == end) {
-        return {L"", 0};
-    }
-
-    return {text.substr(start, end - start), start};
-}
-
 // Static member initialization - ignored words
 const std::unordered_set<std::wstring> GermanTextAnalyzer::s_ignoredWords = {
     // Definite articles
@@ -142,7 +113,7 @@ const std::unordered_set<std::wstring> GermanTextAnalyzer::s_ignoredWords = {
     L"und", L"oder"
 };
 
-bool GermanTextAnalyzer::isIgnoredWord(const std::wstring& word) {
+bool GermanTextAnalyzer::isIgnoredWord(const std::wstring& word) const {
     // Words shorter than 3 characters should be ignored
     if (word.length() < 3) {
         return true;

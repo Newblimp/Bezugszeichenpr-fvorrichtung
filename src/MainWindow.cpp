@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "RegexPatterns.h"
+#include "GermanTextAnalyzer.h"
 #include "EnglishTextAnalyzer.h"
 #include "../img/check_16.xpm"
 #include "../img/warning_16.xpm"
@@ -18,69 +19,6 @@
 #include <wx/bitmap.h>
 #include "TimerHelper.h"
 
-// Static member definitions - analyzers for different languages
-GermanTextAnalyzer MainWindow::s_germanAnalyzer;
-EnglishTextAnalyzer MainWindow::s_englishAnalyzer;
-bool MainWindow::s_useGerman = true; // Default to German
-
-// Helper method implementations - dispatch to correct analyzer based on language
-StemVector MainWindow::createCurrentStemVector(std::wstring word) {
-  if (s_useGerman) {
-    return s_germanAnalyzer.createStemVector(std::move(word));
-  } else {
-    return s_englishAnalyzer.createStemVector(std::move(word));
-  }
-}
-
-StemVector MainWindow::createCurrentMultiWordStemVector(std::wstring firstWord, std::wstring secondWord) {
-  if (s_useGerman) {
-    return s_germanAnalyzer.createMultiWordStemVector(std::move(firstWord), std::move(secondWord));
-  } else {
-    return s_englishAnalyzer.createMultiWordStemVector(std::move(firstWord), std::move(secondWord));
-  }
-}
-
-bool MainWindow::isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems) {
-  if (s_useGerman) {
-    return s_germanAnalyzer.isMultiWordBase(std::move(word), multiWordBaseStems);
-  } else {
-    return s_englishAnalyzer.isMultiWordBase(std::move(word), multiWordBaseStems);
-  }
-}
-
-bool MainWindow::isCurrentIndefiniteArticle(const std::wstring& word) {
-  if (s_useGerman) {
-    return GermanTextAnalyzer::isIndefiniteArticle(word);
-  } else {
-    return EnglishTextAnalyzer::isIndefiniteArticle(word);
-  }
-}
-
-bool MainWindow::isCurrentDefiniteArticle(const std::wstring& word) {
-  if (s_useGerman) {
-    return GermanTextAnalyzer::isDefiniteArticle(word);
-  } else {
-    return EnglishTextAnalyzer::isDefiniteArticle(word);
-  }
-}
-
-std::pair<std::wstring, size_t> MainWindow::findCurrentPrecedingWord(const std::wstring& text, size_t pos) {
-  if (s_useGerman) {
-    return GermanTextAnalyzer::findPrecedingWord(text, pos);
-  } else {
-    return EnglishTextAnalyzer::findPrecedingWord(text, pos);
-  }
-}
-
-bool MainWindow::isCurrentIgnoredWord(const std::wstring& word) {
-  if (s_useGerman) {
-    return GermanTextAnalyzer::isIgnoredWord(word);
-  } else {
-    return EnglishTextAnalyzer::isIgnoredWord(word);
-  }
-}
-
-
 
 MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY,
@@ -90,6 +28,10 @@ MainWindow::MainWindow()
       m_singleWordRegex(RegexPatterns::SINGLE_WORD_PATTERN),
       m_twoWordRegex(RegexPatterns::TWO_WORD_PATTERN),
       m_wordRegex(RegexPatterns::WORD_PATTERN) {
+  
+  // Initialize default analyzer (German)
+  m_currentAnalyzer = std::make_unique<GermanTextAnalyzer>();
+
 #ifdef _WIN32
   SetIcon(wxIcon("1", wxBITMAP_TYPE_ICO_RESOURCE));
   SetIcon(wxIcon("APP_ICON", wxBITMAP_TYPE_ICO_RESOURCE));
@@ -155,12 +97,8 @@ void MainWindow::scanTextBackground() {
   }
 
   Timer t_setup;
-  // Clear all data structures
-  m_bzToStems.clear();
-  m_stemToBz.clear();
-  m_bzToOriginalWords.clear();
-  m_bzToPositions.clear();
-  m_stemToPositions.clear();
+  // Clear all results
+  m_ctx.clearResults();
 
   m_allErrorsPositions.clear();
   m_noNumberPositions.clear();
@@ -175,18 +113,19 @@ void MainWindow::scanTextBackground() {
 
   // AUTO-DETECT ordinal patterns for multi-word terms BEFORE scanning
   Timer t_ordinalDetect;
+  bool useGerman = (dynamic_cast<GermanTextAnalyzer*>(m_currentAnalyzer.get()) != nullptr);
   std::unordered_set<std::wstring> newAutoDetected =
-      OrdinalDetector::detectOrdinalPatterns(m_fullText, m_twoWordRegex, s_useGerman);
+      OrdinalDetector::detectOrdinalPatterns(m_fullText, m_twoWordRegex, useGerman, *m_currentAnalyzer);
   std::cout << "Time for OrdinalDetector: " << t_ordinalDetect.elapsed() << " milliseconds\n";
 
   // Rebuild combined multi-word set: manual + auto - disabled
-  m_multiWordBaseStems = m_manualMultiWordToggles;  // Start with manual enables
+  m_ctx.multiWordBaseStems = m_ctx.manualMultiWordToggles;  // Start with manual enables
   for (const auto& stem : newAutoDetected) {
-    if (m_manuallyDisabledMultiWord.count(stem) == 0) {
-      m_multiWordBaseStems.insert(stem);  // Add auto-detected if not manually disabled
+    if (m_ctx.manuallyDisabledMultiWord.count(stem) == 0) {
+      m_ctx.multiWordBaseStems.insert(stem);  // Add auto-detected if not manually disabled
     }
   }
-  m_autoDetectedMultiWordStems = newAutoDetected;  // Remember what was auto-detected
+  m_ctx.autoDetectedMultiWordStems = newAutoDetected;  // Remember what was auto-detected
 
   if (m_cancelScan) {
     return;
@@ -194,15 +133,12 @@ void MainWindow::scanTextBackground() {
 
   // Scan text for patterns using TextScanner
   Timer t_scan;
-  TextScanner::scanText(m_fullText, m_singleWordRegex, m_twoWordRegex,
-                        m_multiWordBaseStems, m_clearedTextPositions,
-                        m_bzToStems, m_stemToBz, m_bzToOriginalWords,
-                        m_bzToPositions, m_stemToPositions);
+  TextScanner::scanText(m_fullText, *m_currentAnalyzer, m_singleWordRegex, m_twoWordRegex, m_ctx);
   std::cout << "Time for TextScanner::scanText: " << t_scan.elapsed() << " milliseconds\n";
 
   // Cache first occurrence words for display
-  m_stemToFirstWord.clear();
-  for (const auto& [stem, positions] : m_stemToPositions) {
+  m_ctx.db.stemToFirstWord.clear();
+  for (const auto& [stem, positions] : m_ctx.db.stemToPositions) {
     if (!positions.empty()) {
       size_t firstStart = positions[0].first;
       size_t firstLen = positions[0].second;
@@ -211,9 +147,9 @@ void MainWindow::scanTextBackground() {
       // Extract word before BZ number
       size_t bzStart = fullMatch.find_last_of(L' ');
       if (bzStart != std::wstring::npos) {
-        m_stemToFirstWord[stem] = fullMatch.substr(0, bzStart);
+        m_ctx.db.stemToFirstWord[stem] = fullMatch.substr(0, bzStart);
       } else {
-        m_stemToFirstWord[stem] = fullMatch;
+        m_ctx.db.stemToFirstWord[stem] = fullMatch;
       }
     }
   }
@@ -292,11 +228,11 @@ void MainWindow::updateUIAfterScan() {
 }
 
 void MainWindow::fillListTree() {
-  for (const auto &[bz, stems] : m_bzToStems) {
+  for (const auto &[bz, stems] : m_ctx.db.bzToStems) {
     wxTreeListItem item;
 
     // Check if error has been cleared by user
-    bool isCleared = m_clearedErrors.count(bz) > 0;
+    bool isCleared = m_ctx.clearedErrors.count(bz) > 0;
 
     if (isCleared || isUniquelyAssigned(bz)) {
       // Use check icon (0) for cleared errors or no errors
@@ -324,8 +260,7 @@ void MainWindow::fillListTree() {
 
 bool MainWindow::isUniquelyAssigned(const std::wstring &bz) {
   return ErrorDetectorHelper::isUniquelyAssigned(
-      bz, m_bzToStems, m_stemToBz, m_bzToPositions, m_stemToPositions,
-      m_clearedErrors, m_clearedTextPositions, m_textBox, m_conflictStyle,
+      bz, m_ctx, m_textBox, m_conflictStyle,
       m_wrongTermBzPositions, m_allErrorsPositions);
 }
 
@@ -347,14 +282,13 @@ void MainWindow::loadIcons() {
 
 void MainWindow::findUnnumberedWords() {
   ErrorDetectorHelper::findUnnumberedWords(
-      m_fullText, m_wordRegex, m_multiWordBaseStems, m_stemToPositions,
-      m_stemToBz, m_clearedTextPositions, m_textBox, m_warningStyle,
+      m_fullText, *m_currentAnalyzer, m_wordRegex, m_ctx, m_textBox, m_warningStyle,
       m_noNumberPositions, m_allErrorsPositions);
 }
 
 void MainWindow::checkArticleUsage() {
   ErrorDetectorHelper::checkArticleUsage(
-      m_fullText, m_stemToPositions, m_clearedTextPositions, m_textBox,
+      m_fullText, *m_currentAnalyzer, m_ctx, m_textBox,
       m_articleWarningStyle, m_wrongArticlePositions, m_allErrorsPositions);
 }
 
@@ -500,9 +434,9 @@ void MainWindow::fillBzList() {
   while (treeItem.IsOk()) {
     std::wstring bz = m_treeList->GetItemText(treeItem, 0).ToStdWstring();
 
-    if (m_bzToPositions.count(bz) && m_bzToPositions[bz].size() >= 1) {
-      size_t start = m_bzToPositions[bz][0].first;
-      size_t len = m_bzToPositions[bz][0].second;
+    if (m_ctx.db.bzToPositions.count(bz) && m_ctx.db.bzToPositions[bz].size() >= 1) {
+      size_t start = m_ctx.db.bzToPositions[bz][0].first;
+      size_t len = m_ctx.db.bzToPositions[bz][0].second;
 
       // Extract the term without the BZ number
       size_t termLen = len > bz.size() + 1 ? len - bz.size() - 1 : 0;
@@ -528,9 +462,9 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
   std::lock_guard<std::mutex> lock(m_dataMutex);
 
   // Get the stems for this BZ to determine the base word
-  if (m_bzToStems.count(bz) && !m_bzToStems[bz].empty()) {
+  if (m_ctx.db.bzToStems.count(bz) && !m_ctx.db.bzToStems[bz].empty()) {
     // Get the first stem vector
-    const StemVector &firstStem = *m_bzToStems[bz].begin();
+    const StemVector &firstStem = *m_ctx.db.bzToStems[bz].begin();
 
     if (firstStem.empty()) {
       return;
@@ -547,12 +481,12 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     const int ID_MULTIWORD = wxID_HIGHEST + 1;
     const int ID_CLEAR_ERROR = wxID_HIGHEST + 2;
     
-    bool isMultiWord = m_multiWordBaseStems.count(baseStem) > 0;
+    bool isMultiWord = m_ctx.multiWordBaseStems.count(baseStem) > 0;
     menu.Append(ID_MULTIWORD, isMultiWord ? "Disable multi-word mode"
                                           : "Enable multi-word mode");
 
     // Check if this BZ actually has an error (ignoring cleared status)
-    const auto &stems = m_bzToStems[bz];
+    const auto &stems = m_ctx.db.bzToStems[bz];
     bool hasError = false;
 
     // Check if multiple different stems are assigned to this BZ
@@ -563,7 +497,7 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
     // Check if the stem is also used with other BZs
     if (!hasError) {
       for (const auto &stem : stems) {
-        if (m_stemToBz.at(stem).size() > 1) {
+        if (m_ctx.db.stemToBz.at(stem).size() > 1) {
           hasError = true;
           break;
         }
@@ -572,7 +506,7 @@ void MainWindow::onTreeListContextMenu(wxTreeListEvent &event) {
 
     // Only show clear/restore error option if there's an actual error
     if (hasError) {
-      bool isCleared = m_clearedErrors.count(bz) > 0;
+      bool isCleared = m_ctx.clearedErrors.count(bz) > 0;
       menu.Append(ID_CLEAR_ERROR, isCleared ? "Restore error" : "Clear error");
     }
 
@@ -620,7 +554,7 @@ void MainWindow::onTermListContextMenu(wxTreeListEvent &event) {
   for (const auto& bz : bzs) {
     if (bz.empty()) continue;
 
-    bool isCleared = m_clearedErrors.count(bz) > 0;
+    bool isCleared = m_ctx.clearedErrors.count(bz) > 0;
     
     // Check if there is an error associated with this BZ
     bool hasError = false;
@@ -652,19 +586,19 @@ void MainWindow::onTermListContextMenu(wxTreeListEvent &event) {
 }
 
 void MainWindow::toggleMultiWordTerm(const std::wstring &baseStem) {
-  bool currentlyActive = m_multiWordBaseStems.count(baseStem) > 0;
+  bool currentlyActive = m_ctx.multiWordBaseStems.count(baseStem) > 0;
 
   if (currentlyActive) {
     // User is DISABLING multi-word mode
-    m_manualMultiWordToggles.erase(baseStem);          // Remove from manual enables
-    m_manuallyDisabledMultiWord.insert(baseStem);      // Add to manual disables
+    m_ctx.manualMultiWordToggles.erase(baseStem);          // Remove from manual enables
+    m_ctx.manuallyDisabledMultiWord.insert(baseStem);      // Add to manual disables
 
     // Also remove from auto-detected (so rebuild logic doesn't re-add it)
-    m_autoDetectedMultiWordStems.erase(baseStem);
+    m_ctx.autoDetectedMultiWordStems.erase(baseStem);
   } else {
     // User is ENABLING multi-word mode
-    m_manuallyDisabledMultiWord.erase(baseStem);       // Remove from manual disables
-    m_manualMultiWordToggles.insert(baseStem);         // Add to manual enables
+    m_ctx.manuallyDisabledMultiWord.erase(baseStem);       // Remove from manual disables
+    m_ctx.manualMultiWordToggles.insert(baseStem);         // Add to manual enables
   }
 
   // Trigger rescan
@@ -672,12 +606,12 @@ void MainWindow::toggleMultiWordTerm(const std::wstring &baseStem) {
 }
 
 void MainWindow::clearError(const std::wstring &bz) {
-  if (m_clearedErrors.count(bz)) {
+  if (m_ctx.clearedErrors.count(bz)) {
     // Restore error - remove from cleared set
-    m_clearedErrors.erase(bz);
+    m_ctx.clearedErrors.erase(bz);
   } else {
     // Clear error - add to cleared set
-    m_clearedErrors.insert(bz);
+    m_ctx.clearedErrors.insert(bz);
   }
 
   // Trigger rescan to update highlighting and icons
@@ -697,8 +631,8 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
   std::lock_guard<std::mutex> lock(m_dataMutex);
 
   // Check if this BZ has any positions
-  if (m_bzToPositions.count(bz) && !m_bzToPositions[bz].empty()) {
-    const auto &positions = m_bzToPositions[bz];
+  if (m_ctx.db.bzToPositions.count(bz) && !m_ctx.db.bzToPositions[bz].empty()) {
+    const auto &positions = m_ctx.db.bzToPositions[bz];
 
     // Get current occurrence index for this BZ (or initialize based on cursor
     // position)
@@ -798,42 +732,46 @@ void MainWindow::onTextRightClick(wxMouseEvent &event) {
 
 void MainWindow::clearTextError(size_t start, size_t end) {
   // Add to cleared positions
-  m_clearedTextPositions.insert({start, end});
+  m_ctx.clearedTextPositions.insert({start, end});
   
   // Trigger rescan to update highlighting
   m_debounceTimer.Start(1, true);
 }
 
 bool MainWindow::isPositionCleared(size_t start, size_t end) const {
-  return ErrorDetectorHelper::isPositionCleared(m_clearedTextPositions, start, end);
+  return ErrorDetectorHelper::isPositionCleared(m_ctx.clearedTextPositions, start, end);
 }
 
 void MainWindow::onRestoreTextboxErrors(wxCommandEvent &event) {
-  m_clearedTextPositions.clear();
+  m_ctx.clearedTextPositions.clear();
   m_debounceTimer.Start(1, true);
 }
 
 void MainWindow::onRestoreOverviewErrors(wxCommandEvent &event) {
-  m_clearedErrors.clear();
+  m_ctx.clearedErrors.clear();
   m_debounceTimer.Start(1, true);
 }
 
 void MainWindow::onRestoreAllErrors(wxCommandEvent &event) {
-  m_clearedTextPositions.clear();
-  m_clearedErrors.clear();
+  m_ctx.clearedTextPositions.clear();
+  m_ctx.clearedErrors.clear();
   m_debounceTimer.Start(1, true);
 }
 
 
 void MainWindow::onLanguageChanged(wxCommandEvent &event) {
   // Update language selection
-  s_useGerman = (m_languageSelector->GetSelection() == 0);
+  if (m_languageSelector->GetSelection() == 0) {
+      m_currentAnalyzer = std::make_unique<GermanTextAnalyzer>();
+  } else {
+      m_currentAnalyzer = std::make_unique<EnglishTextAnalyzer>();
+  }
 
   // Clear auto-detected stems (language-specific)
-  m_autoDetectedMultiWordStems.clear();
+  m_ctx.autoDetectedMultiWordStems.clear();
 
   // Rebuild combined set with just manual toggles
-  m_multiWordBaseStems = m_manualMultiWordToggles;
+  m_ctx.multiWordBaseStems = m_ctx.manualMultiWordToggles;
 
   // Trigger rescan with new language
   m_debounceTimer.Start(1, true);
@@ -866,11 +804,11 @@ void MainWindow::onAbout(wxCommandEvent &event) {
 }
 
 std::wstring MainWindow::getFirstOccurrenceWord(const StemVector& stem) const {
-  if (!m_stemToPositions.count(stem) || m_stemToPositions.at(stem).empty()) {
+  if (!m_ctx.db.stemToPositions.count(stem) || m_ctx.db.stemToPositions.at(stem).empty()) {
     return L"";
   }
 
-  const auto& positions = m_stemToPositions.at(stem);
+  const auto& positions = m_ctx.db.stemToPositions.at(stem);
   size_t firstStart = positions[0].first;
   size_t firstLen = positions[0].second;
 
@@ -898,17 +836,17 @@ void MainWindow::fillTermList() {
 
   std::vector<StemInfo> stemInfos;
 
-  for (const auto& [stem, bzSet] : m_stemToBz) {
+  for (const auto& [stem, bzSet] : m_ctx.db.stemToBz) {
     StemInfo info;
     info.stem = stem;
     info.bzs = bzSet;
 
     // Get first position and word
-    if (m_stemToPositions.count(stem) && !m_stemToPositions.at(stem).empty()) {
-      info.firstPosition = m_stemToPositions.at(stem)[0].first;
+    if (m_ctx.db.stemToPositions.count(stem) && !m_ctx.db.stemToPositions.at(stem).empty()) {
+      info.firstPosition = m_ctx.db.stemToPositions.at(stem)[0].first;
 
-      if (m_stemToFirstWord.count(stem)) {
-        info.firstWord = m_stemToFirstWord.at(stem);
+      if (m_ctx.db.stemToFirstWord.count(stem)) {
+        info.firstWord = m_ctx.db.stemToFirstWord.at(stem);
       }
     } else {
       info.firstPosition = SIZE_MAX;

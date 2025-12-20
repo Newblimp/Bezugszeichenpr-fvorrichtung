@@ -3,6 +3,7 @@
 #include "TextScanner.h"
 #include "MainWindow.h"
 #include "RegexPatterns.h"
+#include "AnalysisContext.h"
 #include <wx/wx.h>
 #include <wx/richtext/richtextctrl.h>
 #include <re2/re2.h>
@@ -34,9 +35,6 @@ protected:
     }
 
     void SetUp() override {
-        // Ensure German mode is active
-        MainWindow::s_useGerman = true;
-
         // Create a frame (required for wxRichTextCtrl)
         frame = new wxFrame(nullptr, wxID_ANY, "Test Frame");
 
@@ -70,14 +68,10 @@ protected:
     }
 
     void clearDataStructures() {
-        bzToStems.clear();
-        stemToBz.clear();
-        bzToOriginalWords.clear();
-        bzToPositions.clear();
-        stemToPositions.clear();
-        multiWordBaseStems.clear();
-        clearedTextPositions.clear();
-        clearedErrors.clear();
+        ctx.clearResults();
+        ctx.multiWordBaseStems.clear();
+        ctx.clearedTextPositions.clear();
+        ctx.clearedErrors.clear();
         noNumberPositions.clear();
         wrongTermBzPositions.clear();
         wrongArticlePositions.clear();
@@ -87,10 +81,11 @@ protected:
     // Helper to scan text and populate data structures
     void scanText(const std::wstring& text) {
         textBox->SetValue(wxString(text));
-        TextScanner::scanText(text, *singleWordRegex, *twoWordRegex, multiWordBaseStems,
-                             clearedTextPositions, bzToStems, stemToBz, bzToOriginalWords,
-                             bzToPositions, stemToPositions);
+        TextScanner::scanText(text, analyzer, *singleWordRegex, *twoWordRegex, ctx);
     }
+
+    // Analyzer
+    GermanTextAnalyzer analyzer;
 
     // Regex patterns
     std::unique_ptr<re2::RE2> singleWordRegex;
@@ -105,14 +100,7 @@ protected:
     wxTextAttr articleWarningStyle;
 
     // Data structures
-    std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap> bzToStems;
-    std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash> stemToBz;
-    std::unordered_map<std::wstring, std::unordered_set<std::wstring>> bzToOriginalWords;
-    std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>> bzToPositions;
-    std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash> stemToPositions;
-    std::unordered_set<std::wstring> multiWordBaseStems;
-    std::set<std::pair<size_t, size_t>> clearedTextPositions;
-    std::unordered_set<std::wstring> clearedErrors;
+    AnalysisContext ctx;
 
     // Error position vectors
     std::vector<std::pair<int, int>> noNumberPositions;
@@ -129,8 +117,7 @@ TEST_F(ErrorDetectorTest, FindUnnumberedWords_Basic) {
     scanText(text);
 
     // Find unnumbered words
-    ErrorDetectorHelper::findUnnumberedWords(text, *wordRegex, multiWordBaseStems,
-                                            stemToPositions, stemToBz, clearedTextPositions,
+    ErrorDetectorHelper::findUnnumberedWords(text, analyzer, *wordRegex, ctx,
                                             textBox, warningStyle, noNumberPositions,
                                             allErrorsPositions);
 
@@ -146,15 +133,14 @@ TEST_F(ErrorDetectorTest, FindUnnumberedWords_MultiWord) {
     std::wstring text = L"erstes Lager 10 später ein erstes Lager";
 
     // Enable multi-word matching
-    StemVector lagerStem = MainWindow::createCurrentStemVector(L"Lager");
-    multiWordBaseStems.insert(lagerStem[0]);
+    StemVector lagerStem = analyzer.createStemVector(L"Lager");
+    ctx.multiWordBaseStems.insert(lagerStem[0]);
 
     // Scan to establish "erstes Lager" as known term
     scanText(text);
 
     // Find unnumbered words
-    ErrorDetectorHelper::findUnnumberedWords(text, *wordRegex, multiWordBaseStems,
-                                            stemToPositions, stemToBz, clearedTextPositions,
+    ErrorDetectorHelper::findUnnumberedWords(text, analyzer, *wordRegex, ctx,
                                             textBox, warningStyle, noNumberPositions,
                                             allErrorsPositions);
 
@@ -169,9 +155,8 @@ TEST_F(ErrorDetectorTest, DetectConflictingAssignments) {
     scanText(text);
 
     // Check each BZ for unique assignment
-    for (const auto& [bz, stems] : bzToStems) {
-        ErrorDetectorHelper::isUniquelyAssigned(bz, bzToStems, stemToBz, bzToPositions,
-                                               stemToPositions, clearedErrors, clearedTextPositions,
+    for (const auto& [bz, stems] : ctx.db.bzToStems) {
+        ErrorDetectorHelper::isUniquelyAssigned(bz, ctx,
                                                textBox, conflictStyle, wrongTermBzPositions,
                                                allErrorsPositions);
     }
@@ -191,8 +176,7 @@ TEST_F(ErrorDetectorTest, DetectSplitAssignments) {
 
     // Check BZ "10" for unique assignment
     bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
-        L"10", bzToStems, stemToBz, bzToPositions, stemToPositions,
-        clearedErrors, clearedTextPositions, textBox, conflictStyle,
+        L"10", ctx, textBox, conflictStyle,
         wrongTermBzPositions, allErrorsPositions);
 
     // Should detect split assignment: same BZ "10" for different terms
@@ -211,7 +195,7 @@ TEST_F(ErrorDetectorTest, ArticleValidation_DefiniteVsIndefinite) {
     scanText(text);
 
     // Check article usage
-    ErrorDetectorHelper::checkArticleUsage(text, stemToPositions, clearedTextPositions,
+    ErrorDetectorHelper::checkArticleUsage(text, analyzer, ctx,
                                           textBox, articleWarningStyle, wrongArticlePositions,
                                           allErrorsPositions);
 
@@ -251,7 +235,7 @@ TEST_F(ErrorDetectorTest, ArticleValidation_FirstOccurrenceBaseline) {
     scanText(text);
 
     // Check article usage
-    ErrorDetectorHelper::checkArticleUsage(text, stemToPositions, clearedTextPositions,
+    ErrorDetectorHelper::checkArticleUsage(text, analyzer, ctx,
                                           textBox, articleWarningStyle, wrongArticlePositions,
                                           allErrorsPositions);
 
@@ -269,7 +253,7 @@ TEST_F(ErrorDetectorTest, ArticleValidation_NoArticle) {
     scanText(text);
 
     // Check article usage
-    ErrorDetectorHelper::checkArticleUsage(text, stemToPositions, clearedTextPositions,
+    ErrorDetectorHelper::checkArticleUsage(text, analyzer, ctx,
                                           textBox, articleWarningStyle, wrongArticlePositions,
                                           allErrorsPositions);
 
@@ -285,12 +269,11 @@ TEST_F(ErrorDetectorTest, RespectClearedBZNumbers) {
     scanText(text);
 
     // Clear the error for BZ "10"
-    clearedErrors.insert(L"10");
+    ctx.clearedErrors.insert(L"10");
 
     // Check BZ "10" for unique assignment
     bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
-        L"10", bzToStems, stemToBz, bzToPositions, stemToPositions,
-        clearedErrors, clearedTextPositions, textBox, conflictStyle,
+        L"10", ctx, textBox, conflictStyle,
         wrongTermBzPositions, allErrorsPositions);
 
     // Should treat as unique (no error) because it was cleared
@@ -312,11 +295,10 @@ TEST_F(ErrorDetectorTest, RespectClearedTextPositions) {
     size_t unnumberedEnd = unnumberedPos + 5;           // Length of "Lager"
 
     // Clear this specific position
-    clearedTextPositions.insert({unnumberedPos, unnumberedEnd});
+    ctx.clearedTextPositions.insert({unnumberedPos, unnumberedEnd});
 
     // Find unnumbered words
-    ErrorDetectorHelper::findUnnumberedWords(text, *wordRegex, multiWordBaseStems,
-                                            stemToPositions, stemToBz, clearedTextPositions,
+    ErrorDetectorHelper::findUnnumberedWords(text, analyzer, *wordRegex, ctx,
                                             textBox, warningStyle, noNumberPositions,
                                             allErrorsPositions);
 
@@ -344,8 +326,7 @@ TEST_F(ErrorDetectorTest, ErrorPositionVectorGeneration) {
     scanText(text);
 
     // Find unnumbered words
-    ErrorDetectorHelper::findUnnumberedWords(text, *wordRegex, multiWordBaseStems,
-                                            stemToPositions, stemToBz, clearedTextPositions,
+    ErrorDetectorHelper::findUnnumberedWords(text, analyzer, *wordRegex, ctx,
                                             textBox, warningStyle, noNumberPositions,
                                             allErrorsPositions);
 
@@ -390,7 +371,7 @@ TEST_F(ErrorDetectorTest, ArticleValidation_MultipleTerms) {
     scanText(text);
 
     // Check article usage
-    ErrorDetectorHelper::checkArticleUsage(text, stemToPositions, clearedTextPositions,
+    ErrorDetectorHelper::checkArticleUsage(text, analyzer, ctx,
                                           textBox, articleWarningStyle, wrongArticlePositions,
                                           allErrorsPositions);
 
@@ -407,9 +388,8 @@ TEST_F(ErrorDetectorTest, ConflictingAssignments_AfterClearing) {
     scanText(text);
 
     // Initially, all should be flagged as conflicts
-    for (const auto& [bz, stems] : bzToStems) {
-        ErrorDetectorHelper::isUniquelyAssigned(bz, bzToStems, stemToBz, bzToPositions,
-                                               stemToPositions, clearedErrors, clearedTextPositions,
+    for (const auto& [bz, stems] : ctx.db.bzToStems) {
+        ErrorDetectorHelper::isUniquelyAssigned(bz, ctx,
                                                textBox, conflictStyle, wrongTermBzPositions,
                                                allErrorsPositions);
     }
@@ -422,15 +402,14 @@ TEST_F(ErrorDetectorTest, ConflictingAssignments_AfterClearing) {
     scanText(text);
 
     // Clear all BZ errors
-    clearedErrors.insert(L"10");
-    clearedErrors.insert(L"20");
-    clearedErrors.insert(L"30");
+    ctx.clearedErrors.insert(L"10");
+    ctx.clearedErrors.insert(L"20");
+    ctx.clearedErrors.insert(L"30");
 
     // Check again
-    for (const auto& [bz, stems] : bzToStems) {
+    for (const auto& [bz, stems] : ctx.db.bzToStems) {
         bool isUnique = ErrorDetectorHelper::isUniquelyAssigned(
-            bz, bzToStems, stemToBz, bzToPositions, stemToPositions,
-            clearedErrors, clearedTextPositions, textBox, conflictStyle,
+            bz, ctx, textBox, conflictStyle,
             wrongTermBzPositions, allErrorsPositions);
 
         // All should be treated as unique now

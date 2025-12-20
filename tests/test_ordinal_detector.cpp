@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "OrdinalDetector.h"
 #include "RegexPatterns.h"
+#include "GermanTextAnalyzer.h"
+#include "EnglishTextAnalyzer.h"
 #include <re2/re2.h>
 
 /**
@@ -11,6 +13,8 @@
 class OrdinalDetectorTest : public ::testing::Test {
 protected:
   re2::RE2 twoWordRegex{RegexPatterns::TWO_WORD_PATTERN};
+  GermanTextAnalyzer germanAnalyzer;
+  EnglishTextAnalyzer englishAnalyzer;
 
   void SetUp() override {
     // Ensure regexes compiled successfully
@@ -25,7 +29,7 @@ protected:
 TEST_F(OrdinalDetectorTest, DetectsGermanFirstSecond) {
   std::wstring text = L"erste Lager 10 zweite Lager 20";
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should detect at least one stem (may be "lager", "lag", etc. depending on stemmer)
   EXPECT_EQ(detected.size(), 1);
@@ -39,7 +43,7 @@ TEST_F(OrdinalDetectorTest, DetectsGermanFirstSecond) {
 TEST_F(OrdinalDetectorTest, DetectsEnglishFirstSecond) {
   std::wstring text = L"first bearing 10 second bearing 20";
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, false);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, false, englishAnalyzer);
 
   // Should detect "bearing" (stemmed form)
   EXPECT_EQ(detected.size(), 1);
@@ -53,7 +57,7 @@ TEST_F(OrdinalDetectorTest, DetectsEnglishFirstSecond) {
 TEST_F(OrdinalDetectorTest, IgnoresSingleOrdinal) {
   std::wstring text = L"erste Lager 10 dritte Welle 20";  // erste without zweite
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should NOT detect "lager" (only "erste", no "zweite")
   EXPECT_EQ(detected.count(L"lager"), 0);
@@ -66,7 +70,7 @@ TEST_F(OrdinalDetectorTest, IgnoresSingleOrdinal) {
 TEST_F(OrdinalDetectorTest, IgnoresDifferentBaseStems) {
   std::wstring text = L"erste Lager 10 zweite Welle 20";  // Different base words
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should NOT detect anything (different base words)
   EXPECT_EQ(detected.size(), 0);
@@ -79,7 +83,7 @@ TEST_F(OrdinalDetectorTest, IgnoresDifferentBaseStems) {
 TEST_F(OrdinalDetectorTest, HandlesDeclensions) {
   std::wstring text = L"ersten Lager 10 zweiten Lager 20";  // Different declensions
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should detect at least one stem (declensions should be recognized)
   EXPECT_GE(detected.size(), 1);
@@ -92,7 +96,7 @@ TEST_F(OrdinalDetectorTest, HandlesDeclensions) {
 TEST_F(OrdinalDetectorTest, HandlesCaseInsensitive) {
   std::wstring text = L"ERSTE Lager 10 ZWEITE Lager 20";  // Uppercase
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should still detect the stem (case-insensitive)
   EXPECT_GE(detected.size(), 1);
@@ -105,7 +109,7 @@ TEST_F(OrdinalDetectorTest, HandlesCaseInsensitive) {
 TEST_F(OrdinalDetectorTest, MultipleBaseStemsDetected) {
   std::wstring text = L"erste Lager 10 zweite Lager 20 erste Welle 30 zweite Welle 40";
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should detect both "lager" and "welle" stems (may be shortened versions)
   EXPECT_GE(detected.size(), 2);
@@ -118,7 +122,7 @@ TEST_F(OrdinalDetectorTest, MultipleBaseStemsDetected) {
 TEST_F(OrdinalDetectorTest, EmptyText) {
   std::wstring text = L"";
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   EXPECT_EQ(detected.size(), 0);
 }
@@ -130,7 +134,7 @@ TEST_F(OrdinalDetectorTest, EmptyText) {
 TEST_F(OrdinalDetectorTest, NoOrdinalPatterns) {
   std::wstring text = L"Lager 10 Welle 20 Zeige 30";  // No ordinals
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   EXPECT_EQ(detected.size(), 0);
 }
@@ -142,7 +146,7 @@ TEST_F(OrdinalDetectorTest, NoOrdinalPatterns) {
 TEST_F(OrdinalDetectorTest, OnlyFirstOrdinal) {
   std::wstring text = L"erste Lager 10 erstes Lager 20";  // Only first (different declensions)
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should NOT detect (only "erste", no "zweite")
   EXPECT_EQ(detected.size(), 0);
@@ -155,7 +159,7 @@ TEST_F(OrdinalDetectorTest, OnlyFirstOrdinal) {
 TEST_F(OrdinalDetectorTest, ThirdOrdinalWithoutSecond) {
   std::wstring text = L"erste Lager 10 dritte Lager 20";  // erste and dritte, missing zweite
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, true, germanAnalyzer);
 
   // Should NOT detect (missing "zweite")
   EXPECT_EQ(detected.size(), 0);
@@ -168,7 +172,7 @@ TEST_F(OrdinalDetectorTest, ThirdOrdinalWithoutSecond) {
 TEST_F(OrdinalDetectorTest, EnglishMultipleTerms) {
   std::wstring text = L"first bearing 10 second bearing 20 first gear 30 second gear 40";
 
-  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, false);
+  auto detected = OrdinalDetector::detectOrdinalPatterns(text, twoWordRegex, false, englishAnalyzer);
 
   // Should detect at least "bearing" (and possibly "gear")
   EXPECT_GE(detected.size(), 1);

@@ -1,4 +1,5 @@
 #pragma once
+#include "TextAnalyzer.h"
 #include "english_stem.h"
 #include "utils_core.h"
 #include <string>
@@ -16,33 +17,30 @@
  * - Word extraction and validation
  * - Proper English locale handling for case conversion
  */
-class EnglishTextAnalyzer {
+class EnglishTextAnalyzer : public TextAnalyzer {
 public:
     EnglishTextAnalyzer();
 
     // Stemming operations (now with caching)
-    void stemWord(std::wstring& word);
+    void stemWord(std::wstring& word) override;
     
     // Optimized: accepts by value to enable move semantics
-    StemVector createStemVector(std::wstring word);
+    StemVector createStemVector(std::wstring word) override;
     StemVector createMultiWordStemVector(std::wstring firstWord,
-                                         std::wstring secondWord);
+                                         std::wstring secondWord) override;
     bool isMultiWordBase(std::wstring word,
-                        const std::unordered_set<std::wstring>& multiWordBaseStems);
+                        const std::unordered_set<std::wstring>& multiWordBaseStems) override;
 
     // Article checking
-    static bool isIndefiniteArticle(const std::wstring& word);
-    static bool isDefiniteArticle(const std::wstring& word);
+    bool isIndefiniteArticle(const std::wstring& word) const override;
+    bool isDefiniteArticle(const std::wstring& word) const override;
 
     // Word filtering
-    static bool isIgnoredWord(const std::wstring& word);
-
-    // Text utilities
-    static std::pair<std::wstring, size_t> findPrecedingWord(const std::wstring& text, size_t pos);
+    bool isIgnoredWord(const std::wstring& word) const override;
 
     // Cache management (for diagnostics)
-    size_t getCacheSize() const { return m_stemCache.size(); }
-    void clearCache() { m_stemCache.clear(); }
+    size_t getCacheSize() const override { return m_stemCache.size(); }
+    void clearCache() override { m_stemCache.clear(); }
 
 private:
     stemming::english_stem<> m_englishStemmer;

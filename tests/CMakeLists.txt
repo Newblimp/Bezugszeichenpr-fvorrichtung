@@ -25,6 +25,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/utils.cpp
   ${CMAKE_SOURCE_DIR}/src/TextScanner.cpp
   ${CMAKE_SOURCE_DIR}/src/ErrorDetectorHelper.cpp
+  ${CMAKE_SOURCE_DIR}/src/TextAnalyzer.cpp
   ${CMAKE_SOURCE_DIR}/src/ErrorNavigator.cpp
   ${CMAKE_SOURCE_DIR}/src/OrdinalDetector.cpp
   ${CMAKE_SOURCE_DIR}/src/MainWindow.cpp

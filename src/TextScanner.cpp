@@ -7,45 +7,31 @@
 
 void TextScanner::scanText(
     const std::wstring& fullText,
+    TextAnalyzer& analyzer,
     const re2::RE2& singleWordRegex,
     const re2::RE2& twoWordRegex,
-    const std::unordered_set<std::wstring>& multiWordBaseStems,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-    std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-    std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-    std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-    std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+    AnalysisContext& ctx
 ) {
     // Track matched positions to avoid duplicate processing
     std::vector<std::pair<size_t, size_t>> matchedRanges;
 
     // First pass: scan for two-word patterns
     Timer t_twoWordScan;
-    scanTwoWordPatterns(fullText, twoWordRegex, multiWordBaseStems, clearedTextPositions,
-                        matchedRanges, bzToStems, stemToBz, bzToOriginalWords,
-                        bzToPositions, stemToPositions);
+    scanTwoWordPatterns(fullText, analyzer, twoWordRegex, ctx, matchedRanges);
     std::cout << "Time for two word scan: " << t_twoWordScan.elapsed() << " milliseconds\n";
 
     // Second pass: scan for single-word patterns
     Timer t_oneWordScan;
-    scanSingleWordPatterns(fullText, singleWordRegex, clearedTextPositions,
-                           matchedRanges, bzToStems, stemToBz, bzToOriginalWords,
-                           bzToPositions, stemToPositions);
+    scanSingleWordPatterns(fullText, analyzer, singleWordRegex, ctx, matchedRanges);
     std::cout << "Time for one word scan: " << t_oneWordScan.elapsed() << " milliseconds\n";
 }
 
 void TextScanner::scanTwoWordPatterns(
     const std::wstring& fullText,
+    TextAnalyzer& analyzer,
     const re2::RE2& twoWordRegex,
-    const std::unordered_set<std::wstring>& multiWordBaseStems,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-    std::vector<std::pair<size_t, size_t>>& matchedRanges,
-    std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-    std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-    std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-    std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+    AnalysisContext& ctx,
+    std::vector<std::pair<size_t, size_t>>& matchedRanges
 ) {
     RE2RegexHelper::MatchIterator iter(fullText, twoWordRegex);
 
@@ -60,9 +46,9 @@ void TextScanner::scanTwoWordPatterns(
         std::wstring bz = match[3];
 
         // Check if word2's stem is marked for multi-word matching
-        if (MainWindow::isCurrentMultiWordBase(word2, multiWordBaseStems)) {
+        if (analyzer.isMultiWordBase(word2, ctx.multiWordBaseStems)) {
             if (!overlapsExisting(matchedRanges, pos, endPos) &&
-                !clearedTextPositions.count({pos, endPos})) {
+                !ctx.clearedTextPositions.count({pos, endPos})) {
                 matchedRanges.emplace_back(pos, endPos);
 
                 // Build original phrase first (before moving words)
@@ -72,16 +58,16 @@ void TextScanner::scanTwoWordPatterns(
 
                 // Create stem vector with both words
                 StemVector stemVec =
-                    MainWindow::createCurrentMultiWordStemVector(std::move(word1), std::move(word2));
+                    analyzer.createMultiWordStemVector(std::move(word1), std::move(word2));
 
                 // Store mappings
-                bzToStems[bz].insert(stemVec);
-                stemToBz[stemVec].insert(bz);
-                bzToOriginalWords[bz].insert(originalPhrase);
+                ctx.db.bzToStems[bz].insert(stemVec);
+                ctx.db.stemToBz[stemVec].insert(bz);
+                ctx.db.bzToOriginalWords[bz].insert(originalPhrase);
 
                 // Track positions
-                bzToPositions[bz].push_back({pos, len});
-                stemToPositions[stemVec].push_back({pos, len});
+                ctx.db.bzToPositions[bz].push_back({pos, len});
+                ctx.db.stemToPositions[stemVec].push_back({pos, len});
             }
         }
     }
@@ -89,20 +75,16 @@ void TextScanner::scanTwoWordPatterns(
 
 void TextScanner::scanSingleWordPatterns(
     const std::wstring& fullText,
+    TextAnalyzer& analyzer,
     const re2::RE2& singleWordRegex,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-    std::vector<std::pair<size_t, size_t>>& matchedRanges,
-    std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-    std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-    std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-    std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+    AnalysisContext& ctx,
+    std::vector<std::pair<size_t, size_t>>& matchedRanges
 ) {
     RE2RegexHelper::MatchIterator iter(fullText, singleWordRegex);
 
     while (iter.hasNext()) {
         auto match = iter.next();
-        if (MainWindow::isCurrentIgnoredWord(match[1])) {
+        if (analyzer.isIgnoredWord(match[1])) {
             continue; // Skip ignored words
         }
         size_t pos = match.position;
@@ -110,7 +92,7 @@ void TextScanner::scanSingleWordPatterns(
         size_t endPos = pos + len;
 
         if (!overlapsExisting(matchedRanges, pos, endPos) &&
-            !clearedTextPositions.count({pos, endPos})) {
+            !ctx.clearedTextPositions.count({pos, endPos})) {
             matchedRanges.emplace_back(pos, endPos);
 
             std::wstring word = match[1];
@@ -118,16 +100,16 @@ void TextScanner::scanSingleWordPatterns(
             std::wstring bz = match[2];
 
             // Create single-element stem vector
-            StemVector stemVec = MainWindow::createCurrentStemVector(std::move(word));
+            StemVector stemVec = analyzer.createStemVector(std::move(word));
 
             // Store mappings
-            bzToStems[bz].insert(stemVec);
-            stemToBz[stemVec].insert(bz);
-            bzToOriginalWords[bz].insert(std::move(originalWord));
+            ctx.db.bzToStems[bz].insert(stemVec);
+            ctx.db.stemToBz[stemVec].insert(bz);
+            ctx.db.bzToOriginalWords[bz].insert(std::move(originalWord));
 
             // Track positions
-            bzToPositions[bz].push_back({pos, len});
-            stemToPositions[stemVec].push_back({pos, len});
+            ctx.db.bzToPositions[bz].push_back({pos, len});
+            ctx.db.stemToPositions[stemVec].push_back({pos, len});
         }
     }
 }

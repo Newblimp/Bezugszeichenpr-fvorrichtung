@@ -68,7 +68,7 @@ bool EnglishTextAnalyzer::isMultiWordBase(std::wstring word,
 }
 
 // Optimized: use manual lowercase loop with early exit
-bool EnglishTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
+bool EnglishTextAnalyzer::isIndefiniteArticle(const std::wstring& word) const {
     // Fast path: check length first (English: "a" or "an")
     if (word.length() < 1 || word.length() > 2) {
         return false;
@@ -84,7 +84,7 @@ bool EnglishTextAnalyzer::isIndefiniteArticle(const std::wstring& word) {
 }
 
 // Optimized: use manual lowercase loop with early exit
-bool EnglishTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
+bool EnglishTextAnalyzer::isDefiniteArticle(const std::wstring& word) const {
     // Fast path: check length first (English: "the" is exactly 3 chars)
     if (word.length() != 3) {
         return false;
@@ -99,35 +99,6 @@ bool EnglishTextAnalyzer::isDefiniteArticle(const std::wstring& word) {
     return s_definiteArticles.count(lower) > 0;
 }
 
-std::pair<std::wstring, size_t> EnglishTextAnalyzer::findPrecedingWord(const std::wstring& text,
-                                                                        size_t pos) {
-    if (pos == 0) {
-        return {L"", 0};
-    }
-
-    // Skip whitespace backwards
-    size_t end = pos;
-    while (end > 0 && std::iswspace(text[end - 1])) {
-        --end;
-    }
-
-    if (end == 0) {
-        return {L"", 0};
-    }
-
-    // Find the start of the word
-    size_t start = end;
-    while (start > 0 && std::iswalpha(text[start - 1])) {
-        --start;
-    }
-
-    if (start == end) {
-        return {L"", 0};
-    }
-
-    return {text.substr(start, end - start), start};
-}
-
 // Static member initialization - ignored words
 const std::unordered_set<std::wstring> EnglishTextAnalyzer::s_ignoredWords = {
     // Definite article
@@ -140,7 +111,7 @@ const std::unordered_set<std::wstring> EnglishTextAnalyzer::s_ignoredWords = {
     L"and", L"or"
 };
 
-bool EnglishTextAnalyzer::isIgnoredWord(const std::wstring& word) {
+bool EnglishTextAnalyzer::isIgnoredWord(const std::wstring& word) const {
     // Words shorter than 3 characters should be ignored
     if (word.length() < 3) {
         return true;

@@ -2,6 +2,7 @@
 
 #include "utils_core.h"
 #include "RE2RegexHelper.h"
+#include "TextAnalyzer.h"
 #include <re2/re2.h>
 #include <unordered_set>
 #include <unordered_map>
@@ -36,12 +37,14 @@ public:
      * @param fullText The complete text to analyze
      * @param twoWordRegex Regex for matching two-word patterns (word word number)
      * @param useGerman Whether to use German or English ordinal detection
+     * @param analyzer The text analyzer to use for stemming
      * @return Set of base stems that should enable multi-word mode
      */
     static std::unordered_set<std::wstring> detectOrdinalPatterns(
         const std::wstring& fullText,
         const re2::RE2& twoWordRegex,
-        bool useGerman
+        bool useGerman,
+        TextAnalyzer& analyzer
     );
 
 private:

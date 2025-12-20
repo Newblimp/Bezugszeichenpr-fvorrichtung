@@ -9,11 +9,9 @@
 
 void ErrorDetectorHelper::findUnnumberedWords(
     const std::wstring& fullText,
+    TextAnalyzer& analyzer,
     const re2::RE2& wordRegex,
-    const std::unordered_set<std::wstring>& multiWordBaseStems,
-    const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-    const std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+    AnalysisContext& ctx,
     wxRichTextCtrl* textBox,
     const wxTextAttr& warningStyle,
     std::vector<std::pair<int, int>>& noNumberPositions,
@@ -21,7 +19,7 @@ void ErrorDetectorHelper::findUnnumberedWords(
 ) {
     // Collect start positions of all valid references
     std::unordered_set<size_t> validStarts;
-    for (const auto &[stem, positions] : stemToPositions) {
+    for (const auto &[stem, positions] : ctx.db.stemToPositions) {
         for (const auto [start, len] : positions) {
             validStarts.insert(start);
         }
@@ -83,13 +81,13 @@ void ErrorDetectorHelper::findUnnumberedWords(
         std::wstring word2 = word2Match.word;
 
         // Only flag if this is a known multi-word combination
-        if (MainWindow::isCurrentMultiWordBase(word2, multiWordBaseStems)) {
-            StemVector stemVec = MainWindow::createCurrentMultiWordStemVector(word1, word2);
+        if (analyzer.isMultiWordBase(word2, ctx.multiWordBaseStems)) {
+            StemVector stemVec = analyzer.createMultiWordStemVector(word1, word2);
 
-            if (stemToBz.count(stemVec)) {
+            if (ctx.db.stemToBz.count(stemVec)) {
                 size_t startPos = word1Match.position;
                 size_t endPos = word2Match.position + word2Match.length;
-                if (!isPositionCleared(clearedTextPositions, startPos, endPos)) {
+                if (!isPositionCleared(ctx.clearedTextPositions, startPos, endPos)) {
                     noNumberPositions.emplace_back(startPos, endPos);
                     allErrorsPositions.emplace_back(startPos, endPos);
                     textBox->SetStyle(startPos, endPos, warningStyle);
@@ -100,13 +98,13 @@ void ErrorDetectorHelper::findUnnumberedWords(
 
     // Check for single words without numbers
     for (const auto& wordMatch : wordsWithoutNumbers) {
-        StemVector stemVec = MainWindow::createCurrentStemVector(wordMatch.word);
+        StemVector stemVec = analyzer.createStemVector(wordMatch.word);
 
         // Check if this stem is known from valid references
-        if (stemToBz.count(stemVec)) {
+        if (ctx.db.stemToBz.count(stemVec)) {
             size_t start = wordMatch.position;
             size_t end = wordMatch.position + wordMatch.length;
-            if (!isPositionCleared(clearedTextPositions, start, end)) {
+            if (!isPositionCleared(ctx.clearedTextPositions, start, end)) {
                 noNumberPositions.emplace_back(start, end);
                 allErrorsPositions.emplace_back(start, end);
                 textBox->SetStyle(start, end, warningStyle);
@@ -117,8 +115,8 @@ void ErrorDetectorHelper::findUnnumberedWords(
 
 void ErrorDetectorHelper::checkArticleUsage(
     const std::wstring& fullText,
-    const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+    TextAnalyzer& analyzer,
+    AnalysisContext& ctx,
     wxRichTextCtrl* textBox,
     const wxTextAttr& articleWarningStyle,
     std::vector<std::pair<int, int>>& wrongArticlePositions,
@@ -134,12 +132,12 @@ void ErrorDetectorHelper::checkArticleUsage(
 
     // Reserve capacity to reduce allocations
     size_t totalOccurrences = 0;
-    for (const auto &[stem, positions] : stemToPositions) {
+    for (const auto &[stem, positions] : ctx.db.stemToPositions) {
         totalOccurrences += positions.size();
     }
     allOccurrences.reserve(totalOccurrences);
 
-    for (const auto &[stem, positions] : stemToPositions) {
+    for (const auto &[stem, positions] : ctx.db.stemToPositions) {
         for (const auto [start, len] : positions) {
             allOccurrences.push_back({start, len, stem});
         }
@@ -156,7 +154,7 @@ void ErrorDetectorHelper::checkArticleUsage(
 
     for (const auto &occ : allOccurrences) {
         auto [precedingWord, precedingPos] =
-            MainWindow::findCurrentPrecedingWord(fullText, occ.position);
+            analyzer.findPrecedingWord(fullText, occ.position);
 
         if (precedingWord.empty()) {
             seenStems.insert(occ.stem);
@@ -168,8 +166,8 @@ void ErrorDetectorHelper::checkArticleUsage(
 
         if (isFirstOccurrence) {
             // First occurrence: should not be definite article
-            if (MainWindow::isCurrentDefiniteArticle(precedingWord)) {
-                if (!isPositionCleared(clearedTextPositions, precedingPos, articleEnd)) {
+            if (analyzer.isDefiniteArticle(precedingWord)) {
+                if (!isPositionCleared(ctx.clearedTextPositions, precedingPos, articleEnd)) {
                     wrongArticlePositions.emplace_back(precedingPos, articleEnd);
                     allErrorsPositions.emplace_back(precedingPos, articleEnd);
                     textBox->SetStyle(precedingPos, articleEnd, articleWarningStyle);
@@ -178,8 +176,8 @@ void ErrorDetectorHelper::checkArticleUsage(
             seenStems.insert(occ.stem);
         } else {
             // Subsequent occurrence: should have definite article
-            if (MainWindow::isCurrentIndefiniteArticle(precedingWord)) {
-                if (!isPositionCleared(clearedTextPositions, precedingPos, articleEnd)) {
+            if (analyzer.isIndefiniteArticle(precedingWord)) {
+                if (!isPositionCleared(ctx.clearedTextPositions, precedingPos, articleEnd)) {
                     wrongArticlePositions.emplace_back(precedingPos, articleEnd);
                     allErrorsPositions.emplace_back(precedingPos, articleEnd);
                     textBox->SetStyle(precedingPos, articleEnd, articleWarningStyle);
@@ -191,32 +189,27 @@ void ErrorDetectorHelper::checkArticleUsage(
 
 bool ErrorDetectorHelper::isUniquelyAssigned(
     const std::wstring& bz,
-    const std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-    const std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-    const std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-    const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-    const std::unordered_set<std::wstring>& clearedErrors,
-    const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+    AnalysisContext& ctx,
     wxRichTextCtrl* textBox,
     const wxTextAttr& conflictStyle,
     std::vector<std::pair<int, int>>& wrongTermBzPositions,
     std::vector<std::pair<int, int>>& allErrorsPositions
 ) {
     // Check if this error has been cleared by user
-    if (clearedErrors.count(bz) > 0) {
+    if (ctx.clearedErrors.count(bz) > 0) {
         return true; // Treat as no error
     }
 
-    const auto &stems = bzToStems.at(bz);
+    const auto &stems = ctx.db.bzToStems.at(bz);
 
     // Check if multiple different stems are assigned to this BZ
     if (stems.size() > 1) {
         // Highlight all occurrences of this BZ
-        const auto &positions = bzToPositions.at(bz);
+        const auto &positions = ctx.db.bzToPositions.at(bz);
         for (const auto i : positions) {
             size_t start = i.first;
             size_t len = i.second;
-            if (!isPositionCleared(clearedTextPositions, start, start + len)) {
+            if (!isPositionCleared(ctx.clearedTextPositions, start, start + len)) {
                 wrongTermBzPositions.emplace_back(start, start + len);
                 allErrorsPositions.emplace_back(start, start + len);
                 textBox->SetStyle(start, start + len, conflictStyle);
@@ -227,9 +220,9 @@ bool ErrorDetectorHelper::isUniquelyAssigned(
 
     // Check if the stem is also used with other BZs
     for (const auto &stem : stems) {
-        if (stemToBz.at(stem).size() > 1) {
+        if (ctx.db.stemToBz.at(stem).size() > 1) {
             // This stem maps to multiple BZs - highlight occurrences
-            const auto &positions = stemToPositions.at(stem);
+            const auto &positions = ctx.db.stemToPositions.at(stem);
             for (const auto i : positions) {
                 size_t start = i.first;
                 size_t len = i.second;
@@ -240,7 +233,7 @@ bool ErrorDetectorHelper::isUniquelyAssigned(
                 if (std::find(wrongTermBzPositions.begin(),
                               wrongTermBzPositions.end(),
                               pos_pair) == wrongTermBzPositions.end() &&
-                    !isPositionCleared(clearedTextPositions, start, start + len)) {
+                    !isPositionCleared(ctx.clearedTextPositions, start, start + len)) {
                     wrongTermBzPositions.emplace_back(start, start + len);
                     allErrorsPositions.emplace_back(start, start + len);
                     textBox->SetStyle(start, start + len, conflictStyle);

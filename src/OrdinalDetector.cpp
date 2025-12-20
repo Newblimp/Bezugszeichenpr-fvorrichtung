@@ -1,5 +1,4 @@
 #include "OrdinalDetector.h"
-#include "MainWindow.h"
 #include <algorithm>
 #include <iostream>
 #include <cctype>
@@ -79,7 +78,8 @@ bool OrdinalDetector::isEnglishOrdinal(const std::wstring& word, OrdinalType& ou
 std::unordered_set<std::wstring> OrdinalDetector::detectOrdinalPatterns(
     const std::wstring& fullText,
     const re2::RE2& twoWordRegex,
-    bool useGerman
+    bool useGerman,
+    TextAnalyzer& analyzer
 ) {
     // Track which ordinals are used with each base stem
     std::unordered_map<std::wstring, std::unordered_set<OrdinalType>> ordinalUsage;
@@ -105,7 +105,7 @@ std::unordered_set<std::wstring> OrdinalDetector::detectOrdinalPatterns(
 
         if (isOrdinal) {
             // Create stem vector for word2 (the base word)
-            StemVector word2StemVec = MainWindow::createCurrentStemVector(word2);
+            StemVector word2StemVec = analyzer.createStemVector(word2);
 
             if (!word2StemVec.empty()) {
                 // Use the base stem (last element of StemVector is the base word)

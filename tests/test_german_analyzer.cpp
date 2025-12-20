@@ -74,74 +74,74 @@ TEST_F(GermanTextAnalyzerTest, IsMultiWordBase_CaseInsensitive) {
 
 // Test article detection
 TEST_F(GermanTextAnalyzerTest, IsDefiniteArticle_Der) {
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"der"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"Der"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"DER"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"der"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"Der"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"DER"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsDefiniteArticle_Die) {
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"die"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"Die"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"die"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"Die"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsDefiniteArticle_Das) {
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"das"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"Das"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"das"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"Das"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsDefiniteArticle_AllForms) {
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"dem"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"den"));
-  EXPECT_TRUE(GermanTextAnalyzer::isDefiniteArticle(L"des"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"dem"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"den"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"des"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsDefiniteArticle_NotArticle) {
-  EXPECT_FALSE(GermanTextAnalyzer::isDefiniteArticle(L"ein"));
-  EXPECT_FALSE(GermanTextAnalyzer::isDefiniteArticle(L"Lager"));
-  EXPECT_FALSE(GermanTextAnalyzer::isDefiniteArticle(L""));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L"ein"));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L"Lager"));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L""));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIndefiniteArticle_Ein) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"ein"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"Ein"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"EIN"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"ein"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"Ein"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"EIN"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIndefiniteArticle_Eine) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"eine"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"Eine"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"eine"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"Eine"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIndefiniteArticle_AllForms) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"einem"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"einen"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"einer"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIndefiniteArticle(L"eines"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"einem"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"einen"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"einer"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"eines"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIndefiniteArticle_NotArticle) {
-  EXPECT_FALSE(GermanTextAnalyzer::isIndefiniteArticle(L"der"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIndefiniteArticle(L"Lager"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIndefiniteArticle(L""));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L"der"));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L"Lager"));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L""));
 }
 
 // Test preceding word extraction
 TEST_F(GermanTextAnalyzerTest, FindPrecedingWord_Simple) {
   std::wstring text = L"der Lager 10";
-  auto [word, pos] = GermanTextAnalyzer::findPrecedingWord(text, 4);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 4);
   EXPECT_EQ(word, L"der");
   EXPECT_EQ(pos, 0);
 }
 
 TEST_F(GermanTextAnalyzerTest, FindPrecedingWord_AtStart) {
   std::wstring text = L"Lager 10";
-  auto [word, pos] = GermanTextAnalyzer::findPrecedingWord(text, 0);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 0);
   EXPECT_TRUE(word.empty());
 }
 
 TEST_F(GermanTextAnalyzerTest, FindPrecedingWord_MultipleWords) {
   std::wstring text = L"Das ist ein Lager 10";
-  auto [word, pos] = GermanTextAnalyzer::findPrecedingWord(text, 12);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 12);
   EXPECT_EQ(word, L"ein");
 }
 
@@ -184,77 +184,77 @@ TEST_F(GermanTextAnalyzerTest, CreateStemVector_Numbers) {
 
 // Test isIgnoredWord functionality
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_DefiniteArticles) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"der"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"die"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"das"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"den"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"dem"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"des"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"der"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"die"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"das"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"den"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"dem"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"des"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_DefiniteArticles_CaseInsensitive) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Der"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Die"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Das"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DER"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DIE"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"DAS"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Der"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Die"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Das"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"DER"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"DIE"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"DAS"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ein"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"eine"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"eines"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einen"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einer"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"einem"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"ein"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"eine"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"eines"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"einen"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"einer"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"einem"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles_CaseInsensitive) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Ein"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Eine"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"EIN"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"EINE"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Ein"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Eine"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"EIN"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"EINE"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_Figur) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"figur"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Figur"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"FIGUR"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"figur"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Figur"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"FIGUR"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_Figuren) {
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"figuren"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"Figuren"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"FIGUREN"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"figuren"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Figuren"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"FIGUREN"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_NotIgnored) {
   // Regular words should not be ignored
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Lager"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Motor"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Welle"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Gehäuse"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Lager"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Motor"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Welle"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Gehäuse"));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_ShortWords) {
   // Words shorter than 3 characters should always be ignored
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ab"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"in"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"zu"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"a"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"am"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L""));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"ab"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"in"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"zu"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"a"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"am"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L""));
 }
 
 TEST_F(GermanTextAnalyzerTest, IsIgnoredWord_ExactlyThreeCharacters) {
   // 3-character articles should be ignored
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"der"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"die"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"das"));
-  EXPECT_TRUE(GermanTextAnalyzer::isIgnoredWord(L"ein"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"der"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"die"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"das"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"ein"));
   
   // 3-character non-articles should NOT be ignored
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Rad"));
-  EXPECT_FALSE(GermanTextAnalyzer::isIgnoredWord(L"Bad"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Rad"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"Bad"));
 }

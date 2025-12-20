@@ -3,6 +3,7 @@
 #include "EnglishTextAnalyzer.h"
 #include "OrdinalDetector.h"
 #include "RE2RegexHelper.h"
+#include "AnalysisContext.h"
 #include "utils.h"
 #include "wx/notebook.h"
 #include "wx/richtext/richtextctrl.h"
@@ -89,21 +90,8 @@ private:
     re2::RE2 m_wordRegex;
 
 public:
-  // Static text analyzers for different languages
-  // Static ensures single instance with persistent cache across all scans
-  static GermanTextAnalyzer s_germanAnalyzer;
-  static EnglishTextAnalyzer s_englishAnalyzer;
-  static bool s_useGerman; // true = German, false = English
-
-  // Helper methods to access current analyzer based on language selection
-  // These are public to allow TextScanner and ErrorDetectorHelper to use them
-  static StemVector createCurrentStemVector(std::wstring word);
-  static StemVector createCurrentMultiWordStemVector(std::wstring firstWord, std::wstring secondWord);
-  static bool isCurrentMultiWordBase(std::wstring word, const std::unordered_set<std::wstring>& multiWordBaseStems);
-  static bool isCurrentIndefiniteArticle(const std::wstring& word);
-  static bool isCurrentDefiniteArticle(const std::wstring& word);
-  static bool isCurrentIgnoredWord(const std::wstring& word);
-  static std::pair<std::wstring, size_t> findCurrentPrecedingWord(const std::wstring& text, size_t pos);
+  // Current text analyzer (polymorphic)
+  std::unique_ptr<TextAnalyzer> m_currentAnalyzer;
 
 private:
   std::wstring m_fullText;
@@ -122,63 +110,11 @@ private:
   std::mutex m_dataMutex;
   std::atomic<bool> m_cancelScan{false};
 
-  // Main data structure: BZ -> set of StemVectors
-  // Example: "10" -> {{"lager"}, {"zweit", "lager"}}
-  std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>,
-           BZComparatorForMap>
-      m_bzToStems;
-
-  // Reverse mapping: StemVector -> set of BZs
-  // Example: {"zweit", "lager"} -> {"12"}
-  std::unordered_map<StemVector, std::unordered_set<std::wstring>,
-                     StemVectorHash>
-      m_stemToBz;
-
-  // Original (unstemmed) words for display
-  // BZ -> set of original word strings
-  std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-      m_bzToOriginalWords;
-
-  // Position tracking for highlighting and navigation
-  // BZ -> list of (start, length) pairs
-  std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>
-      m_bzToPositions;
-
-  // StemVector -> list of (start, length) pairs
-  std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>,
-                     StemVectorHash>
-      m_stemToPositions;
-
-  // Cache of first occurrence words for display
-  std::unordered_map<StemVector, std::wstring, StemVectorHash> m_stemToFirstWord;
+  // Application state and analysis results
+  AnalysisContext m_ctx;
 
   // keeping track of the position of the cursor when browsing occurences
   std::unordered_map<std::wstring, int> m_bzCurrentOccurrence;
-
-  // Set of base word STEMS that should trigger multi-word matching
-  // Example: if "lager" is in this set, "erstes Lager 10" becomes {"erst",
-  // "lager"}
-  std::unordered_set<std::wstring> m_multiWordBaseStems;
-
-  // Auto-detection tracking for ordinal-based multi-word terms
-  // Stores stems that were auto-detected (separately from manual toggles)
-  std::unordered_set<std::wstring> m_autoDetectedMultiWordStems;
-
-  // Manual toggles: stems that user explicitly enabled via context menu
-  std::unordered_set<std::wstring> m_manualMultiWordToggles;
-
-  // Manual disables: stems that user explicitly disabled via context menu
-  // (prevents auto-detection from re-enabling them)
-  std::unordered_set<std::wstring> m_manuallyDisabledMultiWord;
-
-  // Set of BZ numbers whose errors have been cleared/ignored by user
-  std::unordered_set<std::wstring> m_clearedErrors;
-
-  // Track cleared text positions (for right-click clear on highlighted text)
-  std::set<std::pair<size_t, size_t>> m_clearedTextPositions;
-
-  // All unique stems encountered
-  // std::unordered_set<StemVector, StemVectorHash> m_allStems;
 
   // UI components
   wxNotebook *m_notebookList;

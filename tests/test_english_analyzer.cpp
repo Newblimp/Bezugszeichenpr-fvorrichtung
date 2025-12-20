@@ -70,52 +70,52 @@ TEST_F(EnglishTextAnalyzerTest, IsMultiWordBase_CaseInsensitive) {
 
 // Test article detection
 TEST_F(EnglishTextAnalyzerTest, IsDefiniteArticle_The) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isDefiniteArticle(L"the"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isDefiniteArticle(L"The"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isDefiniteArticle(L"THE"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"the"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"The"));
+  EXPECT_TRUE(analyzer.isDefiniteArticle(L"THE"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsDefiniteArticle_NotArticle) {
-  EXPECT_FALSE(EnglishTextAnalyzer::isDefiniteArticle(L"a"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isDefiniteArticle(L"an"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isDefiniteArticle(L"bearing"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isDefiniteArticle(L""));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L"a"));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L"an"));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L"bearing"));
+  EXPECT_FALSE(analyzer.isDefiniteArticle(L""));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIndefiniteArticle_A) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isIndefiniteArticle(L"a"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIndefiniteArticle(L"A"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"a"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"A"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIndefiniteArticle_An) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isIndefiniteArticle(L"an"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIndefiniteArticle(L"An"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIndefiniteArticle(L"AN"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"an"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"An"));
+  EXPECT_TRUE(analyzer.isIndefiniteArticle(L"AN"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIndefiniteArticle_NotArticle) {
-  EXPECT_FALSE(EnglishTextAnalyzer::isIndefiniteArticle(L"the"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIndefiniteArticle(L"bearing"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIndefiniteArticle(L""));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L"the"));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L"bearing"));
+  EXPECT_FALSE(analyzer.isIndefiniteArticle(L""));
 }
 
 // Test preceding word extraction
 TEST_F(EnglishTextAnalyzerTest, FindPrecedingWord_Simple) {
   std::wstring text = L"the bearing 10";
-  auto [word, pos] = EnglishTextAnalyzer::findPrecedingWord(text, 4);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 4);
   EXPECT_EQ(word, L"the");
   EXPECT_EQ(pos, 0);
 }
 
 TEST_F(EnglishTextAnalyzerTest, FindPrecedingWord_AtStart) {
   std::wstring text = L"bearing 10";
-  auto [word, pos] = EnglishTextAnalyzer::findPrecedingWord(text, 0);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 0);
   EXPECT_TRUE(word.empty());
 }
 
 TEST_F(EnglishTextAnalyzerTest, FindPrecedingWord_MultipleWords) {
   std::wstring text = L"This is a bearing 10";
-  auto [word, pos] = EnglishTextAnalyzer::findPrecedingWord(text, 10);
+  auto [word, pos] = analyzer.findPrecedingWord(text, 10);
   EXPECT_EQ(word, L"a");
 }
 
@@ -167,57 +167,57 @@ TEST_F(EnglishTextAnalyzerTest, PorterStemmer_ED_Removal) {
 
 // Test isIgnoredWord functionality
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_DefiniteArticle) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"the"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"The"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"THE"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"the"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"The"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"THE"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_IndefiniteArticles) {
   // Note: "a" is only 1 character, so it's ignored due to length
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"a"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"A"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"a"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"A"));
   // "an" is only 2 characters, so it's ignored due to length
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"an"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"An"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"AN"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"an"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"An"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"AN"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_Figure) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"figure"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"Figure"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"FIGURE"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"figure"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Figure"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"FIGURE"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_Figures) {
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"figures"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"Figures"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"FIGURES"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"figures"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"Figures"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"FIGURES"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_NotIgnored) {
   // Regular words should not be ignored
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"bearing"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"motor"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"shaft"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"housing"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"bearing"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"motor"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"shaft"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"housing"));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_ShortWords) {
   // Words shorter than 3 characters should always be ignored
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"at"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"in"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"to"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"a"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"is"));
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L""));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"at"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"in"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"to"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"a"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"is"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L""));
 }
 
 TEST_F(EnglishTextAnalyzerTest, IsIgnoredWord_ExactlyThreeCharacters) {
   // 3-character articles should be ignored
-  EXPECT_TRUE(EnglishTextAnalyzer::isIgnoredWord(L"the"));
+  EXPECT_TRUE(analyzer.isIgnoredWord(L"the"));
   
   // 3-character non-articles should NOT be ignored
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"rod"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"box"));
-  EXPECT_FALSE(EnglishTextAnalyzer::isIgnoredWord(L"pin"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"rod"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"box"));
+  EXPECT_FALSE(analyzer.isIgnoredWord(L"pin"));
 }

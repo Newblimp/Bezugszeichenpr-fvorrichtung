@@ -1,6 +1,8 @@
 #pragma once
 
 #include "utils.h"
+#include "TextAnalyzer.h"
+#include "AnalysisContext.h"
 #include <wx/richtext/richtextctrl.h>
 #include <re2/re2.h>
 #include <map>
@@ -24,11 +26,9 @@ public:
      */
     static void findUnnumberedWords(
         const std::wstring& fullText,
+        TextAnalyzer& analyzer,
         const re2::RE2& wordRegex,
-        const std::unordered_set<std::wstring>& multiWordBaseStems,
-        const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-        const std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+        AnalysisContext& ctx,
         wxRichTextCtrl* textBox,
         const wxTextAttr& warningStyle,
         std::vector<std::pair<int, int>>& noNumberPositions,
@@ -40,8 +40,8 @@ public:
      */
     static void checkArticleUsage(
         const std::wstring& fullText,
-        const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+        TextAnalyzer& analyzer,
+        AnalysisContext& ctx,
         wxRichTextCtrl* textBox,
         const wxTextAttr& articleWarningStyle,
         std::vector<std::pair<int, int>>& wrongArticlePositions,
@@ -53,12 +53,7 @@ public:
      */
     static bool isUniquelyAssigned(
         const std::wstring& bz,
-        const std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-        const std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-        const std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-        const std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions,
-        const std::unordered_set<std::wstring>& clearedErrors,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
+        AnalysisContext& ctx,
         wxRichTextCtrl* textBox,
         const wxTextAttr& conflictStyle,
         std::vector<std::pair<int, int>>& wrongTermBzPositions,

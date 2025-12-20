@@ -2,6 +2,8 @@
 
 #include "utils.h"
 #include "RE2RegexHelper.h"
+#include "TextAnalyzer.h"
+#include "AnalysisContext.h"
 #include <re2/re2.h>
 #include <map>
 #include <unordered_map>
@@ -23,27 +25,17 @@ public:
     /**
      * @brief Scan text and populate data structures
      * @param fullText The complete text to scan
+     * @param analyzer The language-specific text analyzer to use
      * @param singleWordRegex Regex for single-word patterns
      * @param twoWordRegex Regex for two-word patterns
-     * @param multiWordBaseStems Set of stems that should trigger multi-word matching
-     * @param clearedTextPositions Positions that have been manually cleared by user
-     * @param bzToStems Output: mapping from reference numbers to stem vectors
-     * @param stemToBz Output: reverse mapping from stem vectors to reference numbers
-     * @param bzToOriginalWords Output: mapping from reference numbers to original words
-     * @param bzToPositions Output: mapping from reference numbers to text positions
-     * @param stemToPositions Output: mapping from stem vectors to text positions
+     * @param ctx Scanning context and output database
      */
     static void scanText(
         const std::wstring& fullText,
+        TextAnalyzer& analyzer,
         const re2::RE2& singleWordRegex,
         const re2::RE2& twoWordRegex,
-        const std::unordered_set<std::wstring>& multiWordBaseStems,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-        std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-        std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-        std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-        std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-        std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+        AnalysisContext& ctx
     );
 
 private:
@@ -52,15 +44,10 @@ private:
      */
     static void scanTwoWordPatterns(
         const std::wstring& fullText,
+        TextAnalyzer& analyzer,
         const re2::RE2& twoWordRegex,
-        const std::unordered_set<std::wstring>& multiWordBaseStems,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-        std::vector<std::pair<size_t, size_t>>& matchedRanges,
-        std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-        std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-        std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-        std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-        std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+        AnalysisContext& ctx,
+        std::vector<std::pair<size_t, size_t>>& matchedRanges
     );
 
     /**
@@ -68,14 +55,10 @@ private:
      */
     static void scanSingleWordPatterns(
         const std::wstring& fullText,
+        TextAnalyzer& analyzer,
         const re2::RE2& singleWordRegex,
-        const std::set<std::pair<size_t, size_t>>& clearedTextPositions,
-        std::vector<std::pair<size_t, size_t>>& matchedRanges,
-        std::map<std::wstring, std::unordered_set<StemVector, StemVectorHash>, BZComparatorForMap>& bzToStems,
-        std::unordered_map<StemVector, std::unordered_set<std::wstring>, StemVectorHash>& stemToBz,
-        std::unordered_map<std::wstring, std::unordered_set<std::wstring>>& bzToOriginalWords,
-        std::unordered_map<std::wstring, std::vector<std::pair<size_t, size_t>>>& bzToPositions,
-        std::unordered_map<StemVector, std::vector<std::pair<size_t, size_t>>, StemVectorHash>& stemToPositions
+        AnalysisContext& ctx,
+        std::vector<std::pair<size_t, size_t>>& matchedRanges
     );
 
     /**
