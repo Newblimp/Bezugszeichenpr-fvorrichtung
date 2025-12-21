@@ -178,6 +178,7 @@ void MainWindow::updateUIAfterScan() {
   // Clear UI elements
   m_treeList->DeleteAllItems();
   m_bzCurrentOccurrence.clear();
+  m_stemCurrentOccurrence.clear();
 
   // Reset text highlighting
   m_textBox->SetStyle(0, m_textBox->GetValue().length(), m_neutralStyle);
@@ -413,7 +414,9 @@ void MainWindow::setupBindings() {
 
   m_termList->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
                    &MainWindow::onTermListContextMenu, this);
-  
+  m_termList->Bind(wxEVT_TREELIST_ITEM_ACTIVATED,
+                   &MainWindow::onTermListItemActivated, this);
+
   // Text right-click for clearing errors
   m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
   
@@ -666,6 +669,83 @@ void MainWindow::onTreeListItemActivated(wxTreeListEvent &event) {
     }
 
     int &currentIdx = m_bzCurrentOccurrence[bz];
+
+    // Get the current occurrence
+    size_t start = positions[currentIdx].first;
+    size_t len = positions[currentIdx].second;
+
+    // Select and show the text
+    m_textBox->SetSelection(start, start + len);
+    m_textBox->ShowPosition(start);
+    m_textBox->SetFocus();
+
+    // Move to next occurrence for next double-click
+    currentIdx = (currentIdx + 1) % positions.size();
+  }
+}
+
+void MainWindow::onTermListItemActivated(wxTreeListEvent &event) {
+  wxTreeListItem item = event.GetItem();
+  if (!item.IsOk()) {
+    return;
+  }
+
+  wxString termText = m_termList->GetItemText(item, 0);
+  std::wstring termWord = termText.ToStdWstring();
+
+  // Lock mutex to safely access shared data
+  std::lock_guard<std::mutex> lock(m_dataMutex);
+
+  // Find the stem for this term word
+  StemVector foundStem;
+  bool stemFound = false;
+
+  for (const auto& [stem, firstWord] : m_ctx.db.stemToFirstWord) {
+    if (firstWord == termWord) {
+      foundStem = stem;
+      stemFound = true;
+      break;
+    }
+  }
+
+  if (!stemFound) {
+    return;
+  }
+
+  // Check if this stem has any positions
+  if (m_ctx.db.stemToPositions.count(foundStem) && !m_ctx.db.stemToPositions[foundStem].empty()) {
+    const auto &positions = m_ctx.db.stemToPositions[foundStem];
+
+    // Get current occurrence index for this stem (or initialize based on cursor position)
+    if (!m_stemCurrentOccurrence.count(foundStem)) {
+      // Get current cursor position in the text
+      long cursorPos = m_textBox->GetInsertionPoint();
+
+      // Find the occurrence closest to or after the cursor position
+      int closestIdx = 0;
+
+      // If cursor is past all occurrences, start from the beginning
+      if (cursorPos > static_cast<long>(positions[positions.size() - 1].second)) {
+        closestIdx = 0;
+      }
+      // If cursor is before all occurrences, start from the first one
+      else if (cursorPos < static_cast<long>(positions[0].first)) {
+        closestIdx = 0;
+      }
+      // Otherwise, find the next occurrence at or after cursor
+      else {
+        for (size_t i = 0; i < positions.size(); ++i) {
+          if (static_cast<long>(positions[i].first) >= cursorPos) {
+            closestIdx = i;
+            break;
+          }
+        }
+      }
+
+      m_stemCurrentOccurrence[foundStem] = closestIdx;
+    }
+
+    int &currentIdx = m_stemCurrentOccurrence[foundStem];
 
     // Get the current occurrence
     size_t start = positions[currentIdx].first;

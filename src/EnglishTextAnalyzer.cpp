@@ -108,7 +108,7 @@ const std::unordered_set<std::wstring> EnglishTextAnalyzer::s_ignoredWords = {
     // Figure references
     L"figure", L"figures",
     // conjuctions
-    L"and", L"or"
+    L"and", L"or", L"with"
 };
 
 bool EnglishTextAnalyzer::isIgnoredWord(const std::wstring& word) const {

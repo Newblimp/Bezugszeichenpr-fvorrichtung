@@ -65,6 +65,7 @@ private:
   void onTreeListContextMenu(wxTreeListEvent &event);
   void onTermListContextMenu(wxTreeListEvent &event);
   void onTreeListItemActivated(wxTreeListEvent &event);
+  void onTermListItemActivated(wxTreeListEvent &event);
   void onTextRightClick(wxMouseEvent &event);
   void clearTextError(size_t start, size_t end);
   bool isPositionCleared(size_t start, size_t end) const;
@@ -135,6 +136,7 @@ private:
 
   // keeping track of the position of the cursor when browsing occurences
   std::unordered_map<std::wstring, int> m_bzCurrentOccurrence;
+  std::unordered_map<StemVector, int, StemVectorHash> m_stemCurrentOccurrence;
 
   // UI components
   wxNotebook *m_notebookList;
