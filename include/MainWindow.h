@@ -21,6 +21,9 @@
 #include <mutex>
 #include <atomic>
 
+// Forward declaration
+class ImageViewerWindow;
+
 class MainWindow : public wxFrame {
   // Forward declaration for testing
   friend class MainWindowTestBase;
@@ -79,6 +82,9 @@ private:
 
   // Help menu
   void onAbout(wxCommandEvent &event);
+
+  // Image viewer
+  void onOpenImage(wxCommandEvent &event);
 
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
@@ -147,6 +153,7 @@ private:
   std::shared_ptr<wxTreeListCtrl> m_termList;
   std::shared_ptr<wxImageList> m_imageList;
   std::shared_ptr<wxTreeListCtrl> m_treeList;
+  ImageViewerWindow* m_imageViewer{nullptr};
 
   // Navigation buttons
   std::shared_ptr<wxButton> m_buttonForwardAllErrors;

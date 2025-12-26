@@ -96,13 +96,19 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
 void UIBuilder::createMenuBar(wxFrame* parent) {
     wxMenuBar *menuBar = new wxMenuBar();
-    wxMenu *toolsMenu = new wxMenu();
 
+    // File menu
+    wxMenu *fileMenu = new wxMenu();
+    fileMenu->Append(wxID_HIGHEST + 30, "&Open Image...\tCtrl+O");
+    menuBar->Append(fileMenu, "&File");
+
+    // Tools menu
+    wxMenu *toolsMenu = new wxMenu();
     toolsMenu->Append(wxID_HIGHEST + 20, "Restore all errors");
     toolsMenu->Append(wxID_HIGHEST + 21, "Restore cleared textbox errors");
     toolsMenu->Append(wxID_HIGHEST + 22, "Restore cleared overview errors");
-
     menuBar->Append(toolsMenu, "Tools");
+
     parent->SetMenuBar(menuBar);
 }
 

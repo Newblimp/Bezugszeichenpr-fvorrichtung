@@ -9,6 +9,7 @@
 #include "ErrorDetectorHelper.h"
 #include "UIBuilder.h"
 #include "utils.h"
+#include "ImageViewerWindow.h"
 #include "wx/event.h"
 #include "wx/gdicmn.h"
 #include "wx/timer.h"
@@ -421,6 +422,7 @@ void MainWindow::setupBindings() {
   m_textBox->Bind(wxEVT_RIGHT_DOWN, &MainWindow::onTextRightClick, this);
   
   // Menu bar handlers
+  Bind(wxEVT_MENU, &MainWindow::onOpenImage, this, wxID_HIGHEST + 30);
   Bind(wxEVT_MENU, &MainWindow::onRestoreAllErrors, this, wxID_HIGHEST + 20);
   Bind(wxEVT_MENU, &MainWindow::onRestoreTextboxErrors, this, wxID_HIGHEST + 21);
   Bind(wxEVT_MENU, &MainWindow::onRestoreOverviewErrors, this, wxID_HIGHEST + 22);
@@ -881,6 +883,18 @@ void MainWindow::onAbout(wxCommandEvent &event) {
 
   wxMessageBox(aboutText, wxT("About Bezugszeichenprüfvorrichtung"),
                wxOK | wxICON_INFORMATION);
+}
+
+void MainWindow::onOpenImage(wxCommandEvent &event) {
+  if (!m_imageViewer) {
+    m_imageViewer = new ImageViewerWindow(this);
+  }
+  m_imageViewer->Show();
+  m_imageViewer->Raise();
+
+  // Trigger the file open dialog
+  wxCommandEvent openEvent(wxEVT_MENU, wxID_OPEN);
+  m_imageViewer->ProcessWindowEvent(openEvent);
 }
 
 std::wstring MainWindow::getFirstOccurrenceWord(const StemVector& stem) const {

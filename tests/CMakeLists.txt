@@ -16,6 +16,7 @@ add_executable(
   test_ordinal_detector.cpp
   test_coverage_gap.cpp
   test_main_window.cpp
+  test_image_viewer.cpp
   # test_ui_display.cpp
   # Source files needed for testing (non-UI components)
   ${CMAKE_SOURCE_DIR}/src/GermanTextAnalyzer.cpp
@@ -31,6 +32,9 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/src/OrdinalDetector.cpp
   ${CMAKE_SOURCE_DIR}/src/MainWindow.cpp
   ${CMAKE_SOURCE_DIR}/src/UIBuilder.cpp
+  ${CMAKE_SOURCE_DIR}/src/ImageDocument.cpp
+  ${CMAKE_SOURCE_DIR}/src/ImageCanvas.cpp
+  ${CMAKE_SOURCE_DIR}/src/ImageViewerWindow.cpp
 )
 
 # Link against Google Test, RE2, and wxWidgets
