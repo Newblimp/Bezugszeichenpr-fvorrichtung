@@ -119,7 +119,7 @@ Scanning runs in a background thread (`m_scanThread`) using `std::jthread`. UI u
 mkdir build && cd build
 cmake ..
 cmake --build . -j$(nproc)
-./tests/unit_tests  # Run all 150+ tests
+./tests/unit_tests  # Run all 200+ tests
 ```
 
 ## Last updated: 2025-12-26

@@ -234,6 +234,20 @@ void ImageViewerWindow::updatePageDisplay() {
 }
 
 void ImageViewerWindow::onOpenFile(wxCommandEvent& event) {
+#ifdef HAVE_PDF_SUPPORT
+    wxFileDialog openDialog(
+        this,
+        "Open Image/PDF File(s)",
+        "", "",
+        "All supported files (*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tif;*.pdf)|"
+        "*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tif;*.pdf|"
+        "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tif)|"
+        "*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tif|"
+        "PDF files (*.pdf)|*.pdf|"
+        "All files (*.*)|*.*",
+        wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE
+    );
+#else
     wxFileDialog openDialog(
         this,
         "Open Image File(s)",
@@ -243,6 +257,7 @@ void ImageViewerWindow::onOpenFile(wxCommandEvent& event) {
         "All files (*.*)|*.*",
         wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE
     );
+#endif
 
     if (openDialog.ShowModal() == wxID_CANCEL) {
         return;

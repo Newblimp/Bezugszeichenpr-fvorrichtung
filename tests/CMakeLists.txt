@@ -48,6 +48,16 @@ target_link_libraries(
   wx::richtext
 )
 
+# Conditionally add PDF support for tests
+if(ENABLE_PDF_SUPPORT)
+  target_sources(unit_tests PRIVATE
+    test_pdf_document.cpp
+    ${CMAKE_SOURCE_DIR}/src/PdfDocument.cpp
+  )
+  target_link_libraries(unit_tests mupdf mupdf-third)
+  target_include_directories(unit_tests PRIVATE ${MUPDF_INCLUDE_DIRS})
+endif()
+
 # Discover tests for CTest
 include(GoogleTest)
 gtest_discover_tests(unit_tests DISCOVERY_TIMEOUT 30)

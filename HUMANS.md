@@ -77,17 +77,34 @@ cmake --build . -j$(nproc)
 
 Static linking: `wxBUILD_SHARED OFF` in CMakeLists.txt
 
-## Phase 1: Image Viewer (NEW)
+## Phase 1: Image Viewer
 
 - **ImageViewerWindow**: Separate window for viewing scanned drawings
   - Open via File → Open Image (Ctrl+O) in main window
-  - Supports PNG, JPEG, BMP, TIFF formats
+  - Supports PNG, JPEG, BMP, TIFF formats (Phase 1) + PDF (Phase 2)
   - Multi-page support for multiple selected files
 - **ImageCanvas**: Custom wxScrolledCanvas widget
   - Zoom: Ctrl+Scroll (cursor-centered, 10%-1000%)
   - Pan: Click and drag with mouse
   - Double-buffered rendering with bitmap cache
 - **ImageDocument**: Data model for multi-page images
+
+## Phase 2: PDF Import
+
+- **PdfDocument**: PDF file loader using muPDF
+  - Statically linked (no external dependencies)
+  - Renders PDF pages to wxImage at configurable DPI (default 150)
+  - RAII-based resource management
+  - Thread-safe (each instance has own fz_context)
+- **muPDF Integration**: External CMake build (cmake/MuPDFExternal.cmake)
+  - Built from source in libs/mupdf/ (version 1.24.11)
+  - Fully static linkage (23MB binary size, minimal config)
+  - No source modifications (as required)
+  - Disabled: XPS, SVG, CBZ, HTML, EPUB, JavaScript, CJK fonts
+  - Enabled: PDF rendering only (sufficient for German/English patents)
+- **ImageDocument**: Transparently handles both images and PDFs
+  - Auto-detects PDF files by extension
+  - Renders all pages to image format for unified display
 
 ---
 *Last updated: 2025-12-26*

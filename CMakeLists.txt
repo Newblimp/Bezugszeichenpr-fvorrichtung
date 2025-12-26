@@ -113,6 +113,17 @@ set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/wxWidgets)
+
+# Optional PDF support via muPDF
+option(ENABLE_PDF_SUPPORT "Enable PDF import support using muPDF" ON)
+if(ENABLE_PDF_SUPPORT)
+  message(STATUS "PDF support enabled - building muPDF")
+  include(cmake/MuPDFExternal.cmake)
+  add_definitions(-DHAVE_PDF_SUPPORT=1)
+else()
+  message(STATUS "PDF support disabled")
+endif()
+
 include_directories(include img)
 
 # Add executable target
@@ -132,6 +143,13 @@ else()
 endif()
 # Link against wxWidgets and RE2 libraries
 target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re2)
+
+# Conditionally add PDF support sources and libraries
+if(ENABLE_PDF_SUPPORT)
+  target_sources(Bezugszeichenvorrichtung PRIVATE src/PdfDocument.cpp)
+  target_link_libraries(Bezugszeichenvorrichtung mupdf mupdf-third)
+  target_include_directories(Bezugszeichenvorrichtung PRIVATE ${MUPDF_INCLUDE_DIRS})
+endif()
 
 # Add tests subdirectory
 add_subdirectory(tests)
