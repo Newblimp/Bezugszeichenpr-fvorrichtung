@@ -105,6 +105,39 @@ void ImageCanvas::onPaint(wxPaintEvent& event) {
     if (m_cachedBitmap.IsOk()) {
         dc.DrawBitmap(m_cachedBitmap, 0, 0, false);
     }
+
+#ifdef HAVE_OCR_SUPPORT
+    // Draw OCR bounding boxes
+    // Note: dc is already in scrolled coordinates after DoPrepareDC()
+    // We just need to scale by zoom factor, not apply scroll offset
+    if (!m_ocrReferences.empty()) {
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+
+        for (size_t i = 0; i < m_ocrReferences.size(); i++) {
+            const auto& ref = m_ocrReferences[i];
+
+            // Transform from image coordinates to scrolled coordinates
+            // (just scale by zoom, DC already handles scroll offset)
+            int scaledX = static_cast<int>(ref.x * m_zoomFactor);
+            int scaledY = static_cast<int>(ref.y * m_zoomFactor);
+            int scaledW = static_cast<int>(ref.width * m_zoomFactor);
+            int scaledH = static_cast<int>(ref.height * m_zoomFactor);
+
+            // Highlight selected reference
+            if (static_cast<int>(i) == m_highlightedIdx) {
+                dc.SetPen(wxPen(wxColour(255, 255, 0), 3));  // Yellow highlight
+            } else {
+                dc.SetPen(wxPen(wxColour(0, 255, 0), 2));  // Green
+            }
+
+            dc.DrawRectangle(scaledX, scaledY, scaledW, scaledH);
+
+            // Draw label
+            dc.SetTextForeground(wxColour(0, 255, 0));
+            dc.DrawText(ref.text, scaledX, scaledY - 15);
+        }
+    }
+#endif
 }
 
 void ImageCanvas::onMouseWheel(wxMouseEvent& event) {
@@ -273,3 +306,46 @@ void ImageCanvas::centerOnImagePoint(const wxPoint& imagePoint, const wxPoint& c
         Scroll(scrollX, scrollY);
     }
 }
+
+#ifdef HAVE_OCR_SUPPORT
+void ImageCanvas::setOcrResults(const std::vector<DetectedReference>& refs) {
+    m_ocrReferences = refs;
+    m_highlightedIdx = -1;
+    Refresh();
+}
+
+void ImageCanvas::clearOcrResults() {
+    m_ocrReferences.clear();
+    m_highlightedIdx = -1;
+    Refresh();
+}
+
+void ImageCanvas::highlightBoundingBox(int x, int y, int width, int height) {
+    // Find matching reference
+    for (size_t i = 0; i < m_ocrReferences.size(); i++) {
+        const auto& ref = m_ocrReferences[i];
+        if (ref.x == x && ref.y == y && ref.width == width && ref.height == height) {
+            m_highlightedIdx = static_cast<int>(i);
+            Refresh();
+
+            // Scroll to make the bounding box visible
+            // Convert image coordinates to scrolled coordinates
+            int centerX = static_cast<int>((x + width / 2) * m_zoomFactor);
+            int centerY = static_cast<int>((y + height / 2) * m_zoomFactor);
+
+            // Get client size to center the view
+            wxSize clientSize = GetClientSize();
+
+            int ppuX, ppuY;
+            GetScrollPixelsPerUnit(&ppuX, &ppuY);
+            if (ppuX > 0 && ppuY > 0) {
+                // Scroll so the center is in the middle of the viewport
+                int scrollX = (centerX - clientSize.GetWidth() / 2) / ppuX;
+                int scrollY = (centerY - clientSize.GetHeight() / 2) / ppuY;
+                Scroll(scrollX, scrollY);
+            }
+            return;
+        }
+    }
+}
+#endif // HAVE_OCR_SUPPORT

@@ -889,6 +889,12 @@ void MainWindow::onOpenImage(wxCommandEvent &event) {
   if (!m_imageViewer) {
     m_imageViewer = new ImageViewerWindow(this);
   }
+
+#ifdef HAVE_OCR_SUPPORT
+  // Pass reference database to viewer for cross-validation
+  m_imageViewer->setReferenceDatabase(&m_ctx.db);
+#endif
+
   m_imageViewer->Show();
   m_imageViewer->Raise();
 

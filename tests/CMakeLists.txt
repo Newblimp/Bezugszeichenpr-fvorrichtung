@@ -58,6 +58,29 @@ if(ENABLE_PDF_SUPPORT)
   target_include_directories(unit_tests PRIVATE ${MUPDF_INCLUDE_DIRS})
 endif()
 
+# Conditionally add OCR support for tests
+if(ENABLE_OCR_SUPPORT)
+  target_sources(unit_tests PRIVATE
+    test_ocr_engine.cpp
+    test_drawing_analyzer.cpp
+    test_reference_panel.cpp
+    ${CMAKE_SOURCE_DIR}/src/NcnnOcrEngine.cpp
+    ${CMAKE_SOURCE_DIR}/src/DrawingAnalyzer.cpp
+    ${CMAKE_SOURCE_DIR}/src/ReferencePanel.cpp
+    ${CMAKE_SOURCE_DIR}/src/ocr/yolo_detector.cpp
+    ${CMAKE_SOURCE_DIR}/src/ocr/svtr_ncnn.cpp
+    ${CMAKE_SOURCE_DIR}/src/ocr/ctc_decoder.cpp
+    ${CMAKE_SOURCE_DIR}/src/ocr/preprocessing.cpp
+  )
+  target_link_libraries(unit_tests ncnn opencv_core opencv_imgproc)
+  target_include_directories(unit_tests PRIVATE
+    ${NCNN_INCLUDE_DIRS}
+    ${OPENCV_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/ocr
+    ${CMAKE_SOURCE_DIR}/src/ocr/models
+  )
+endif()
+
 # Discover tests for CTest
 include(GoogleTest)
 gtest_discover_tests(unit_tests DISCOVERY_TIMEOUT 30)

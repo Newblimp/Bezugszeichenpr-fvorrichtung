@@ -124,6 +124,30 @@ else()
   message(STATUS "PDF support disabled")
 endif()
 
+# Optional OCR support via ncnn
+option(ENABLE_OCR_SUPPORT "Enable OCR for reference number detection in drawings" ON)
+if(ENABLE_OCR_SUPPORT)
+  message(STATUS "OCR support enabled - building ncnn and OpenCV")
+  include(cmake/NcnnExternal.cmake)
+  include(cmake/OpenCVExternal.cmake)
+  add_definitions(-DHAVE_OCR_SUPPORT=1)
+
+  set(OCR_SOURCES
+    src/ocr/yolo_detector.cpp
+    src/ocr/svtr_ncnn.cpp
+    src/ocr/ctc_decoder.cpp
+    src/ocr/preprocessing.cpp
+    src/NcnnOcrEngine.cpp
+    src/DrawingAnalyzer.cpp
+    src/ReferencePanel.cpp
+  )
+
+  include_directories(src/ocr src/ocr/models ${NCNN_INCLUDE_DIRS} ${OPENCV_INCLUDE_DIRS})
+else()
+  message(STATUS "OCR support disabled")
+  set(OCR_SOURCES "")
+endif()
+
 include_directories(include img)
 
 # Add executable target
@@ -149,6 +173,13 @@ if(ENABLE_PDF_SUPPORT)
   target_sources(Bezugszeichenvorrichtung PRIVATE src/PdfDocument.cpp)
   target_link_libraries(Bezugszeichenvorrichtung mupdf mupdf-third)
   target_include_directories(Bezugszeichenvorrichtung PRIVATE ${MUPDF_INCLUDE_DIRS})
+endif()
+
+# Conditionally add OCR support sources and libraries
+if(ENABLE_OCR_SUPPORT)
+  target_sources(Bezugszeichenvorrichtung PRIVATE ${OCR_SOURCES})
+  target_link_libraries(Bezugszeichenvorrichtung ncnn opencv_core opencv_imgproc)
+  target_include_directories(Bezugszeichenvorrichtung PRIVATE ${NCNN_INCLUDE_DIRS} ${OPENCV_INCLUDE_DIRS})
 endif()
 
 # Add tests subdirectory

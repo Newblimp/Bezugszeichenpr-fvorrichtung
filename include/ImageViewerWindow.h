@@ -8,6 +8,12 @@
 #include "ImageCanvas.h"
 #include "ImageDocument.h"
 
+#ifdef HAVE_OCR_SUPPORT
+#include "IOcrEngine.h"
+#include "DrawingAnalyzer.h"
+#include "ReferencePanel.h"
+#endif
+
 /**
  * @brief Main window for viewing images with zoom, pan, and multi-page support
  *
@@ -33,6 +39,11 @@ public:
     size_t getCurrentPage() const;
     size_t getPageCount() const;
 
+#ifdef HAVE_OCR_SUPPORT
+    // OCR support
+    void setReferenceDatabase(const ReferenceDatabase* db);
+#endif
+
 private:
     void setupUI();
     void setupMenuBar();
@@ -56,16 +67,34 @@ private:
     // Zoom update callback
     void onCanvasPaint(wxPaintEvent& event);
 
+#ifdef HAVE_OCR_SUPPORT
+    // OCR handlers
+    void onRunOcr(wxCommandEvent& event);
+    void onReferenceSelected(wxCommandEvent& event);
+    void highlightReference(const DetectedReference& ref);
+#endif
+
     // UI components
     ImageCanvas* m_canvas;
     wxToolBar* m_toolbar;
     wxStatusBar* m_statusBar;
     wxStaticText* m_pageLabel;  // "Page X / Y" display
+#ifdef HAVE_OCR_SUPPORT
+    ReferencePanel* m_referencePanel;
+#else
     wxPanel* m_referencePanelPlaceholder;  // For Phase 3
+#endif
 
     // Document state
     ImageDocument m_document;
     size_t m_currentPage{0};
+
+#ifdef HAVE_OCR_SUPPORT
+    // OCR components
+    std::unique_ptr<IOcrEngine> m_ocrEngine;
+    std::unique_ptr<DrawingAnalyzer> m_analyzer;
+    std::vector<OcrResult> m_ocrResults;  // OCR results for all pages
+#endif
 
     // Toolbar button IDs
     enum {
@@ -74,6 +103,9 @@ private:
         ID_ZOOM_IN,
         ID_ZOOM_OUT,
         ID_ZOOM_FIT,
-        ID_ZOOM_ACTUAL
+        ID_ZOOM_ACTUAL,
+#ifdef HAVE_OCR_SUPPORT
+        ID_RUN_OCR
+#endif
     };
 };

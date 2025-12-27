@@ -5,9 +5,19 @@
 #include <wx/stattext.h>
 #include <wx/sizer.h>
 
+#ifdef HAVE_OCR_SUPPORT
+#include "NcnnOcrEngine.h"
+#endif
+
 ImageViewerWindow::ImageViewerWindow(wxWindow* parent)
     : wxFrame(parent, wxID_ANY, "Image Viewer",
               wxDefaultPosition, wxSize(1024, 768)) {
+
+#ifdef HAVE_OCR_SUPPORT
+    // Initialize OCR components
+    m_ocrEngine = std::make_unique<NcnnOcrEngine>();
+    m_analyzer = std::make_unique<DrawingAnalyzer>();
+#endif
 
     setupUI();
     setupMenuBar();
@@ -29,6 +39,14 @@ void ImageViewerWindow::setupUI() {
     // Image canvas (left/main pane)
     m_canvas = new ImageCanvas(splitter);
 
+#ifdef HAVE_OCR_SUPPORT
+    // Reference panel for OCR results (right pane)
+    m_referencePanel = new ReferencePanel(splitter);
+
+    // For now, only show the canvas (unsplit)
+    splitter->Initialize(m_canvas);
+    // Will split when OCR runs: splitter->SplitVertically(m_canvas, m_referencePanel);
+#else
     // Placeholder panel for future reference signs (right pane)
     // Initially hidden, will be populated in Phase 3
     m_referencePanelPlaceholder = new wxPanel(splitter, wxID_ANY);
@@ -37,6 +55,7 @@ void ImageViewerWindow::setupUI() {
     // For now, only show the canvas (unsplit)
     splitter->Initialize(m_canvas);
     // Later in Phase 3: splitter->SplitVertically(m_canvas, m_referencePanelPlaceholder);
+#endif
 
     mainSizer->Add(splitter, 1, wxEXPAND);
     SetSizer(mainSizer);
@@ -85,13 +104,25 @@ void ImageViewerWindow::setupToolbar() {
     m_toolbar->AddTool(ID_ZOOM_FIT, "Fit", wxNullBitmap, "Fit to Window");
     m_toolbar->AddTool(ID_ZOOM_ACTUAL, "100%", wxNullBitmap, "Actual Size");
 
+#ifdef HAVE_OCR_SUPPORT
+    m_toolbar->AddSeparator();
+    m_toolbar->AddTool(ID_RUN_OCR, "Run OCR", wxNullBitmap, "Detect reference numbers in drawing");
+#endif
+
     m_toolbar->Realize();
 }
 
 void ImageViewerWindow::setupStatusBar() {
+#ifdef HAVE_OCR_SUPPORT
+    // Add 4th pane for OCR status
+    m_statusBar = CreateStatusBar(4);
+    int widths[4] = {-1, 120, 80, 100};  // Proportional, fixed, fixed, fixed
+    m_statusBar->SetStatusWidths(4, widths);
+#else
     m_statusBar = CreateStatusBar(3);
     int widths[3] = {-1, 120, 80};  // Proportional, fixed, fixed
     m_statusBar->SetStatusWidths(3, widths);
+#endif
 }
 
 void ImageViewerWindow::setupBindings() {
@@ -111,6 +142,13 @@ void ImageViewerWindow::setupBindings() {
 
     // Canvas paint event to update status bar
     m_canvas->Bind(wxEVT_PAINT, &ImageViewerWindow::onCanvasPaint, this);
+
+#ifdef HAVE_OCR_SUPPORT
+    // OCR toolbar button
+    Bind(wxEVT_MENU, &ImageViewerWindow::onRunOcr, this, ID_RUN_OCR);
+    // Reference selection event
+    Bind(EVT_REFERENCE_SELECTED, &ImageViewerWindow::onReferenceSelected, this);
+#endif
 }
 
 bool ImageViewerWindow::openFile(const wxString& path) {
@@ -165,6 +203,22 @@ void ImageViewerWindow::goToPage(size_t pageIndex) {
     updatePageDisplay();
     updateToolbarState();
     updateStatusBar();
+
+#ifdef HAVE_OCR_SUPPORT
+    // Update OCR display for new page
+    if (pageIndex < m_ocrResults.size() && m_ocrResults[pageIndex].success) {
+        // Show OCR results for this page
+        m_canvas->setOcrResults(m_ocrResults[pageIndex].references);
+        m_referencePanel->setResults(m_ocrResults[pageIndex]);
+        m_statusBar->SetStatusText(
+            wxString::Format("OCR: %zu refs", m_ocrResults[pageIndex].references.size()), 3
+        );
+    } else {
+        // Clear OCR display (no results for this page yet)
+        m_canvas->clearOcrResults();
+        m_statusBar->SetStatusText("", 3);
+    }
+#endif
 }
 
 void ImageViewerWindow::nextPage() {
@@ -312,3 +366,95 @@ void ImageViewerWindow::onCanvasPaint(wxPaintEvent& event) {
         updateStatusBar();
     });
 }
+
+#ifdef HAVE_OCR_SUPPORT
+void ImageViewerWindow::setReferenceDatabase(const ReferenceDatabase* db) {
+    m_analyzer->setReferenceDatabase(db);
+}
+
+void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
+    if (!m_document.hasPages()) {
+        wxMessageBox("No image loaded", "OCR Error", wxICON_WARNING);
+        return;
+    }
+
+    size_t pageCount = m_document.getPageCount();
+
+    // Clear previous OCR results
+    m_ocrResults.clear();
+    m_ocrResults.resize(pageCount);
+
+    wxBeginBusyCursor();
+
+    // Process all pages
+    size_t successCount = 0;
+    size_t totalRefs = 0;
+
+    for (size_t i = 0; i < pageCount; i++) {
+        // Update status bar with progress
+        m_statusBar->SetStatusText(
+            wxString::Format("Running OCR... page %zu/%zu", i + 1, pageCount), 3
+        );
+        wxYield();  // Process events to update UI
+
+        const wxImage& img = m_document.getPage(i);
+        m_ocrResults[i] = m_ocrEngine->processImage(
+            img, i, m_document.getPagePath(i)
+        );
+
+        if (m_ocrResults[i].success) {
+            // Validate results
+            m_analyzer->validateResults(m_ocrResults[i]);
+            successCount++;
+            totalRefs += m_ocrResults[i].references.size();
+        }
+    }
+
+    wxEndBusyCursor();
+
+    // Show reference panel (split if not already)
+    wxSplitterWindow* splitter = wxDynamicCast(m_canvas->GetParent(), wxSplitterWindow);
+    if (splitter && !splitter->IsSplit()) {
+        splitter->SplitVertically(m_canvas, m_referencePanel);
+        splitter->SetSashPosition(700);  // 700px for image, rest for panel
+    }
+
+    // Update display for current page
+    if (m_currentPage < m_ocrResults.size() && m_ocrResults[m_currentPage].success) {
+        m_canvas->setOcrResults(m_ocrResults[m_currentPage].references);
+        m_referencePanel->setResults(m_ocrResults[m_currentPage]);
+        m_statusBar->SetStatusText(
+            wxString::Format("OCR: %zu refs", m_ocrResults[m_currentPage].references.size()), 3
+        );
+    } else {
+        m_statusBar->SetStatusText("OCR: No results", 3);
+    }
+
+    // Show completion message
+    wxMessageBox(
+        wxString::Format("OCR completed!\n\n"
+                        "Pages processed: %zu/%zu\n"
+                        "Total references found: %zu",
+                        successCount, pageCount, totalRefs),
+        "OCR Complete",
+        wxICON_INFORMATION
+    );
+
+    // Refresh canvas to show bounding boxes
+    m_canvas->Refresh();
+}
+
+void ImageViewerWindow::onReferenceSelected(wxCommandEvent& event) {
+    int idx = event.GetInt();
+    if (m_currentPage < m_ocrResults.size() && m_ocrResults[m_currentPage].success) {
+        const auto& refs = m_ocrResults[m_currentPage].references;
+        if (idx >= 0 && idx < static_cast<int>(refs.size())) {
+            highlightReference(refs[idx]);
+        }
+    }
+}
+
+void ImageViewerWindow::highlightReference(const DetectedReference& ref) {
+    m_canvas->highlightBoundingBox(ref.x, ref.y, ref.width, ref.height);
+}
+#endif // HAVE_OCR_SUPPORT

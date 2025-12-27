@@ -4,6 +4,11 @@
 #include <wx/bitmap.h>
 #include <memory>
 
+#ifdef HAVE_OCR_SUPPORT
+#include "IOcrEngine.h"
+#include <vector>
+#endif
+
 /**
  * @brief Custom canvas widget for displaying images with zoom and pan support
  *
@@ -35,6 +40,13 @@ public:
     static constexpr double MAX_ZOOM = 10.0;  // 1000%
     static constexpr double ZOOM_STEP = 1.25; // 25% per scroll
 
+#ifdef HAVE_OCR_SUPPORT
+    // OCR overlay
+    void setOcrResults(const std::vector<DetectedReference>& refs);
+    void clearOcrResults();
+    void highlightBoundingBox(int x, int y, int width, int height);
+#endif
+
 private:
     // Event handlers
     void onPaint(wxPaintEvent& event);
@@ -64,4 +76,10 @@ private:
     bool m_isPanning{false};
     wxPoint m_panStartMouse;
     wxPoint m_panStartScroll;
+
+#ifdef HAVE_OCR_SUPPORT
+    // OCR overlay data
+    std::vector<DetectedReference> m_ocrReferences;
+    int m_highlightedIdx{-1};
+#endif
 };
