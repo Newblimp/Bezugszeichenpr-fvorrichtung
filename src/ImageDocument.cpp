@@ -118,3 +118,47 @@ bool ImageDocument::hasPages() const {
 bool ImageDocument::isValidPageIndex(size_t index) const {
     return index < m_pages.size();
 }
+
+void ImageDocument::rotatePage(size_t index, bool clockwise) {
+    if (!isValidPageIndex(index)) {
+        return;
+    }
+
+    int& rotation = m_pages[index].rotationDegrees;
+    rotation = clockwise ? (rotation + 90) % 360 : (rotation + 270) % 360;
+}
+
+int ImageDocument::getPageRotation(size_t index) const {
+    if (!isValidPageIndex(index)) {
+        return 0;
+    }
+    return m_pages[index].rotationDegrees;
+}
+
+wxImage ImageDocument::getRotatedPage(size_t index) const {
+    if (!isValidPageIndex(index)) {
+        return wxImage();
+    }
+
+    const PageInfo& page = m_pages[index];
+    if (page.rotationDegrees == 0) {
+        return page.image.Copy();
+    }
+
+    wxImage rotated = page.image.Copy();
+
+    // Apply rotation using wxImage::Rotate90
+    switch (page.rotationDegrees) {
+        case 90:
+            rotated = rotated.Rotate90(true);  // Clockwise
+            break;
+        case 180:
+            rotated = rotated.Rotate90(true).Rotate90(true);
+            break;
+        case 270:
+            rotated = rotated.Rotate90(false);  // Counter-clockwise
+            break;
+    }
+
+    return rotated;
+}

@@ -4,6 +4,7 @@
 #include <wx/statusbr.h>
 #include <wx/splitter.h>
 #include <wx/stattext.h>
+#include <wx/activityindicator.h>
 #include <memory>
 #include "ImageCanvas.h"
 #include "ImageDocument.h"
@@ -63,6 +64,8 @@ private:
     void onZoomActual(wxCommandEvent& event);
     void onNextPage(wxCommandEvent& event);
     void onPreviousPage(wxCommandEvent& event);
+    void onRotateCCW(wxCommandEvent& event);
+    void onRotateCW(wxCommandEvent& event);
 
     // Zoom update callback
     void onCanvasPaint(wxPaintEvent& event);
@@ -79,6 +82,7 @@ private:
     wxToolBar* m_toolbar;
     wxStatusBar* m_statusBar;
     wxStaticText* m_pageLabel;  // "Page X / Y" display
+    wxActivityIndicator* m_loadingIndicator;  // OCR loading animation
 #ifdef HAVE_OCR_SUPPORT
     ReferencePanel* m_referencePanel;
 #else
@@ -104,6 +108,8 @@ private:
         ID_ZOOM_OUT,
         ID_ZOOM_FIT,
         ID_ZOOM_ACTUAL,
+        ID_ROTATE_CCW,
+        ID_ROTATE_CW,
 #ifdef HAVE_OCR_SUPPORT
         ID_RUN_OCR
 #endif

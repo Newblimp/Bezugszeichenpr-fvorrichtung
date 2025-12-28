@@ -3,8 +3,10 @@
 #ifdef HAVE_OCR_SUPPORT
 
 #include <wx/panel.h>
-#include <wx/listctrl.h>
+#include <wx/treelist.h>
 #include <wx/stattext.h>
+#include <wx/imaglist.h>
+#include <memory>
 #include "IOcrEngine.h"
 
 // Event for when a reference is selected
@@ -24,8 +26,8 @@ class ReferencePanel : public wxPanel {
 public:
     explicit ReferencePanel(wxWindow* parent);
 
-    // Update display with new OCR results
-    void setResults(const OcrResult& results);
+    // Update display with new OCR results from all pages
+    void setResults(const std::vector<OcrResult>& allResults);
 
     // Clear all results
     void clear();
@@ -33,26 +35,38 @@ public:
     // Get currently selected reference index (-1 if none)
     int getSelectedReferenceIndex() const;
 
+    // Get page index and reference for selected item
+    bool getSelectedReference(size_t& outPageIndex, DetectedReference& outRef) const;
+
 private:
     void setupUI();
-    void updateStatistics(const OcrResult& results);
-    void populateList(const OcrResult& results);
-    void onItemSelected(wxListEvent& event);
-    void onItemActivated(wxListEvent& event);
+    void updateStatistics(const std::vector<OcrResult>& allResults);
+    void populateList(const std::vector<OcrResult>& allResults);
+    void onItemSelected(wxTreeListEvent& event);
+    void onItemActivated(wxTreeListEvent& event);
 
     // UI components
-    wxListView* m_listView;
+    wxTreeListCtrl* m_treeList;
     wxStaticText* m_statsLabel;
 
-    // Current results (cached for selection)
-    OcrResult m_currentResults;
+    // Image list for validation icons
+    std::shared_ptr<wxImageList> m_imageList;
+
+    // Reference list item (combines page index with reference and tree item)
+    struct ReferenceListItem {
+        size_t pageIndex;
+        DetectedReference reference;
+        wxTreeListItem treeItem;
+    };
+
+    // All references from all pages
+    std::vector<ReferenceListItem> m_allReferences;
 
     // List columns
     enum {
-        COL_BZ = 0,
-        COL_CONFIDENCE,
-        COL_STATUS,
-        COL_POSITION
+        COL_BZ = 0,        // BZ number (with icon)
+        COL_PAGE,          // Page number
+        COL_CONFIDENCE     // Confidence %
     };
 };
 

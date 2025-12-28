@@ -29,10 +29,16 @@ public:
     // Validation
     bool isValidPageIndex(size_t index) const;
 
+    // Rotation management (per-page, temporary state)
+    void rotatePage(size_t index, bool clockwise);
+    int getPageRotation(size_t index) const;
+    wxImage getRotatedPage(size_t index) const;
+
 private:
     struct PageInfo {
         wxImage image;
         std::string sourcePath;
+        int rotationDegrees{0};  // 0, 90, 180, or 270
     };
     std::vector<PageInfo> m_pages;
 };

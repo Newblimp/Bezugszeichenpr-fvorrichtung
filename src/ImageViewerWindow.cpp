@@ -104,10 +104,23 @@ void ImageViewerWindow::setupToolbar() {
     m_toolbar->AddTool(ID_ZOOM_FIT, "Fit", wxNullBitmap, "Fit to Window");
     m_toolbar->AddTool(ID_ZOOM_ACTUAL, "100%", wxNullBitmap, "Actual Size");
 
+    m_toolbar->AddSeparator();
+    m_toolbar->AddTool(ID_ROTATE_CCW, wxString::FromUTF8("↺"), wxNullBitmap, "Rotate Counter-Clockwise");
+    m_toolbar->AddTool(ID_ROTATE_CW, wxString::FromUTF8("↻"), wxNullBitmap, "Rotate Clockwise");
+
 #ifdef HAVE_OCR_SUPPORT
     m_toolbar->AddSeparator();
     m_toolbar->AddTool(ID_RUN_OCR, "Run OCR", wxNullBitmap, "Detect reference numbers in drawing");
 #endif
+
+    // Add flexible spacer to push loading indicator to right
+    m_toolbar->AddStretchableSpace();
+
+    // Add loading indicator (hidden by default)
+    m_loadingIndicator = new wxActivityIndicator(m_toolbar, wxID_ANY,
+                                                 wxDefaultPosition, wxSize(24, 24));
+    m_loadingIndicator->Hide();
+    m_toolbar->AddControl(m_loadingIndicator);
 
     m_toolbar->Realize();
 }
@@ -139,6 +152,10 @@ void ImageViewerWindow::setupBindings() {
     // Navigate menu
     Bind(wxEVT_MENU, &ImageViewerWindow::onNextPage, this, ID_NEXT_PAGE);
     Bind(wxEVT_MENU, &ImageViewerWindow::onPreviousPage, this, ID_PREV_PAGE);
+
+    // Rotation buttons
+    Bind(wxEVT_MENU, &ImageViewerWindow::onRotateCCW, this, ID_ROTATE_CCW);
+    Bind(wxEVT_MENU, &ImageViewerWindow::onRotateCW, this, ID_ROTATE_CW);
 
     // Canvas paint event to update status bar
     m_canvas->Bind(wxEVT_PAINT, &ImageViewerWindow::onCanvasPaint, this);
@@ -205,11 +222,10 @@ void ImageViewerWindow::goToPage(size_t pageIndex) {
     updateStatusBar();
 
 #ifdef HAVE_OCR_SUPPORT
-    // Update OCR display for new page
+    // Update OCR display for new page (canvas only - panel shows all pages)
     if (pageIndex < m_ocrResults.size() && m_ocrResults[pageIndex].success) {
-        // Show OCR results for this page
+        // Show OCR results for this page on canvas
         m_canvas->setOcrResults(m_ocrResults[pageIndex].references);
-        m_referencePanel->setResults(m_ocrResults[pageIndex]);
         m_statusBar->SetStatusText(
             wxString::Format("OCR: %zu refs", m_ocrResults[pageIndex].references.size()), 3
         );
@@ -249,7 +265,7 @@ void ImageViewerWindow::updateStatusBar() {
         return;
     }
 
-    const wxImage& img = m_document.getPage(m_currentPage);
+    const wxImage img = m_document.getRotatedPage(m_currentPage);
     m_statusBar->SetStatusText(
         wxString::FromUTF8(m_document.getPagePath(m_currentPage)), 0);
     m_statusBar->SetStatusText(
@@ -270,6 +286,8 @@ void ImageViewerWindow::updateToolbarState() {
     m_toolbar->EnableTool(ID_ZOOM_OUT, hasPages);
     m_toolbar->EnableTool(ID_ZOOM_FIT, hasPages);
     m_toolbar->EnableTool(ID_ZOOM_ACTUAL, hasPages);
+    m_toolbar->EnableTool(ID_ROTATE_CCW, hasPages);
+    m_toolbar->EnableTool(ID_ROTATE_CW, hasPages);
 }
 
 void ImageViewerWindow::updatePageDisplay() {
@@ -283,7 +301,7 @@ void ImageViewerWindow::updatePageDisplay() {
                                             m_currentPage + 1,
                                             m_document.getPageCount()));
 
-    const wxImage& img = m_document.getPage(m_currentPage);
+    const wxImage img = m_document.getRotatedPage(m_currentPage);
     m_canvas->setImage(img);
 }
 
@@ -367,6 +385,76 @@ void ImageViewerWindow::onCanvasPaint(wxPaintEvent& event) {
     });
 }
 
+void ImageViewerWindow::onRotateCCW(wxCommandEvent& event) {
+    if (!m_document.hasPages()) return;
+
+#ifdef HAVE_OCR_SUPPORT
+    // Check if current page has OCR results
+    bool hasOcrResults = m_currentPage < m_ocrResults.size() &&
+                         m_ocrResults[m_currentPage].success &&
+                         !m_ocrResults[m_currentPage].references.empty();
+
+    if (hasOcrResults) {
+        wxMessageDialog dialog(
+            this,
+            "Rotating this page will invalidate OCR results.\n"
+            "Please re-run OCR after rotation for accurate detection.",
+            "OCR Results Will Be Cleared",
+            wxOK | wxCANCEL | wxICON_WARNING
+        );
+
+        if (dialog.ShowModal() == wxID_CANCEL) {
+            return;
+        }
+
+        // Clear OCR results for this page
+        m_ocrResults[m_currentPage].references.clear();
+        m_ocrResults[m_currentPage].success = false;
+        m_canvas->clearOcrResults();
+    }
+#endif
+
+    // Rotate the page counter-clockwise
+    m_document.rotatePage(m_currentPage, false);
+    updatePageDisplay();
+    updateStatusBar();
+}
+
+void ImageViewerWindow::onRotateCW(wxCommandEvent& event) {
+    if (!m_document.hasPages()) return;
+
+#ifdef HAVE_OCR_SUPPORT
+    // Check if current page has OCR results
+    bool hasOcrResults = m_currentPage < m_ocrResults.size() &&
+                         m_ocrResults[m_currentPage].success &&
+                         !m_ocrResults[m_currentPage].references.empty();
+
+    if (hasOcrResults) {
+        wxMessageDialog dialog(
+            this,
+            "Rotating this page will invalidate OCR results.\n"
+            "Please re-run OCR after rotation for accurate detection.",
+            "OCR Results Will Be Cleared",
+            wxOK | wxCANCEL | wxICON_WARNING
+        );
+
+        if (dialog.ShowModal() == wxID_CANCEL) {
+            return;
+        }
+
+        // Clear OCR results for this page
+        m_ocrResults[m_currentPage].references.clear();
+        m_ocrResults[m_currentPage].success = false;
+        m_canvas->clearOcrResults();
+    }
+#endif
+
+    // Rotate the page clockwise
+    m_document.rotatePage(m_currentPage, true);
+    updatePageDisplay();
+    updateStatusBar();
+}
+
 #ifdef HAVE_OCR_SUPPORT
 void ImageViewerWindow::setReferenceDatabase(const ReferenceDatabase* db) {
     m_analyzer->setReferenceDatabase(db);
@@ -384,6 +472,11 @@ void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
     m_ocrResults.clear();
     m_ocrResults.resize(pageCount);
 
+    // Show and start loading indicator
+    m_loadingIndicator->Show();
+    m_loadingIndicator->Start();
+    m_toolbar->Realize();
+
     wxBeginBusyCursor();
 
     // Process all pages
@@ -397,7 +490,8 @@ void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
         );
         wxYield();  // Process events to update UI
 
-        const wxImage& img = m_document.getPage(i);
+        // CRITICAL: Use rotated image for OCR processing
+        const wxImage img = m_document.getRotatedPage(i);
         m_ocrResults[i] = m_ocrEngine->processImage(
             img, i, m_document.getPagePath(i)
         );
@@ -412,6 +506,11 @@ void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
 
     wxEndBusyCursor();
 
+    // Stop and hide loading indicator
+    m_loadingIndicator->Stop();
+    m_loadingIndicator->Hide();
+    m_toolbar->Realize();
+
     // Show reference panel (split if not already)
     wxSplitterWindow* splitter = wxDynamicCast(m_canvas->GetParent(), wxSplitterWindow);
     if (splitter && !splitter->IsSplit()) {
@@ -419,25 +518,19 @@ void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
         splitter->SetSashPosition(700);  // 700px for image, rest for panel
     }
 
-    // Update display for current page
+    // Update reference panel with ALL results from ALL pages
+    m_referencePanel->setResults(m_ocrResults);
+
+    // Update display for current page and show completion in status bar
     if (m_currentPage < m_ocrResults.size() && m_ocrResults[m_currentPage].success) {
         m_canvas->setOcrResults(m_ocrResults[m_currentPage].references);
-        m_referencePanel->setResults(m_ocrResults[m_currentPage]);
-        m_statusBar->SetStatusText(
-            wxString::Format("OCR: %zu refs", m_ocrResults[m_currentPage].references.size()), 3
-        );
-    } else {
-        m_statusBar->SetStatusText("OCR: No results", 3);
     }
 
-    // Show completion message
-    wxMessageBox(
-        wxString::Format("OCR completed!\n\n"
-                        "Pages processed: %zu/%zu\n"
-                        "Total references found: %zu",
-                        successCount, pageCount, totalRefs),
-        "OCR Complete",
-        wxICON_INFORMATION
+    // Update status bar with completion message (non-blocking)
+    m_statusBar->SetStatusText(
+        wxString::Format("OCR complete: %zu pages, %zu refs found",
+                        successCount, totalRefs),
+        3  // OCR status pane
     );
 
     // Refresh canvas to show bounding boxes
@@ -445,12 +538,16 @@ void ImageViewerWindow::onRunOcr(wxCommandEvent& event) {
 }
 
 void ImageViewerWindow::onReferenceSelected(wxCommandEvent& event) {
-    int idx = event.GetInt();
-    if (m_currentPage < m_ocrResults.size() && m_ocrResults[m_currentPage].success) {
-        const auto& refs = m_ocrResults[m_currentPage].references;
-        if (idx >= 0 && idx < static_cast<int>(refs.size())) {
-            highlightReference(refs[idx]);
+    // Get selected reference from unified list (which includes page index)
+    size_t pageIndex;
+    DetectedReference ref;
+    if (m_referencePanel->getSelectedReference(pageIndex, ref)) {
+        // Navigate to the page if not already there
+        if (pageIndex != m_currentPage) {
+            goToPage(pageIndex);
         }
+        // Highlight the reference
+        highlightReference(ref);
     }
 }
 

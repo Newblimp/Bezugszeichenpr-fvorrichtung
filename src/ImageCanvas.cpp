@@ -107,11 +107,16 @@ void ImageCanvas::onPaint(wxPaintEvent& event) {
     }
 
 #ifdef HAVE_OCR_SUPPORT
-    // Draw OCR bounding boxes
+    // Draw OCR bounding boxes with enhanced styling
     // Note: dc is already in scrolled coordinates after DoPrepareDC()
     // We just need to scale by zoom factor, not apply scroll offset
     if (!m_ocrReferences.empty()) {
         dc.SetBrush(*wxTRANSPARENT_BRUSH);
+
+        // Set up larger font for labels (16pt)
+        wxFont labelFont = dc.GetFont();
+        labelFont.SetPointSize(16);
+        dc.SetFont(labelFont);
 
         for (size_t i = 0; i < m_ocrReferences.size(); i++) {
             const auto& ref = m_ocrReferences[i];
@@ -123,18 +128,65 @@ void ImageCanvas::onPaint(wxPaintEvent& event) {
             int scaledW = static_cast<int>(ref.width * m_zoomFactor);
             int scaledH = static_cast<int>(ref.height * m_zoomFactor);
 
-            // Highlight selected reference
-            if (static_cast<int>(i) == m_highlightedIdx) {
-                dc.SetPen(wxPen(wxColour(255, 255, 0), 3));  // Yellow highlight
-            } else {
-                dc.SetPen(wxPen(wxColour(0, 255, 0), 2));  // Green
+            // Determine color and style based on confidence and validation
+            wxColour boxColor;
+            wxColour textColor;
+            int penWidth = 2;
+            wxPenStyle penStyle = wxPENSTYLE_SOLID;
+
+            // Low confidence: Gray with dashed border
+            if (ref.confidence < 0.5f) {
+                boxColor = wxColour(128, 128, 128);  // Gray
+                textColor = wxColour(128, 128, 128);
+                penStyle = wxPENSTYLE_SHORT_DASH;
+                penWidth = 2;
+            }
+            // High confidence: Color based on validation status
+            else {
+                using ValidationStatus = DetectedReference::ValidationStatus;
+                switch (ref.status) {
+                    case ValidationStatus::VALID:
+                        boxColor = wxColour(0, 255, 0);  // Green
+                        textColor = wxColour(0, 255, 0);
+                        break;
+                    case ValidationStatus::MISSING_IN_TEXT:
+                        boxColor = wxColour(255, 165, 0);  // Orange
+                        textColor = wxColour(255, 165, 0);
+                        break;
+                    default:  // NOT_VALIDATED, CONFLICT, etc.
+                        boxColor = wxColour(0, 255, 0);  // Default green
+                        textColor = wxColour(0, 255, 0);
+                        break;
+                }
             }
 
+            // Highlight selected reference (blue override)
+            if (static_cast<int>(i) == m_highlightedIdx) {
+                boxColor = wxColour(0, 128, 255);  // Blue
+                textColor = wxColour(0, 128, 255);
+                penWidth = 3;
+                penStyle = wxPENSTYLE_SOLID;  // Solid even if low confidence
+            }
+
+            // Draw bounding box
+            dc.SetPen(wxPen(boxColor, penWidth, penStyle));
             dc.DrawRectangle(scaledX, scaledY, scaledW, scaledH);
 
-            // Draw label
-            dc.SetTextForeground(wxColour(0, 255, 0));
-            dc.DrawText(ref.text, scaledX, scaledY - 15);
+            // Measure text dimensions for proper positioning
+            wxSize textSize = dc.GetTextExtent(ref.text);
+            int labelHeight = textSize.GetHeight();
+
+            // Position label above box with 3px gap
+            int labelY = scaledY - labelHeight - 3;
+
+            // Prevent clipping at top edge - move inside box if needed
+            if (labelY < 0) {
+                labelY = scaledY + 3;  // 3px below top edge of box
+            }
+
+            // Draw label with calculated position
+            dc.SetTextForeground(textColor);
+            dc.DrawText(ref.text, scaledX, labelY);
         }
     }
 #endif
