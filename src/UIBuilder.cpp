@@ -24,12 +24,13 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
 
     // Main text editor
     components.textBox = new wxRichTextCtrl(panel);
-    components.bzList = std::make_shared<wxRichTextCtrl>(
+    // Note: Notebook pages use raw pointers - wxNotebook takes ownership via AddPage()
+    components.bzList = new wxRichTextCtrl(
         components.notebookList, wxID_ANY, wxEmptyString,
         wxDefaultPosition, wxSize(350, -1));
 
     // Tree list for term -> BZ inverse mapping
-    components.termList = std::make_shared<wxTreeListCtrl>(
+    components.termList = new wxTreeListCtrl(
         components.notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     components.termList->AppendColumn("feature");
     components.termList->AppendColumn("reference signs");
@@ -42,15 +43,15 @@ UIBuilder::UIComponents UIBuilder::buildUI(wxFrame* parent) {
     viewSizer->Add(outputSizer, 1, wxEXPAND, 10);
 
     // Tree list for displaying BZ-term mappings
-    components.treeList = std::make_shared<wxTreeListCtrl>(
+    components.treeList = new wxTreeListCtrl(
         components.notebookList, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     components.treeList->AppendColumn("reference sign");
     components.treeList->AppendColumn("features");
 
     outputSizer->Add(components.notebookList, 3, wxEXPAND | wxALL, 10);
-    components.notebookList->AddPage(components.treeList.get(), "BZ -> feature");
-    components.notebookList->AddPage(components.termList.get(), "feature -> BZ");
-    components.notebookList->AddPage(components.bzList.get(), "reference sign list");
+    components.notebookList->AddPage(components.treeList, "BZ -> feature");
+    components.notebookList->AddPage(components.termList, "feature -> BZ");
+    components.notebookList->AddPage(components.bzList, "reference sign list");
 
     // Create navigation rows for each error type
     wxBoxSizer *allErrorsSizer = new wxBoxSizer(wxHORIZONTAL);

@@ -19,9 +19,11 @@ public:
         wxNotebook* notebookList;
         wxRichTextCtrl* textBox;
         wxRadioBox* languageSelector;
-        std::shared_ptr<wxRichTextCtrl> bzList;
-        std::shared_ptr<wxTreeListCtrl> termList;
-        std::shared_ptr<wxTreeListCtrl> treeList;
+        // Note: These are raw pointers because wxNotebook takes ownership via AddPage()
+        // Using shared_ptr would cause double-free on destruction
+        wxRichTextCtrl* bzList;
+        wxTreeListCtrl* termList;
+        wxTreeListCtrl* treeList;
 
         // Navigation buttons - All errors
         std::shared_ptr<wxButton> buttonForwardAllErrors;

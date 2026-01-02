@@ -3,7 +3,10 @@ project(Bezugszeichenvorrichtung)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_BUILD_TYPE Release)
+# Only set build type if not specified by user
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 set(wxBUILD_SHARED OFF)
 
 # Set source file encoding to UTF-8 for proper handling of German umlauts (ä, ö, ü, ß)

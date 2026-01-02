@@ -385,6 +385,9 @@ void MainWindow::setupUi() {
 }
 
 void MainWindow::setupBindings() {
+  // Window close handler - ensures clean shutdown
+  Bind(wxEVT_CLOSE_WINDOW, &MainWindow::onClose, this);
+
   // Menu bar bindings
   Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
 
@@ -888,6 +891,11 @@ void MainWindow::onAbout(wxCommandEvent &event) {
 void MainWindow::onOpenImage(wxCommandEvent &event) {
   if (!m_imageViewer) {
     m_imageViewer = new ImageViewerWindow(this);
+    // Reset pointer when viewer window is closed to avoid dangling pointer
+    m_imageViewer->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent& evt) {
+      m_imageViewer = nullptr;
+      evt.Skip();  // Allow the window to be destroyed
+    });
   }
 
 #ifdef HAVE_OCR_SUPPORT
@@ -901,6 +909,31 @@ void MainWindow::onOpenImage(wxCommandEvent &event) {
   // Trigger the file open dialog
   wxCommandEvent openEvent(wxEVT_MENU, wxID_OPEN);
   m_imageViewer->ProcessWindowEvent(openEvent);
+}
+
+void MainWindow::onClose(wxCloseEvent &event) {
+  // Stop the debounce timer first to prevent new scans from starting
+  m_debounceTimer.Stop();
+
+  // Cancel any running scan and wait for background thread to finish
+  // This is critical: CallAfter callbacks would crash if they run after destruction
+  m_cancelScan = true;
+  if (m_scanThread.joinable()) {
+    m_scanThread.request_stop();
+    m_scanThread.join();
+  }
+
+  // Clean up image viewer before MainWindow is destroyed
+  // This prevents the viewer's close handler from accessing invalid memory
+  if (m_imageViewer) {
+    // Set to null BEFORE destroying to prevent the close handler from running
+    auto* viewer = m_imageViewer;
+    m_imageViewer = nullptr;
+    viewer->Destroy();
+  }
+
+  // Allow the close to proceed
+  event.Skip();
 }
 
 std::wstring MainWindow::getFirstOccurrenceWord(const StemVector& stem) const {

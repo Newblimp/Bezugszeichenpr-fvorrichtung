@@ -86,6 +86,9 @@ private:
   // Image viewer
   void onOpenImage(wxCommandEvent &event);
 
+  // Window close handler
+  void onClose(wxCloseEvent &event);
+
     // RE2 regex patterns (optimized for performance)
     // Single word + number: captures (word)(number)
     // Pattern: word followed by whitespace and number
@@ -108,9 +111,9 @@ public:
   std::vector<std::pair<int, int>>& getWrongTermBzPositions() { return m_wrongTermBzPositions; }
   std::vector<std::pair<int, int>>& getNoNumberPositions() { return m_noNumberPositions; }
   std::shared_ptr<wxStaticText> getNoNumberLabel() { return m_noNumberLabel; }
-  std::shared_ptr<wxRichTextCtrl> getBzList() { return m_bzList; }
-  std::shared_ptr<wxTreeListCtrl> getTermList() { return m_termList; }
-  std::shared_ptr<wxTreeListCtrl> getTreeList() { return m_treeList; }
+  wxRichTextCtrl* getBzList() { return m_bzList; }
+  wxTreeListCtrl* getTermList() { return m_termList; }
+  wxTreeListCtrl* getTreeList() { return m_treeList; }
   void testToggleMultiWord(const std::wstring& stem) { toggleMultiWordTerm(stem); }
   void testClearError(const std::wstring& bz) { clearError(bz); }
   void testRestoreAllErrors() { wxCommandEvent e; onRestoreAllErrors(e); }
@@ -149,10 +152,11 @@ private:
   wxRichTextCtrl *m_textBox;
   wxRadioBox *m_languageSelector;
   void onLanguageChanged(wxCommandEvent &event);
-  std::shared_ptr<wxRichTextCtrl> m_bzList;
-  std::shared_ptr<wxTreeListCtrl> m_termList;
+  // Raw pointers - wxNotebook owns these via AddPage()
+  wxRichTextCtrl* m_bzList;
+  wxTreeListCtrl* m_termList;
   std::shared_ptr<wxImageList> m_imageList;
-  std::shared_ptr<wxTreeListCtrl> m_treeList;
+  wxTreeListCtrl* m_treeList;
   ImageViewerWindow* m_imageViewer{nullptr};
 
   // Navigation buttons
