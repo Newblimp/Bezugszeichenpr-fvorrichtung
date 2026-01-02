@@ -112,6 +112,11 @@ set(wxUSE_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_MS_HTML_HELP OFF CACHE BOOL "" FORCE)
 set(wxUSE_WXHTML_HELP OFF CACHE BOOL "" FORCE)
 
+# Use wxWidgets' builtin image libraries for full static linking
+set(wxUSE_LIBJPEG builtin CACHE STRING "" FORCE)
+set(wxUSE_LIBPNG builtin CACHE STRING "" FORCE)
+set(wxUSE_LIBTIFF builtin CACHE STRING "" FORCE)
+
 add_subdirectory(libs/wxWidgets)
 
 # Optional PDF support via muPDF
@@ -171,7 +176,9 @@ target_link_libraries(Bezugszeichenvorrichtung wx::core wx::base wx::richtext re
 # Conditionally add PDF support sources and libraries
 if(ENABLE_PDF_SUPPORT)
   target_sources(Bezugszeichenvorrichtung PRIVATE src/PdfDocument.cpp)
-  target_link_libraries(Bezugszeichenvorrichtung mupdf mupdf-third)
+  # Link order matters: wxjpeg must come BEFORE mupdf-third so that JPEG symbols
+  # are resolved from wxWidgets' libjpeg (muPDF is built with USE_SYSTEM_LIBJPEG=yes)
+  target_link_libraries(Bezugszeichenvorrichtung mupdf wxjpeg mupdf-third)
   target_include_directories(Bezugszeichenvorrichtung PRIVATE ${MUPDF_INCLUDE_DIRS})
 endif()
 
