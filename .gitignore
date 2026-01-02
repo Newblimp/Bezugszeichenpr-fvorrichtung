@@ -3,3 +3,6 @@ build/
 
 # ignore the build cache
 .cache/
+
+# ignore large OCR model weight files (users should generate/download separately)
+src/ocr/models/*_weights.h
