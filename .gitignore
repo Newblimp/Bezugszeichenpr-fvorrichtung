@@ -6,3 +6,9 @@ build/
 
 # ignore large OCR model weight files (users should generate/download separately)
 src/ocr/models/*_weights.h
+
+# ignore cmake build configuration directory (created during build)
+cmake/
+
+# ignore muPDF library (git submodule, not tracked directly)
+libs/mupdf/
